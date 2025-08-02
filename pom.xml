@@ -54,6 +54,8 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.testSource>15</maven.compiler.testSource>
+        <maven.compiler.testTarget>15</maven.compiler.testTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.15.2</jackson.version>
         <maven.compiler.release>11</maven.compiler.release>
@@ -110,7 +112,8 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
-                    <release>11</release>
+                    <testSource>15</testSource>
+                    <testTarget>15</testTarget>
                 </configuration>
             </plugin>
 
@@ -206,7 +209,7 @@
     <!-- Project Information -->
     <developers>
         <developer>
-            <name>Featurevisor Team</name>
+            <name>Fahad Heylaal</name>
             <organization>Featurevisor</organization>
             <organizationUrl>https://featurevisor.com</organizationUrl>
         </developer>
