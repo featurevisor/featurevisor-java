@@ -11,7 +11,7 @@
     <packaging>jar</packaging>
 
     <name>Featurevisor Java SDK</name>
-    <description>Java SDK for Featurevisor feature management platform</description>
+    <description>Java SDK for Featurevisor</description>
     <url>https://github.com/featurevisor/featurevisor-java</url>
 
     <!-- License Information -->
@@ -58,7 +58,6 @@
         <maven.compiler.testTarget>15</maven.compiler.testTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.15.2</jackson.version>
-        <maven.compiler.release>11</maven.compiler.release>
     </properties>
 
     <dependencies>
@@ -104,20 +103,38 @@
 
     <build>
         <plugins>
+
             <!-- Maven Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                    <testSource>15</testSource>
-                    <testTarget>15</testTarget>
-                </configuration>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <source>11</source>
+                            <target>11</target>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                        <configuration>
+                            <source>15</source>
+                            <target>15</target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
-            <!-- Maven Surefire Plugin for Tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
