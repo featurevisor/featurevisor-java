@@ -35,7 +35,7 @@ jobs:
 
       - name: Update version in pom.xml
         run: |
-          sed -i "s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
+          sed -i "/<artifactId>featurevisor-java<\/artifactId>/,/<version>/ s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
           echo "Updated pom.xml version to ${{ steps.version.outputs.version }}"
 
       - name: Build and Publish
