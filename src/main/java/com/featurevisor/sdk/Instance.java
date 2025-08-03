@@ -2,6 +2,8 @@ package com.featurevisor.sdk;
 
 import com.featurevisor.types.DatafileContent;
 import com.featurevisor.types.Feature;
+import com.featurevisor.types.EvaluatedFeature;
+import com.featurevisor.types.EvaluatedFeatures;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.HashMap;
@@ -613,7 +615,7 @@ public class Instance {
     /**
      * Get all evaluations
      */
-    public Map<String, Object> getAllEvaluations(Map<String, Object> context, List<String> featureKeys, OverrideOptions options) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys, OverrideOptions options) {
         if (context == null) {
             context = new HashMap<>();
         }
@@ -624,15 +626,15 @@ public class Instance {
             options = new OverrideOptions();
         }
 
-        Map<String, Object> result = new HashMap<>();
+        Map<String, EvaluatedFeature> result = new HashMap<>();
 
         List<String> keys = featureKeys.isEmpty() ? this.datafileReader.getFeatureKeys() : featureKeys;
         for (String featureKey : keys) {
             // isEnabled
             Evaluation flagEvaluation = evaluateFlag(featureKey, context, options);
 
-            Map<String, Object> evaluatedFeature = new HashMap<>();
-            evaluatedFeature.put("enabled", Boolean.TRUE.equals(flagEvaluation.getEnabled()));
+            EvaluatedFeature evaluatedFeature = new EvaluatedFeature();
+            evaluatedFeature.setEnabled(Boolean.TRUE.equals(flagEvaluation.getEnabled()));
 
             OverrideOptions opts = new OverrideOptions()
                 .sticky(options.getSticky())
@@ -644,7 +646,7 @@ public class Instance {
             if (this.datafileReader.hasVariations(featureKey)) {
                 Object variation = getVariation(featureKey, context, opts);
                 if (variation != null) {
-                    evaluatedFeature.put("variation", variation);
+                    evaluatedFeature.setVariation(variation.toString());
                 }
             }
 
@@ -657,75 +659,24 @@ public class Instance {
                     variables.put(variableKey, getVariable(featureKey, variableKey, context, opts));
                 }
 
-                evaluatedFeature.put("variables", variables);
+                evaluatedFeature.setVariables(variables);
             }
 
             result.put(featureKey, evaluatedFeature);
         }
 
-        return result;
+        return EvaluatedFeatures.of(result);
     }
 
-    public Map<String, Object> getAllEvaluations(Map<String, Object> context, List<String> featureKeys) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys) {
         return getAllEvaluations(context, featureKeys, null);
     }
 
-    public Map<String, Object> getAllEvaluations(Map<String, Object> context) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context) {
         return getAllEvaluations(context, null, null);
     }
 
-    public Map<String, Object> getAllEvaluations() {
-        return getAllEvaluations(getContext());
-    }
-
-    // Static factory methods for direct function-like access
-    /**
-     * Create a new Featurevisor instance with default options
-     * @return new Instance
-     */
-    public static Instance createInstance() {
-        return new Instance(new InstanceOptions());
-    }
-
-    /**
-     * Create a new Featurevisor instance with datafile
-     * @param datafile the datafile content
-     * @return new Instance
-     */
-    public static Instance createInstance(DatafileContent datafile) {
-        InstanceOptions options = new InstanceOptions();
-        options.setDatafile(datafile);
-        return new Instance(options);
-    }
-
-    /**
-     * Create a new Featurevisor instance with datafile string
-     * @param datafileString JSON string of the datafile
-     * @return new Instance
-     */
-    public static Instance createInstance(String datafileString) {
-        InstanceOptions options = new InstanceOptions();
-        options.setDatafileString(datafileString);
-        return new Instance(options);
-    }
-
-    /**
-     * Create a new Featurevisor instance with context
-     * @param context the context map
-     * @return new Instance
-     */
-    public static Instance createInstance(Map<String, Object> context) {
-        InstanceOptions options = new InstanceOptions();
-        options.setContext(context);
-        return new Instance(options);
-    }
-
-    /**
-     * Create a new Featurevisor instance with full options
-     * @param options the instance options
-     * @return new Instance
-     */
-    public static Instance createInstance(InstanceOptions options) {
-        return new Instance(options);
+    public EvaluatedFeatures getAllEvaluations() {
+        return getAllEvaluations(null, null, null);
     }
 }

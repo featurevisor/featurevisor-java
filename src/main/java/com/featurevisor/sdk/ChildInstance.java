@@ -2,6 +2,8 @@ package com.featurevisor.sdk;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import com.featurevisor.types.EvaluatedFeatures;
 
 /**
  * Child instance of Featurevisor SDK
@@ -224,7 +226,7 @@ public class ChildInstance {
         return getVariableDouble(featureKey, variableKey, null, null);
     }
 
-    public java.util.List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
         return this.parent.getVariableArray(
             featureKey,
             variableKey,
@@ -233,11 +235,11 @@ public class ChildInstance {
         );
     }
 
-    public java.util.List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context) {
+    public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context) {
         return getVariableArray(featureKey, variableKey, context, null);
     }
 
-    public java.util.List<String> getVariableArray(String featureKey, String variableKey) {
+    public List<String> getVariableArray(String featureKey, String variableKey) {
         return getVariableArray(featureKey, variableKey, null, null);
     }
 
@@ -278,7 +280,7 @@ public class ChildInstance {
     /**
      * Get all evaluations
      */
-    public Map<String, Object> getAllEvaluations(Map<String, Object> context, java.util.List<String> featureKeys, Instance.OverrideOptions options) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys, Instance.OverrideOptions options) {
         return this.parent.getAllEvaluations(
             mergeContexts(this.context, context),
             featureKeys,
@@ -286,15 +288,15 @@ public class ChildInstance {
         );
     }
 
-    public Map<String, Object> getAllEvaluations(Map<String, Object> context, java.util.List<String> featureKeys) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys) {
         return getAllEvaluations(context, featureKeys, null);
     }
 
-    public Map<String, Object> getAllEvaluations(Map<String, Object> context) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context) {
         return getAllEvaluations(context, null, null);
     }
 
-    public Map<String, Object> getAllEvaluations() {
+    public EvaluatedFeatures getAllEvaluations() {
         return getAllEvaluations(null, null, null);
     }
 

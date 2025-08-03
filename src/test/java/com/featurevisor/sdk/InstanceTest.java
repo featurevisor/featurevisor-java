@@ -1464,10 +1464,11 @@ public class InstanceTest {
         );
 
         // Test getAllEvaluations
-        Map<String, Object> evaluatedFeatures = sdk.getAllEvaluations(context);
+        com.featurevisor.types.EvaluatedFeatures evaluatedFeatures = sdk.getAllEvaluations(context);
         assertNotNull(evaluatedFeatures);
-        assertTrue(evaluatedFeatures.containsKey("test"));
-        assertTrue(evaluatedFeatures.containsKey("anotherTest"));
+        assertNotNull(evaluatedFeatures.getValue());
+        assertTrue(evaluatedFeatures.getValue().containsKey("test"));
+        assertTrue(evaluatedFeatures.getValue().containsKey("anotherTest"));
 
         assertEquals("treatment", sdk.getVariation("test", context));
         assertEquals("control", sdk.getVariation("test", Map.of(

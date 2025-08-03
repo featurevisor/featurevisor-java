@@ -324,9 +324,10 @@ public class ChildTest {
         assertTrue(childInstance.isEnabled("newFeature"));
 
         // Test getAllEvaluations
-        Map<String, Object> allEvaluations = childInstance.getAllEvaluations();
-        assertTrue(allEvaluations.containsKey("test"));
-        assertTrue(allEvaluations.containsKey("anotherTest"));
+        com.featurevisor.types.EvaluatedFeatures allEvaluations = childInstance.getAllEvaluations();
+        assertNotNull(allEvaluations.getValue());
+        assertTrue(allEvaluations.getValue().containsKey("test"));
+        assertTrue(allEvaluations.getValue().containsKey("anotherTest"));
 
         // Test close
         childInstance.close();
