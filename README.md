@@ -128,7 +128,7 @@ String datafileContent = "..." // ... load your datafile content
 DatafileContent datafile = DatafileContent.fromJson(datafileContent);
 
 // Create SDK instance
-Instance instance = new Instance(
+Instance f = new Instance(
     new Instance.InstanceOptions()
         .datafile(datafileContent)
 );
@@ -443,13 +443,30 @@ f.setLogLevel(Logger.LogLevel.DEBUG);
 You can also pass your own log handler, if you do not wish to print the logs to the console:
 
 ```java
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
-    .datafile(datafile)
-    .logLevel(Logger.LogLevel.INFO)
-    .logHandler((level, message, details) -> {
+// Create a custom logger with a custom handler
+Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
+    .level(Logger.LogLevel.INFO)
+    .handler((level, message, details) -> {
         // do something with the log
         System.out.println("[" + level + "] " + message);
     }));
+
+Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+    .datafile(datafile)
+    .logger(customLogger));
+```
+
+Alternatively, you can create a custom logger directly:
+
+```java
+Logger customLogger = new Logger(Logger.LogLevel.INFO, (level, message, details) -> {
+    // do something with the log
+    System.out.println("[" + level + "] " + message);
+});
+
+Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+    .datafile(datafile)
+    .logger(customLogger));
 ```
 
 Further log levels like `info` and `debug` will help you understand how the feature variations and variables are evaluated in the runtime against given context.
