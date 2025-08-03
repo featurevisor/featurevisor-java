@@ -64,6 +64,7 @@ For finding GitHub Package (public package):
 <repositories>
     <repository>
         <id>github</id>
+        <name>GitHub Packages</name>
         <url>https://maven.pkg.github.com/featurevisor/featurevisor-java</url>
     </repository>
 </repositories>
@@ -78,7 +79,7 @@ Add Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>0.0.3</version>
+        <version>0.0.6</version>
     </dependency>
 </dependencies>
 ```
@@ -87,9 +88,7 @@ Find latest version here: [https://github.com/featurevisor/featurevisor-java/pac
 
 ### Authentication
 
-**Note:** This package is published as a public package and should be accessible without authentication. If you encounter 401 errors, please ensure you're using the correct repository URL.
-
-If you need to authenticate with GitHub Packages (for private packages), in your `~/.m2/settings.xml` file, add the following:
+To authenticate with GitHub Packages, in your `~/.m2/settings.xml` file, add the following:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -123,7 +122,7 @@ import com.featurevisor.types.DatafileContent;
 
 // Load datafile content
 String datafileUrl = "https://cdn.yoursite.com/datafile.json";
-String datafileContent = // ... load your datafile content
+String datafileContent = "..." // ... load your datafile content
 
 // Parse the JSON into DatafileContent object
 DatafileContent datafile = DatafileContent.fromJson(datafileContent);
