@@ -307,9 +307,15 @@ f.<MyCustomClass>getVariableJSON(featureKey, variableKey, context);
 You can get evaluations of all features available in the SDK instance:
 
 ```java
-Map<String, Object> allEvaluations = f.getAllEvaluations(context);
+import com.featurevisor.types.EvaluatedFeatures;
+import com.featurevisor.types.EvaluatedFeature;
 
-System.out.println(allEvaluations);
+EvaluatedFeatures allEvaluations = f.getAllEvaluations(context);
+
+// Access the evaluations map
+Map<String, EvaluatedFeature> evaluations = allEvaluations.getValue();
+
+System.out.println(evaluations);
 // {
 //   "myFeature": {
 //     "enabled": true,
