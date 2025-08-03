@@ -58,7 +58,7 @@ In your Java application, update `pom.xml` to add the following:
 
 ### Repository
 
-For finding GitHub Package:
+For finding GitHub Package (public package):
 
 ```xml
 <repositories>
@@ -87,7 +87,9 @@ Find latest version here: [https://github.com/featurevisor/featurevisor-java/pac
 
 ### Authentication
 
-To authenticate with GitHub Packages, in your `~/.m2/settings.xml` file, add the following:
+**Note:** This package is published as a public package and should be accessible without authentication. If you encounter 401 errors, please ensure you're using the correct repository URL.
+
+If you need to authenticate with GitHub Packages (for private packages), in your `~/.m2/settings.xml` file, add the following:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>

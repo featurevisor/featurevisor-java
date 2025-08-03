@@ -58,6 +58,8 @@
         <maven.compiler.testTarget>15</maven.compiler.testTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.15.2</jackson.version>
+        <!-- GitHub Packages configuration -->
+        <github.packages.public>true</github.packages.public>
     </properties>
 
     <dependencies>
