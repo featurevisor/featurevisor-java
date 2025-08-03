@@ -7,6 +7,9 @@ This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 proje
 ## Table of contents <!-- omit in toc -->
 
 - [Installation](#installation)
+  - [Repository](#repository)
+  - [Dependency](#dependency)
+  - [Authentication](#authentication)
 - [Initialization](#initialization)
 - [Evaluation types](#evaluation-types)
 - [Context](#context)
@@ -51,22 +54,68 @@ This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 proje
 
 ## Installation
 
-In your Java application, add the dependency to your `pom.xml`:
+In your Java application, update `pom.xml` to add the following:
+
+### Repository
+
+For finding GitHub Package:
 
 ```xml
-<dependency>
-    <groupId>com.featurevisor</groupId>
-    <artifactId>featurevisor-java</artifactId>
-    <version>1.0.0</version>
-</dependency>
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/featurevisor/featurevisor-java</url>
+    </repository>
+</repositories>
 ```
+
+### Dependency
+
+Add Featurevisor Java SDK as a dependency with your desired version:
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.featurevisor</groupId>
+        <artifactId>featurevisor-java</artifactId>
+        <version>0.0.3</version>
+    </dependency>
+</dependencies>
+```
+
+Find latest version here: [https://github.com/featurevisor/featurevisor-java/packages](https://github.com/featurevisor/featurevisor-java/packages)
+
+### Authentication
+
+To authenticate with GitHub Packages, in your `~/.m2/settings.xml` file, add the following:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <servers>
+    <server>
+      <id>github</id>
+      <username>YOUR_GITHUB_USERNAME</username>
+      <password>YOUR_GITHUB_TOKEN</password>
+    </server>
+  </servers>
+
+</settings>
+```
+
+You can generate a new GitHub token with `read:packages` scope here: [https://github.com/settings/tokens](https://github.com/settings/tokens)
+
+See example application here: [https://github.com/featurevisor/featurevisor-java-example](https://github.com/featurevisor/featurevisor-java-example)
 
 ## Initialization
 
 The SDK can be initialized by passing [datafile](https://featurevisor.com/docs/building-datafiles/) content directly:
 
 ```java
-import com.featurevisor.sdk.Featurevisor;
 import com.featurevisor.sdk.Instance;
 import com.featurevisor.types.DatafileContent;
 
@@ -78,8 +127,10 @@ String datafileContent = // ... load your datafile content
 DatafileContent datafile = DatafileContent.fromJson(datafileContent);
 
 // Create SDK instance
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
-    .datafile(datafile));
+Instance instance = new Instance(
+    new Instance.InstanceOptions()
+        .datafile(datafileContent)
+);
 ```
 
 ## Evaluation types
