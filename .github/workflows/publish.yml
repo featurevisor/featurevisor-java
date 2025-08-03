@@ -35,41 +35,19 @@ jobs:
 
       - name: Update version in pom.xml
         run: |
-          sed -i "/<artifactId>featurevisor-java<\/artifactId>/,/<version>/ s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
-          echo "Updated pom.xml version to ${{ steps.version.outputs.version }}"
+          # Cross-platform sed command that works on both Linux and macOS
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS (BSD sed)
+            sed -i '' "/<artifactId>featurevisor-java<\/artifactId>/,/<version>/ s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
+          else
+            # Linux (GNU sed)
+            sed -i "/<artifactId>featurevisor-java<\/artifactId>/,/<version>/ s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
+          fi
+
+          cat pom.xml | grep '<version>'
 
       - name: Build and Publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create Maven settings for GitHub Packages authentication
-          cat > ~/.m2/settings.xml << EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                    http://maven.apache.org/xsd/settings-1.0.0.xsd">
-            <servers>
-              <server>
-                <id>github</id>
-                <username>${GITHUB_ACTOR}</username>
-                <password>${GITHUB_TOKEN}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
-
           mvn clean deploy -DskipTests
-
-      - name: Make package public
-        run: |
-          # Get the package name from pom.xml
-          PACKAGE_NAME="com.featurevisor__featurevisor-java"
-
-          # Make the package public using GitHub API
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/user/packages/maven/$PACKAGE_NAME/visibility \
-            -d '{"visibility":"public"}'
-
-          echo "Made package $PACKAGE_NAME public"
