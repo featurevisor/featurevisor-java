@@ -170,7 +170,7 @@ Map<String, Object> initialContext = new HashMap<>();
 initialContext.put("deviceId", "123");
 initialContext.put("country", "nl");
 
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+Instance f = new Instance(new Instance.InstanceOptions()
     .datafile(datafile)
     .context(initialContext));
 ```
@@ -357,7 +357,7 @@ Map<String, Object> anotherFeatureSticky = new HashMap<>();
 anotherFeatureSticky.put("enabled", false);
 stickyFeatures.put("anotherFeatureKey", anotherFeatureSticky);
 
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+Instance f = new Instance(new Instance.InstanceOptions()
     .datafile(datafile)
     .sticky(stickyFeatures));
 ```
@@ -433,7 +433,7 @@ Setting `debug` level will print out all logs, including `info`, `warn`, and `er
 ```java
 import com.featurevisor.sdk.Logger;
 
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+Instance f = new Instance(new Instance.InstanceOptions()
     .datafile(datafile)
     .logLevel(Logger.LogLevel.DEBUG));
 ```
@@ -457,7 +457,7 @@ Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
         System.out.println("[" + level + "] " + message);
     }));
 
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+Instance f = new Instance(new Instance.InstanceOptions()
     .datafile(datafile)
     .logger(customLogger));
 ```
@@ -470,7 +470,7 @@ Logger customLogger = new Logger(Logger.LogLevel.INFO, (level, message, details)
     System.out.println("[" + level + "] " + message);
 });
 
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+Instance f = new Instance(new Instance.InstanceOptions()
     .datafile(datafile)
     .logger(customLogger));
 ```
@@ -637,7 +637,7 @@ You can register hooks at the time of SDK initialization:
 List<Map<String, Object>> hooks = new ArrayList<>();
 hooks.add(myCustomHook);
 
-Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+Instance f = new Instance(new Instance.InstanceOptions()
     .datafile(datafile)
     .hooks(hooks));
 ```
