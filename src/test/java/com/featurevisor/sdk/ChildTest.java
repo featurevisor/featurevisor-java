@@ -249,7 +249,7 @@ public class ChildTest {
         Map<String, Object> parentContext = new HashMap<>();
         parentContext.put("appVersion", "1.0.0");
 
-        FeaturevisorInstance parentInstance = new FeaturevisorInstance(new FeaturevisorInstance.InstanceOptions()
+        Featurevisor parentInstance = new Featurevisor(new Featurevisor.InstanceOptions()
             .datafile(datafile)
             .context(parentContext));
 
