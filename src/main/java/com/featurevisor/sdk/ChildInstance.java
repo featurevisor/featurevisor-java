@@ -10,7 +10,7 @@ import com.featurevisor.types.EvaluatedFeatures;
  * Provides isolated context for individual requests/users
  */
 public class ChildInstance {
-    private Instance parent;
+    private FeaturevisorInstance parent;
     private Map<String, Object> context;
     private Map<String, Object> sticky;
     private Emitter emitter;
@@ -18,7 +18,7 @@ public class ChildInstance {
     /**
      * Constructor
      */
-    public ChildInstance(Instance parent, Map<String, Object> context, Map<String, Object> sticky) {
+    public ChildInstance(FeaturevisorInstance parent, Map<String, Object> context, Map<String, Object> sticky) {
         this.parent = parent;
         this.context = context != null ? new HashMap<>(context) : new HashMap<>();
         this.sticky = sticky;
@@ -103,7 +103,7 @@ public class ChildInstance {
     /**
      * Flag
      */
-    public boolean isEnabled(String featureKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public boolean isEnabled(String featureKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.isEnabled(
             featureKey,
             mergeContexts(this.context, context),
@@ -122,7 +122,7 @@ public class ChildInstance {
     /**
      * Variation
      */
-    public String getVariation(String featureKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public String getVariation(String featureKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariation(
             featureKey,
             mergeContexts(this.context, context),
@@ -141,7 +141,7 @@ public class ChildInstance {
     /**
      * Variable
      */
-    public Object getVariable(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public Object getVariable(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariable(
             featureKey,
             variableKey,
@@ -158,7 +158,7 @@ public class ChildInstance {
         return getVariable(featureKey, variableKey, null, null);
     }
 
-    public Boolean getVariableBoolean(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public Boolean getVariableBoolean(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableBoolean(
             featureKey,
             variableKey,
@@ -175,7 +175,7 @@ public class ChildInstance {
         return getVariableBoolean(featureKey, variableKey, null, null);
     }
 
-    public String getVariableString(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public String getVariableString(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableString(
             featureKey,
             variableKey,
@@ -192,7 +192,7 @@ public class ChildInstance {
         return getVariableString(featureKey, variableKey, null, null);
     }
 
-    public Integer getVariableInteger(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public Integer getVariableInteger(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableInteger(
             featureKey,
             variableKey,
@@ -209,7 +209,7 @@ public class ChildInstance {
         return getVariableInteger(featureKey, variableKey, null, null);
     }
 
-    public Double getVariableDouble(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public Double getVariableDouble(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableDouble(
             featureKey,
             variableKey,
@@ -226,7 +226,7 @@ public class ChildInstance {
         return getVariableDouble(featureKey, variableKey, null, null);
     }
 
-    public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableArray(
             featureKey,
             variableKey,
@@ -243,7 +243,7 @@ public class ChildInstance {
         return getVariableArray(featureKey, variableKey, null, null);
     }
 
-    public <T> T getVariableObject(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public <T> T getVariableObject(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableObject(
             featureKey,
             variableKey,
@@ -260,7 +260,7 @@ public class ChildInstance {
         return getVariableObject(featureKey, variableKey, null, null);
     }
 
-    public <T> T getVariableJSON(String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
+    public <T> T getVariableJSON(String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getVariableJSON(
             featureKey,
             variableKey,
@@ -280,7 +280,7 @@ public class ChildInstance {
     /**
      * Get all evaluations
      */
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys, Instance.OverrideOptions options) {
+    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys, FeaturevisorInstance.OverrideOptions options) {
         return this.parent.getAllEvaluations(
             mergeContexts(this.context, context),
             featureKeys,
@@ -313,9 +313,9 @@ public class ChildInstance {
         return merged;
     }
 
-    private Instance.OverrideOptions mergeOverrideOptions(Instance.OverrideOptions options) {
+    private FeaturevisorInstance.OverrideOptions mergeOverrideOptions(FeaturevisorInstance.OverrideOptions options) {
         if (options == null) {
-            options = new Instance.OverrideOptions();
+            options = new FeaturevisorInstance.OverrideOptions();
         }
 
         if (this.sticky != null) {

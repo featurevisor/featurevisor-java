@@ -6,7 +6,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import com.featurevisor.sdk.Featurevisor;
-import com.featurevisor.sdk.Instance;
+import com.featurevisor.sdk.FeaturevisorInstance;
 import com.featurevisor.sdk.Logger;
 import com.featurevisor.sdk.DatafileReader;
 import com.featurevisor.types.DatafileContent;
@@ -250,9 +250,9 @@ public class CLI implements Runnable {
         Map<String, Object> sticky = (Map<String, Object>) assertion.getOrDefault("sticky", new HashMap<>());
 
         // Update the SDK instance context and sticky values for this assertion
-        if (f instanceof Instance) {
-            ((Instance) f).setContext(context, true);
-            ((Instance) f).setSticky(sticky, true);
+        if (f instanceof FeaturevisorInstance) {
+            ((FeaturevisorInstance) f).setContext(context, true);
+            ((FeaturevisorInstance) f).setSticky(sticky, true);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             ((com.featurevisor.sdk.ChildInstance) f).setContext(context, true);
             ((com.featurevisor.sdk.ChildInstance) f).setSticky(sticky, true);
@@ -274,7 +274,7 @@ public class CLI implements Runnable {
 
         // Test expectedVariation
         if (assertion.containsKey("expectedVariation")) {
-            Instance.OverrideOptions options = new Instance.OverrideOptions();
+            FeaturevisorInstance.OverrideOptions options = new FeaturevisorInstance.OverrideOptions();
             if (assertion.containsKey("defaultVariationValue")) {
                 options.setDefaultVariationValue(assertion.get("defaultVariationValue").toString());
             }
@@ -308,7 +308,7 @@ public class CLI implements Runnable {
                     }
                 }
 
-                Instance.OverrideOptions options = new Instance.OverrideOptions();
+                FeaturevisorInstance.OverrideOptions options = new FeaturevisorInstance.OverrideOptions();
                 if (defaultVariableValues.containsKey(variableKey)) {
                     options.setDefaultVariableValue(defaultVariableValues.get(variableKey));
                 }
@@ -347,7 +347,7 @@ public class CLI implements Runnable {
                     if (expectedEvaluations.containsKey("variation")) {
             @SuppressWarnings("unchecked")
             Map<String, Object> variationEvaluation = (Map<String, Object>) expectedEvaluations.get("variation");
-            Instance.OverrideOptions options = new Instance.OverrideOptions();
+            FeaturevisorInstance.OverrideOptions options = new FeaturevisorInstance.OverrideOptions();
             if (assertion.containsKey("defaultVariationValue")) {
                 options.setDefaultVariationValue(assertion.get("defaultVariationValue").toString());
             }
@@ -378,7 +378,7 @@ public class CLI implements Runnable {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> expectedEvaluation = (Map<String, Object>) entry.getValue();
 
-                    Instance.OverrideOptions options = new Instance.OverrideOptions();
+                    FeaturevisorInstance.OverrideOptions options = new FeaturevisorInstance.OverrideOptions();
                     if (defaultVariableValues.containsKey(variableKey)) {
                         options.setDefaultVariableValue(defaultVariableValues.get(variableKey));
                     }
@@ -427,26 +427,26 @@ public class CLI implements Runnable {
      * Helper methods to work with both Instance and ChildInstance
      */
     private boolean isEnabled(Object f, String featureKey, Map<String, Object> context) {
-        if (f instanceof Instance) {
-            return ((Instance) f).isEnabled(featureKey, context);
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).isEnabled(featureKey, context);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             return ((com.featurevisor.sdk.ChildInstance) f).isEnabled(featureKey, context);
         }
         return false;
     }
 
-    private Object getVariation(Object f, String featureKey, Map<String, Object> context, Instance.OverrideOptions options) {
-        if (f instanceof Instance) {
-            return ((Instance) f).getVariation(featureKey, context, options);
+    private Object getVariation(Object f, String featureKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).getVariation(featureKey, context, options);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             return ((com.featurevisor.sdk.ChildInstance) f).getVariation(featureKey, context, options);
         }
         return null;
     }
 
-    private Object getVariable(Object f, String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
-        if (f instanceof Instance) {
-            return ((Instance) f).getVariable(featureKey, variableKey, context, options);
+    private Object getVariable(Object f, String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).getVariable(featureKey, variableKey, context, options);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             return ((com.featurevisor.sdk.ChildInstance) f).getVariable(featureKey, variableKey, context, options);
         }
@@ -454,8 +454,8 @@ public class CLI implements Runnable {
     }
 
     private com.featurevisor.sdk.Evaluation evaluateFlag(Object f, String featureKey, Map<String, Object> context) {
-        if (f instanceof Instance) {
-            return ((Instance) f).evaluateFlag(featureKey, context);
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).evaluateFlag(featureKey, context);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             // ChildInstance doesn't have evaluateFlag, so we'll skip this test for child instances
             return null;
@@ -463,9 +463,9 @@ public class CLI implements Runnable {
         return null;
     }
 
-    private com.featurevisor.sdk.Evaluation evaluateVariation(Object f, String featureKey, Map<String, Object> context, Instance.OverrideOptions options) {
-        if (f instanceof Instance) {
-            return ((Instance) f).evaluateVariation(featureKey, context, options);
+    private com.featurevisor.sdk.Evaluation evaluateVariation(Object f, String featureKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).evaluateVariation(featureKey, context, options);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             // ChildInstance doesn't have evaluateVariation, so we'll skip this test for child instances
             return null;
@@ -473,9 +473,9 @@ public class CLI implements Runnable {
         return null;
     }
 
-    private com.featurevisor.sdk.Evaluation evaluateVariable(Object f, String featureKey, String variableKey, Map<String, Object> context, Instance.OverrideOptions options) {
-        if (f instanceof Instance) {
-            return ((Instance) f).evaluateVariable(featureKey, variableKey, context, options);
+    private com.featurevisor.sdk.Evaluation evaluateVariable(Object f, String featureKey, String variableKey, Map<String, Object> context, FeaturevisorInstance.OverrideOptions options) {
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).evaluateVariable(featureKey, variableKey, context, options);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             // ChildInstance doesn't have evaluateVariable, so we'll skip this test for child instances
             return null;
@@ -484,8 +484,8 @@ public class CLI implements Runnable {
     }
 
     private com.featurevisor.sdk.ChildInstance spawn(Object f, Map<String, Object> context) {
-        if (f instanceof Instance) {
-            return ((Instance) f).spawn(context);
+        if (f instanceof FeaturevisorInstance) {
+            return ((FeaturevisorInstance) f).spawn(context);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             // ChildInstance doesn't have spawn, so we'll return null
             return null;
@@ -577,11 +577,11 @@ public class CLI implements Runnable {
                 return;
             }
 
-            // Create SDK instances for each environment
-            Map<String, Instance> sdkInstancesByEnvironment = new HashMap<>();
+                    // Create SDK instances for each environment
+        Map<String, FeaturevisorInstance> sdkInstancesByEnvironment = new HashMap<>();
             for (String environment : environments) {
                 DatafileContent datafile = datafilesByEnvironment.get(environment);
-                Instance instance = Featurevisor.createInstance(new Instance.InstanceOptions()
+                FeaturevisorInstance instance = Featurevisor.createInstance(new FeaturevisorInstance.InstanceOptions()
                     .datafile(datafile)
                     .logLevel(level));
                 sdkInstancesByEnvironment.put(environment, instance);
@@ -610,7 +610,7 @@ public class CLI implements Runnable {
 
                     if (test.containsKey("feature")) {
                         String environment = (String) assertion.get("environment");
-                        Instance f = sdkInstancesByEnvironment.get(environment);
+                        FeaturevisorInstance f = sdkInstancesByEnvironment.get(environment);
 
                         // If "at" parameter is provided, create a new SDK instance with the specific hook
                         if (assertion.containsKey("at")) {
@@ -631,7 +631,7 @@ public class CLI implements Runnable {
                             hooksManager.add(new HooksManager.Hook("at-parameter")
                                 .bucketValue((options) -> (int) (atValue * 1000)));
 
-                            f = Featurevisor.createInstance(new Instance.InstanceOptions()
+                            f = Featurevisor.createInstance(new FeaturevisorInstance.InstanceOptions()
                                 .datafile(datafile)
                                 .logLevel(level)
                                 .hooks(hooksManager.getAll()));
@@ -710,7 +710,7 @@ public class CLI implements Runnable {
             Logger.LogLevel level = getLoggerLevel();
             Map<String, DatafileContent> datafilesByEnvironment = buildDatafiles(rootDirectoryPath, Arrays.asList(environment));
 
-            Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+            FeaturevisorInstance f = Featurevisor.createInstance(new FeaturevisorInstance.InstanceOptions()
                 .datafile(datafilesByEnvironment.get(environment))
                 .logLevel(level));
 
@@ -773,7 +773,7 @@ public class CLI implements Runnable {
 
             Map<String, DatafileContent> datafilesByEnvironment = buildDatafiles(rootDirectoryPath, Arrays.asList(environment));
 
-            Instance f = Featurevisor.createInstance(new Instance.InstanceOptions()
+            FeaturevisorInstance f = Featurevisor.createInstance(new FeaturevisorInstance.InstanceOptions()
                 .datafile(datafilesByEnvironment.get(environment))
                 .logLevel(getLoggerLevel()));
 

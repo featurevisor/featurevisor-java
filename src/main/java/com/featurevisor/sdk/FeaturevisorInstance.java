@@ -14,7 +14,7 @@ import java.util.ArrayList;
  * Main Featurevisor SDK instance
  * Provides the primary interface for feature flag evaluation
  */
-public class Instance {
+public class FeaturevisorInstance {
     // from options
     private Map<String, Object> context = new HashMap<>();
     private Logger logger;
@@ -152,7 +152,7 @@ public class Instance {
     /**
      * Constructor
      */
-    public Instance(InstanceOptions options) {
+    public FeaturevisorInstance(InstanceOptions options) {
         // from options
         if (options.getContext() != null) {
             this.context = new HashMap<>(options.getContext());

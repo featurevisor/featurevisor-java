@@ -14,19 +14,19 @@ public class Featurevisor {
      * @param options The instance options
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(Instance.InstanceOptions options) {
+    public static FeaturevisorInstance createInstance(FeaturevisorInstance.InstanceOptions options) {
         if (options == null) {
-            options = new Instance.InstanceOptions();
+            options = new FeaturevisorInstance.InstanceOptions();
         }
-        return new Instance(options);
+        return new FeaturevisorInstance(options);
     }
 
     /**
      * Create a new Featurevisor instance with default options
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance() {
-        return createInstance(new Instance.InstanceOptions());
+    public static FeaturevisorInstance createInstance() {
+        return createInstance(new FeaturevisorInstance.InstanceOptions());
     }
 
     /**
@@ -34,8 +34,8 @@ public class Featurevisor {
      * @param datafile The datafile content
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(com.featurevisor.types.DatafileContent datafile) {
-        return createInstance(new Instance.InstanceOptions().datafile(datafile));
+    public static FeaturevisorInstance createInstance(com.featurevisor.types.DatafileContent datafile) {
+        return createInstance(new FeaturevisorInstance.InstanceOptions().datafile(datafile));
     }
 
     /**
@@ -43,8 +43,8 @@ public class Featurevisor {
      * @param datafileString The datafile as JSON string
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(String datafileString) {
-        return createInstance(new Instance.InstanceOptions().datafileString(datafileString));
+    public static FeaturevisorInstance createInstance(String datafileString) {
+        return createInstance(new FeaturevisorInstance.InstanceOptions().datafileString(datafileString));
     }
 
     /**
@@ -52,8 +52,8 @@ public class Featurevisor {
      * @param context The context map
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(Map<String, Object> context) {
-        return createInstance(new Instance.InstanceOptions().context(context));
+    public static FeaturevisorInstance createInstance(Map<String, Object> context) {
+        return createInstance(new FeaturevisorInstance.InstanceOptions().context(context));
     }
 
     /**
@@ -61,8 +61,8 @@ public class Featurevisor {
      * @param logLevel The log level
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(Logger.LogLevel logLevel) {
-        return createInstance(new Instance.InstanceOptions().logLevel(logLevel));
+    public static FeaturevisorInstance createInstance(Logger.LogLevel logLevel) {
+        return createInstance(new FeaturevisorInstance.InstanceOptions().logLevel(logLevel));
     }
 
     /**
@@ -70,8 +70,8 @@ public class Featurevisor {
      * @param logger The logger instance
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(Logger logger) {
-        return createInstance(new Instance.InstanceOptions().logger(logger));
+    public static FeaturevisorInstance createInstance(Logger logger) {
+        return createInstance(new FeaturevisorInstance.InstanceOptions().logger(logger));
     }
 
     /**
@@ -79,11 +79,11 @@ public class Featurevisor {
      * @param sticky The sticky features map
      * @return A new Featurevisor instance
      */
-    public static Instance createInstance(Map<String, Object> sticky, boolean isSticky) {
+    public static FeaturevisorInstance createInstance(Map<String, Object> sticky, boolean isSticky) {
         if (isSticky) {
-            return createInstance(new Instance.InstanceOptions().sticky(sticky));
+            return createInstance(new FeaturevisorInstance.InstanceOptions().sticky(sticky));
         } else {
-            return createInstance(new Instance.InstanceOptions().context(sticky));
+            return createInstance(new FeaturevisorInstance.InstanceOptions().context(sticky));
         }
     }
 }
