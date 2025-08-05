@@ -215,7 +215,7 @@ context.put("userId", "123");
 context.put("country", "nl");
 
 boolean isEnabled = f.isEnabled("my_feature", context);
-Object variation = f.getVariation("my_feature", context);
+String variation = f.getVariation("my_feature", context);
 String variableValue = f.getVariableString("my_feature", "my_variable", context);
 ```
 
@@ -253,7 +253,7 @@ If your feature has any [variations](https://featurevisor.com/docs/features/#var
 ```java
 String featureKey = "my_feature";
 
-Object variation = f.getVariation(featureKey);
+String variation = f.getVariation(featureKey);
 
 if ("treatment".equals(variation)) {
     // do something for treatment variation
@@ -265,7 +265,7 @@ if ("treatment".equals(variation)) {
 Additional context per evaluation can also be passed:
 
 ```java
-Object variation = f.getVariation(featureKey, additionalContext);
+String variation = f.getVariation(featureKey, additionalContext);
 ```
 
 ## Getting variables
@@ -669,7 +669,7 @@ Now you can pass the child instance where your individual request is being handl
 
 ```java
 boolean isEnabled = childF.isEnabled("my_feature");
-Object variation = childF.getVariation("my_feature");
+String variation = childF.getVariation("my_feature");
 String variableValue = childF.getVariableString("my_feature", "my_variable");
 ```
 
