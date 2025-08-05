@@ -127,6 +127,16 @@ String datafileContent = "..." // load your datafile content
 Featurevisor f = Featurevisor.createInstance(datafileContent);
 ```
 
+or by constructing a `Featurevisor.Options` object:
+
+```java
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+    .datafile(datafileContent)
+);
+```
+
+We will learn about several different options in the next sections.
+
 ## Evaluation types
 
 We can evaluate 3 types of values against a particular [feature](https://featurevisor.com/docs/features/):
