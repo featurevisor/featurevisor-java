@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class InstanceTest {
+public class FeaturevisorTest {
 
     private Logger logger;
 
