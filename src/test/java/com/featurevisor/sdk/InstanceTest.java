@@ -58,7 +58,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         // Test that the SDK was created successfully
         assertNotNull(sdk);
@@ -127,7 +127,7 @@ public class InstanceTest {
         List<HooksManager.Hook> hooks = new ArrayList<>();
         hooks.add(hook);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .hooks(hooks));
 
@@ -202,7 +202,7 @@ public class InstanceTest {
         List<HooksManager.Hook> hooks = new ArrayList<>();
         hooks.add(hook);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .hooks(hooks));
 
@@ -279,7 +279,7 @@ public class InstanceTest {
         List<HooksManager.Hook> hooks = new ArrayList<>();
         hooks.add(hook);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .hooks(hooks));
 
@@ -365,7 +365,7 @@ public class InstanceTest {
         List<HooksManager.Hook> hooks = new ArrayList<>();
         hooks.add(hook);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .hooks(hooks));
 
@@ -450,7 +450,7 @@ public class InstanceTest {
         List<HooksManager.Hook> hooks = new ArrayList<>();
         hooks.add(hook);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .hooks(hooks));
 
@@ -530,7 +530,7 @@ public class InstanceTest {
 
         sticky.put("test", testSticky);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().sticky(sticky));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().sticky(sticky));
 
         // initially control
         Map<String, Object> context = Map.of(
@@ -597,7 +597,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         // should be disabled because required is disabled
         assertFalse(sdk.isEnabled("myKey"));
@@ -645,7 +645,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk2 = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafileEnabled));
+        Featurevisor sdk2 = new Featurevisor(new Featurevisor.Options().datafile(datafileEnabled));
         assertTrue(sdk2.isEnabled("myKey"));
     }
 
@@ -716,7 +716,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         assertFalse(sdk.isEnabled("myKey"));
 
@@ -785,7 +785,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk2 = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafileDesired));
+        Featurevisor sdk2 = new Featurevisor(new Featurevisor.Options().datafile(datafileDesired));
         assertTrue(sdk2.isEnabled("myKey"));
     }
 
@@ -877,7 +877,7 @@ public class InstanceTest {
                 }
             }));
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .logger(customLogger));
 
@@ -954,7 +954,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1033,7 +1033,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1095,7 +1095,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         // Test with German user (should be enabled)
         Map<String, Object> context1 = new HashMap<>();
@@ -1192,7 +1192,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1263,7 +1263,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions()
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
             .hooks(hooks));
 
@@ -1457,7 +1457,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1576,7 +1576,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         Map<String, Object> defaultContext = Map.of(
             "userId", "123"
@@ -1643,7 +1643,7 @@ public class InstanceTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.InstanceOptions().datafile(datafile));
+        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
 
         // Test with no context (should be disabled)
         assertFalse(sdk.isEnabled("test"));

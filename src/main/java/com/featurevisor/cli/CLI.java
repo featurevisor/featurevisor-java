@@ -580,7 +580,7 @@ public class CLI implements Runnable {
         Map<String, Featurevisor> sdkInstancesByEnvironment = new HashMap<>();
             for (String environment : environments) {
                 DatafileContent datafile = datafilesByEnvironment.get(environment);
-                Featurevisor instance = Featurevisor.createInstance(new Featurevisor.InstanceOptions()
+                Featurevisor instance = Featurevisor.createInstance(new Featurevisor.Options()
                     .datafile(datafile)
                     .logLevel(level));
                 sdkInstancesByEnvironment.put(environment, instance);
@@ -630,7 +630,7 @@ public class CLI implements Runnable {
                             hooksManager.add(new HooksManager.Hook("at-parameter")
                                 .bucketValue((options) -> (int) (atValue * 1000)));
 
-                            f = Featurevisor.createInstance(new Featurevisor.InstanceOptions()
+                            f = Featurevisor.createInstance(new Featurevisor.Options()
                                 .datafile(datafile)
                                 .logLevel(level)
                                 .hooks(hooksManager.getAll()));
@@ -709,7 +709,7 @@ public class CLI implements Runnable {
             Logger.LogLevel level = getLoggerLevel();
             Map<String, DatafileContent> datafilesByEnvironment = buildDatafiles(rootDirectoryPath, Arrays.asList(environment));
 
-            Featurevisor f = Featurevisor.createInstance(new Featurevisor.InstanceOptions()
+            Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
                 .datafile(datafilesByEnvironment.get(environment))
                 .logLevel(level));
 
@@ -772,7 +772,7 @@ public class CLI implements Runnable {
 
             Map<String, DatafileContent> datafilesByEnvironment = buildDatafiles(rootDirectoryPath, Arrays.asList(environment));
 
-            Featurevisor f = Featurevisor.createInstance(new Featurevisor.InstanceOptions()
+            Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
                 .datafile(datafilesByEnvironment.get(environment))
                 .logLevel(getLoggerLevel()));
 

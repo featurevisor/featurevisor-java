@@ -118,6 +118,7 @@ The SDK can be initialized by passing [datafile](https://featurevisor.com/docs/b
 
 ```java
 import com.featurevisor.sdk.Featurevisor;
+import com.featurevisor.sdk.ChildInstance;
 import com.featurevisor.types.DatafileContent;
 
 // Load datafile content
@@ -128,8 +129,8 @@ String datafileContent = "..." // ... load your datafile content
 DatafileContent datafile = DatafileContent.fromJson(datafileContent);
 
 // Create SDK instance
-Featurevisor f = new Featurevisor(
-    new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(
+    new Featurevisor.Options()
         .datafile(datafileContent)
 );
 ```
@@ -170,7 +171,7 @@ Map<String, Object> initialContext = new HashMap<>();
 initialContext.put("deviceId", "123");
 initialContext.put("country", "nl");
 
-Featurevisor f = new Featurevisor(new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
     .context(initialContext));
 ```
@@ -357,7 +358,7 @@ Map<String, Object> anotherFeatureSticky = new HashMap<>();
 anotherFeatureSticky.put("enabled", false);
 stickyFeatures.put("anotherFeatureKey", anotherFeatureSticky);
 
-Featurevisor f = new Featurevisor(new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
     .sticky(stickyFeatures));
 ```
@@ -433,7 +434,7 @@ Setting `debug` level will print out all logs, including `info`, `warn`, and `er
 ```java
 import com.featurevisor.sdk.Logger;
 
-Featurevisor f = new Featurevisor(new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
     .logLevel(Logger.LogLevel.DEBUG));
 ```
@@ -457,7 +458,7 @@ Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
         System.out.println("[" + level + "] " + message);
     }));
 
-Featurevisor f = new Featurevisor(new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
     .logger(customLogger));
 ```
@@ -470,7 +471,7 @@ Logger customLogger = new Logger(Logger.LogLevel.INFO, (level, message, details)
     System.out.println("[" + level + "] " + message);
 });
 
-Featurevisor f = new Featurevisor(new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
     .logger(customLogger));
 ```
@@ -637,7 +638,7 @@ You can register hooks at the time of SDK initialization:
 List<Map<String, Object>> hooks = new ArrayList<>();
 hooks.add(myCustomHook);
 
-Featurevisor f = new Featurevisor(new Featurevisor.InstanceOptions()
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
     .hooks(hooks));
 ```
@@ -662,7 +663,7 @@ That's where child instances come in handy:
 Map<String, Object> childContext = new HashMap<>();
 childContext.put("userId", "123");
 
-Featurevisor childF = f.spawn(childContext);
+ChildInstance childF = f.spawn(childContext);
 ```
 
 Now you can pass the child instance where your individual request is being handled, and you can continue to evaluate features targeting that specific user alone:

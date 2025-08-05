@@ -36,9 +36,51 @@ public class Featurevisor {
     }
 
     /**
+     * Factory methods
+     */
+    public static Featurevisor createInstance(Options options) {
+        if (options == null) {
+            options = new Options();
+        }
+        return new Featurevisor(options);
+    }
+
+    public static Featurevisor createInstance() {
+        return createInstance(new Options());
+    }
+
+    public static Featurevisor createInstance(com.featurevisor.types.DatafileContent datafile) {
+        return createInstance(new Options().datafile(datafile));
+    }
+
+    public static Featurevisor createInstance(String datafileString) {
+        return createInstance(new Options().datafileString(datafileString));
+    }
+
+    public static Featurevisor createInstance(Map<String, Object> context) {
+        return createInstance(new Options().context(context));
+    }
+
+    public static Featurevisor createInstance(Logger.LogLevel logLevel) {
+        return createInstance(new Options().logLevel(logLevel));
+    }
+
+    public static Featurevisor createInstance(Logger logger) {
+        return createInstance(new Options().logger(logger));
+    }
+
+    public static Featurevisor createInstance(Map<String, Object> sticky, boolean isSticky) {
+        if (isSticky) {
+            return createInstance(new Options().sticky(sticky));
+        } else {
+            return createInstance(new Options().context(sticky));
+        }
+    }
+
+    /**
      * Options for creating an instance
      */
-    public static class InstanceOptions {
+    public static class Options {
         private DatafileContent datafile;
         private String datafileString;
         private Map<String, Object> context;
@@ -47,7 +89,7 @@ public class Featurevisor {
         private Map<String, Object> sticky;
         private List<HooksManager.Hook> hooks;
 
-        public InstanceOptions() {}
+        public Options() {}
 
         // Getters
         public DatafileContent getDatafile() { return datafile; }
@@ -68,37 +110,37 @@ public class Featurevisor {
         public void setHooks(List<HooksManager.Hook> hooks) { this.hooks = hooks; }
 
         // Builder pattern methods
-        public InstanceOptions datafile(DatafileContent datafile) {
+        public Options datafile(DatafileContent datafile) {
             this.datafile = datafile;
             return this;
         }
 
-        public InstanceOptions datafileString(String datafileString) {
+        public Options datafileString(String datafileString) {
             this.datafileString = datafileString;
             return this;
         }
 
-        public InstanceOptions context(Map<String, Object> context) {
+        public Options context(Map<String, Object> context) {
             this.context = context;
             return this;
         }
 
-        public InstanceOptions logLevel(Logger.LogLevel logLevel) {
+        public Options logLevel(Logger.LogLevel logLevel) {
             this.logLevel = logLevel;
             return this;
         }
 
-        public InstanceOptions logger(Logger logger) {
+        public Options logger(Logger logger) {
             this.logger = logger;
             return this;
         }
 
-        public InstanceOptions sticky(Map<String, Object> sticky) {
+        public Options sticky(Map<String, Object> sticky) {
             this.sticky = sticky;
             return this;
         }
 
-        public InstanceOptions hooks(List<HooksManager.Hook> hooks) {
+        public Options hooks(List<HooksManager.Hook> hooks) {
             this.hooks = hooks;
             return this;
         }
@@ -152,7 +194,7 @@ public class Featurevisor {
     /**
      * Constructor
      */
-    public Featurevisor(InstanceOptions options) {
+    public Featurevisor(Options options) {
         // from options
         if (options.getContext() != null) {
             this.context = new HashMap<>(options.getContext());
@@ -192,48 +234,6 @@ public class Featurevisor {
         }
 
         this.logger.info("Featurevisor SDK initialized", null);
-    }
-
-    /**
-     * Factory methods
-     */
-    public static Featurevisor createInstance(InstanceOptions options) {
-        if (options == null) {
-            options = new InstanceOptions();
-        }
-        return new Featurevisor(options);
-    }
-
-    public static Featurevisor createInstance() {
-        return createInstance(new InstanceOptions());
-    }
-
-    public static Featurevisor createInstance(com.featurevisor.types.DatafileContent datafile) {
-        return createInstance(new InstanceOptions().datafile(datafile));
-    }
-
-    public static Featurevisor createInstance(String datafileString) {
-        return createInstance(new InstanceOptions().datafileString(datafileString));
-    }
-
-    public static Featurevisor createInstance(Map<String, Object> context) {
-        return createInstance(new InstanceOptions().context(context));
-    }
-
-    public static Featurevisor createInstance(Logger.LogLevel logLevel) {
-        return createInstance(new InstanceOptions().logLevel(logLevel));
-    }
-
-    public static Featurevisor createInstance(Logger logger) {
-        return createInstance(new InstanceOptions().logger(logger));
-    }
-
-    public static Featurevisor createInstance(Map<String, Object> sticky, boolean isSticky) {
-        if (isSticky) {
-            return createInstance(new InstanceOptions().sticky(sticky));
-        } else {
-            return createInstance(new InstanceOptions().context(sticky));
-        }
     }
 
     /**
