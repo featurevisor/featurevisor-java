@@ -124,10 +124,7 @@ String datafileUrl = "https://cdn.yoursite.com/datafile.json";
 String datafileContent = "..." // load your datafile content
 
 // Create SDK instance
-Featurevisor f = Featurevisor.createInstance(
-    new Featurevisor.Options()
-        .datafile(datafileContent)
-);
+Featurevisor f = Featurevisor.createInstance(datafileContent);
 ```
 
 ## Evaluation types
@@ -167,7 +164,7 @@ initialContext.put("deviceId", "123");
 initialContext.put("country", "nl");
 
 Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
+    .datafile(datafileContent)
     .context(initialContext));
 ```
 
