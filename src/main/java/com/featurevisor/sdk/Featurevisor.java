@@ -49,7 +49,7 @@ public class Featurevisor {
         return createInstance(new Options());
     }
 
-    public static Featurevisor createInstance(com.featurevisor.types.DatafileContent datafile) {
+    public static Featurevisor createInstance(DatafileContent datafile) {
         return createInstance(new Options().datafile(datafile));
     }
 
@@ -223,8 +223,7 @@ public class Featurevisor {
                 .logger(this.logger));
         } else if (options.getDatafileString() != null) {
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                DatafileContent datafile = mapper.readValue(options.getDatafileString(), DatafileContent.class);
+                DatafileContent datafile = DatafileContent.fromJson(options.getDatafileString());
                 this.datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
                     .datafile(datafile)
                     .logger(this.logger));
@@ -269,8 +268,7 @@ public class Featurevisor {
      */
     public void setDatafile(String datafileString) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            DatafileContent datafile = mapper.readValue(datafileString, DatafileContent.class);
+            DatafileContent datafile = DatafileContent.fromJson(datafileString);
             setDatafile(datafile);
         } catch (Exception e) {
             this.logger.error("could not parse datafile string", Map.of("error", e.getMessage()));

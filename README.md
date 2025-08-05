@@ -118,15 +118,10 @@ The SDK can be initialized by passing [datafile](https://featurevisor.com/docs/b
 
 ```java
 import com.featurevisor.sdk.Featurevisor;
-import com.featurevisor.sdk.ChildInstance;
-import com.featurevisor.types.DatafileContent;
 
 // Load datafile content
 String datafileUrl = "https://cdn.yoursite.com/datafile.json";
-String datafileContent = "..." // ... load your datafile content
-
-// Parse the JSON into DatafileContent object
-DatafileContent datafile = DatafileContent.fromJson(datafileContent);
+String datafileContent = "..." // load your datafile content
 
 // Create SDK instance
 Featurevisor f = Featurevisor.createInstance(
