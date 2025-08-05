@@ -40,13 +40,54 @@ public class FeaturevisorTest {
     }
 
     @Test
+    public void testCreateInstanceWithNoParameters() {
+        // Test the simplest createInstance() method
+        Featurevisor sdk = Featurevisor.createInstance();
+
+        assertNotNull(sdk);
+        // Should have default logger and empty datafile
+        assertNotNull(sdk.getRevision());
+        assertNull(sdk.getVariation("nonExistentFeature"));
+    }
+
+    @Test
     public void testCreateInstanceWithDatafileContent() {
         // Create datafile content using JSON string for better readability
         String datafileJson = """
             {
               "schemaVersion": "2",
               "revision": "1.0",
-              "features": {},
+              "features": {
+                "test": {
+                  "key": "test",
+                  "bucketBy": "userId",
+                  "variations": [
+                    {
+                      "value": "control"
+                    },
+                    {
+                      "value": "treatment"
+                    }
+                  ],
+                  "traffic": [
+                    {
+                      "key": "1",
+                      "segments": "*",
+                      "percentage": 100000,
+                      "allocation": [
+                        {
+                          "variation": "control",
+                          "range": [0, 100000]
+                        },
+                        {
+                          "variation": "treatment",
+                          "range": [0, 0]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
               "segments": {}
             }""";
 
@@ -58,12 +99,229 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        // Test createInstance with DatafileContent
+        Featurevisor sdk = Featurevisor.createInstance(datafile);
 
-        // Test that the SDK was created successfully
         assertNotNull(sdk);
-        // Test that getVariation returns null for non-existent feature (which is expected behavior)
+        assertEquals("1.0", sdk.getRevision());
+        assertEquals("control", sdk.getVariation("test", Map.of("userId", "123")));
+    }
+
+    @Test
+    public void testCreateInstanceWithDatafileString() {
+        // Test createInstance with datafile string
+        String datafileJson = """
+            {
+              "schemaVersion": "2",
+              "revision": "2.0",
+              "features": {
+                "test": {
+                  "key": "test",
+                  "bucketBy": "userId",
+                  "variations": [
+                    {
+                      "value": "control"
+                    },
+                    {
+                      "value": "treatment"
+                    }
+                  ],
+                  "traffic": [
+                    {
+                      "key": "1",
+                      "segments": "*",
+                      "percentage": 100000,
+                      "allocation": [
+                        {
+                          "variation": "control",
+                          "range": [0, 0]
+                        },
+                        {
+                          "variation": "treatment",
+                          "range": [0, 100000]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "segments": {}
+            }""";
+
+        // Test createInstance with datafile string
+        Featurevisor sdk = Featurevisor.createInstance(datafileJson);
+
+        assertNotNull(sdk);
+        assertEquals("2.0", sdk.getRevision());
+        assertEquals("treatment", sdk.getVariation("test", Map.of("userId", "123")));
+    }
+
+    @Test
+    public void testCreateInstanceWithContext() {
+        // Test createInstance with context
+        Map<String, Object> context = Map.of(
+            "userId", "123",
+            "country", "us"
+        );
+
+        Featurevisor sdk = Featurevisor.createInstance(context);
+
+        assertNotNull(sdk);
+        // Context should be set
+        Map<String, Object> retrievedContext = sdk.getContext();
+        assertEquals("123", retrievedContext.get("userId"));
+        assertEquals("us", retrievedContext.get("country"));
+    }
+
+    @Test
+    public void testCreateInstanceWithLogLevel() {
+        // Test createInstance with log level
+        Featurevisor sdk = Featurevisor.createInstance(Logger.LogLevel.DEBUG);
+
+        assertNotNull(sdk);
+        // The logger should be set with DEBUG level
+        // We can't directly access the logger level, but we can verify the instance was created
+        assertNotNull(sdk.getRevision());
+    }
+
+    @Test
+    public void testCreateInstanceWithLogger() {
+        // Test createInstance with custom logger
+        Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
+            .level(Logger.LogLevel.ERROR)
+            .handler((level, message, details) -> {
+                // Custom handler
+            }));
+
+        Featurevisor sdk = Featurevisor.createInstance(customLogger);
+
+        assertNotNull(sdk);
+        // The custom logger should be used
+        assertNotNull(sdk.getRevision());
+    }
+
+    @Test
+    public void testCreateInstanceWithStickyFeatures() {
+        // Test createInstance with sticky features (isSticky = true)
+        Map<String, Object> sticky = new HashMap<>();
+        Map<String, Object> testSticky = new HashMap<>();
+        testSticky.put("enabled", true);
+        testSticky.put("variation", "control");
+        sticky.put("test", testSticky);
+
+        Featurevisor sdk = Featurevisor.createInstance(sticky, true);
+
+        assertNotNull(sdk);
+        // Sticky features should be set
+        assertEquals("control", sdk.getVariation("test", Map.of("userId", "123")));
+    }
+
+    @Test
+    public void testCreateInstanceWithContextAsSticky() {
+        // Test createInstance with context as sticky (isSticky = false)
+        Map<String, Object> context = Map.of(
+            "userId", "123",
+            "country", "us"
+        );
+
+        Featurevisor sdk = Featurevisor.createInstance(context, false);
+
+        assertNotNull(sdk);
+        // Context should be set (not sticky)
+        Map<String, Object> retrievedContext = sdk.getContext();
+        assertEquals("123", retrievedContext.get("userId"));
+        assertEquals("us", retrievedContext.get("country"));
+    }
+
+    @Test
+    public void testCreateInstanceWithNullOptions() {
+        // Test createInstance with null options (should use defaults)
+        Featurevisor sdk = Featurevisor.createInstance((Featurevisor.Options) null);
+
+        assertNotNull(sdk);
+        assertNotNull(sdk.getRevision());
+    }
+
+    @Test
+    public void testCreateInstanceWithInvalidDatafileString() {
+        // Test createInstance with invalid datafile string
+        String invalidJson = "{ invalid json }";
+
+        // Should not throw exception, but should log error
+        Featurevisor sdk = Featurevisor.createInstance(invalidJson);
+
+        assertNotNull(sdk);
+        // Should have default empty datafile
         assertNull(sdk.getVariation("test"));
+    }
+
+    @Test
+    public void testCreateInstanceWithOptionsBuilder() {
+        // Test createInstance with Options builder pattern
+        String datafileJson = """
+            {
+              "schemaVersion": "2",
+              "revision": "3.0",
+              "features": {
+                "test": {
+                  "key": "test",
+                  "bucketBy": "userId",
+                  "variations": [
+                    {
+                      "value": "control"
+                    },
+                    {
+                      "value": "treatment"
+                    }
+                  ],
+                  "traffic": [
+                    {
+                      "key": "1",
+                      "segments": "*",
+                      "percentage": 100000,
+                      "allocation": [
+                        {
+                          "variation": "control",
+                          "range": [0, 100000]
+                        },
+                        {
+                          "variation": "treatment",
+                          "range": [0, 0]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "segments": {}
+            }""";
+
+        DatafileContent datafile;
+        try {
+            datafile = DatafileContent.fromJson(datafileJson);
+        } catch (Exception e) {
+            fail("Failed to parse datafile JSON: " + e.getMessage());
+            return;
+        }
+
+        Map<String, Object> context = Map.of("userId", "123");
+        Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.INFO));
+
+        // Test with Options builder
+        Featurevisor.Options options = new Featurevisor.Options()
+            .datafile(datafile)
+            .context(context)
+            .logger(customLogger);
+
+        Featurevisor sdk = Featurevisor.createInstance(options);
+
+        assertNotNull(sdk);
+        assertEquals("3.0", sdk.getRevision());
+        assertEquals("control", sdk.getVariation("test", context));
+
+        // Context should be set
+        Map<String, Object> retrievedContext = sdk.getContext();
+        assertEquals("123", retrievedContext.get("userId"));
     }
 
     @Test
