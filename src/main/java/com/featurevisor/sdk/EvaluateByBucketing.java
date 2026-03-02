@@ -292,12 +292,62 @@ public class EvaluateByBucketing {
 
             // variable
             if (Evaluation.TYPE_VARIABLE.equals(type) && variableKey != null) {
-                // override from rule
+                // override from rule via variableOverrides (higher precedence than variables)
+                if (matchedTraffic.getVariableOverrides() != null &&
+                    matchedTraffic.getVariableOverrides().containsKey(variableKey)) {
+
+                    List<VariableOverride> overrides = matchedTraffic.getVariableOverrides().get(variableKey);
+                    for (int overrideIndex = 0; overrideIndex < overrides.size(); overrideIndex++) {
+                        VariableOverride override = overrides.get(overrideIndex);
+                        boolean matches = false;
+
+                        if (override.getConditions() != null) {
+                            Object conditions = override.getConditions();
+                            if (conditions instanceof String && !"*".equals(conditions)) {
+                                try {
+                                    conditions = new com.fasterxml.jackson.databind.ObjectMapper()
+                                        .readValue((String) conditions, Object.class);
+                                } catch (Exception ignored) {
+                                    conditions = override.getConditions();
+                                }
+                            }
+
+                            matches = datafileReader.allConditionsAreMatched(conditions, context);
+                        } else if (override.getSegments() != null) {
+                            Object parsedSegments = datafileReader.parseSegmentsIfStringified(override.getSegments());
+                            matches = datafileReader.allSegmentsAreMatched(parsedSegments, context);
+                        }
+
+                        if (matches) {
+                            Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
+                                .reason(Evaluation.REASON_VARIABLE_OVERRIDE_RULE)
+                                .bucketKey(bucketKey)
+                                .bucketValue(bucketValue)
+                                .ruleKey(matchedTraffic.getKey())
+                                .traffic(convertTrafficToMap(matchedTraffic))
+                                .variableValue(override.getValue())
+                                .variableSchema(variableSchema)
+                                .variableOverrideIndex(overrideIndex);
+
+                            Map<String, Object> details = new HashMap<>();
+                            details.put("featureKey", featureKey);
+                            details.put("variableKey", variableKey);
+                            details.put("bucketKey", bucketKey);
+                            details.put("bucketValue", bucketValue);
+                            logger.debug("variable override from rule", details);
+
+                            result.setEvaluation(evaluation);
+                            return result;
+                        }
+                    }
+                }
+
+                // override from rule via direct variables map
                 if (matchedTraffic.getVariables() != null && matchedTraffic.getVariables().containsKey(variableKey)) {
                     Object variableValue = matchedTraffic.getVariables().get(variableKey);
 
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
-                        .reason(Evaluation.REASON_VARIABLE_OVERRIDE)
+                        .reason(Evaluation.REASON_RULE)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic.getKey())
@@ -342,12 +392,22 @@ public class EvaluateByBucketing {
                         variation.getVariableOverrides().containsKey(variableKey)) {
 
                         List<VariableOverride> overrides = variation.getVariableOverrides().get(variableKey);
-                        for (VariableOverride override : overrides) {
+                        for (int overrideIndex = 0; overrideIndex < overrides.size(); overrideIndex++) {
+                            VariableOverride override = overrides.get(overrideIndex);
                             boolean matches = false;
 
                             // Check conditions
                             if (override.getConditions() != null) {
-                                matches = datafileReader.allConditionsAreMatched(override.getConditions(), context);
+                                Object conditions = override.getConditions();
+                                if (conditions instanceof String && !"*".equals(conditions)) {
+                                    try {
+                                        conditions = new com.fasterxml.jackson.databind.ObjectMapper()
+                                            .readValue((String) conditions, Object.class);
+                                    } catch (Exception ignored) {
+                                        conditions = override.getConditions();
+                                    }
+                                }
+                                matches = datafileReader.allConditionsAreMatched(conditions, context);
                             }
                             // Check segments
                             else if (override.getSegments() != null) {
@@ -357,13 +417,14 @@ public class EvaluateByBucketing {
 
                             if (matches) {
                                 Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
-                                    .reason(Evaluation.REASON_VARIABLE_OVERRIDE)
+                                    .reason(Evaluation.REASON_VARIABLE_OVERRIDE_VARIATION)
                                     .bucketKey(bucketKey)
                                     .bucketValue(bucketValue)
                                     .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
                                     .traffic(matchedTraffic != null ? convertTrafficToMap(matchedTraffic) : null)
                                     .variableValue(override.getValue())
-                                    .variableSchema(variableSchema);
+                                    .variableSchema(variableSchema)
+                                    .variableOverrideIndex(overrideIndex);
 
                                 Map<String, Object> details = new HashMap<>();
                                 details.put("featureKey", featureKey);
@@ -477,6 +538,7 @@ public class EvaluateByBucketing {
             map.put("enabled", traffic.getEnabled());
             map.put("variation", traffic.getVariation());
             map.put("variables", traffic.getVariables());
+            map.put("variableOverrides", traffic.getVariableOverrides());
             map.put("variationWeights", traffic.getVariationWeights());
             map.put("allocation", traffic.getAllocation());
         }

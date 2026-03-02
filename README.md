@@ -305,6 +305,36 @@ f.<Map<String, Object>>getVariableJSON(featureKey, variableKey, context);
 f.<MyCustomClass>getVariableJSON(featureKey, variableKey, context);
 ```
 
+For strongly typed decoding, additional overloads are available:
+
+```java
+import com.fasterxml.jackson.core.type.TypeReference;
+
+// Array decoding using Class<T>
+List<MyItem> items = f.getVariableArray(featureKey, variableKey, context, MyItem.class);
+
+// Array decoding using TypeReference
+List<Map<String, Object>> rows = f.getVariableArray(
+    featureKey,
+    variableKey,
+    context,
+    new TypeReference<List<Map<String, Object>>>() {}
+);
+
+// Object decoding using Class<T>
+MyConfig config = f.getVariableObject(featureKey, variableKey, context, MyConfig.class);
+
+// Object decoding using TypeReference
+Map<String, List<MyConfig>> nested = f.getVariableObject(
+    featureKey,
+    variableKey,
+    context,
+    new TypeReference<Map<String, List<MyConfig>>>() {}
+);
+```
+
+Typed overloads are additive and non-breaking. If decoding fails for the requested target type, these methods return `null`.
+
 ## Getting all evaluations
 
 You can get evaluations of all features available in the SDK instance:
@@ -717,8 +747,15 @@ $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --
 Additional options that are available:
 
 ```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1"
+$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1 --with-tags --with-scopes --showDatafile --schemaVersion=2 --inflate=1"
 ```
+
+Scoped and tagged test behavior mirrors the JavaScript tester:
+
+- `--with-tags`: builds and tests assertions against tagged datafiles.
+- `--with-scopes`: builds scoped datafiles and tests scoped assertions against those scoped files.
+- without `--with-scopes`: scoped assertions still run by merging scope context into assertion context (fallback behavior).
+- if both `scope` and `tag` are present in an assertion, scope datafile takes precedence.
 
 ### Benchmark
 

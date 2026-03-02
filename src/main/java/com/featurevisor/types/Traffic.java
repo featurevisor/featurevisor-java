@@ -23,6 +23,9 @@ public class Traffic {
     @JsonProperty("variables")
     private Map<String, Object> variables;
 
+    @JsonProperty("variableOverrides")
+    private Map<String, List<VariableOverride>> variableOverrides;
+
     @JsonProperty("variationWeights")
     private Map<String, Integer> variationWeights;
 
@@ -83,6 +86,14 @@ public class Traffic {
 
     public void setVariables(Map<String, Object> variables) {
         this.variables = variables;
+    }
+
+    public Map<String, List<VariableOverride>> getVariableOverrides() {
+        return variableOverrides;
+    }
+
+    public void setVariableOverrides(Map<String, List<VariableOverride>> variableOverrides) {
+        this.variableOverrides = variableOverrides;
     }
 
     public Map<String, Integer> getVariationWeights() {

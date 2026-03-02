@@ -4,6 +4,7 @@ import com.featurevisor.types.DatafileContent;
 import com.featurevisor.types.Feature;
 import com.featurevisor.types.EvaluatedFeature;
 import com.featurevisor.types.EvaluatedFeatures;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.HashMap;
@@ -615,11 +616,11 @@ public class Featurevisor {
     }
 
     public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context) {
-        return getVariableArray(featureKey, variableKey, context, null);
+        return getVariableArray(featureKey, variableKey, context, (OverrideOptions) null);
     }
 
     public List<String> getVariableArray(String featureKey, String variableKey) {
-        return getVariableArray(featureKey, variableKey, null, null);
+        return getVariableArray(featureKey, variableKey, null, (OverrideOptions) null);
     }
 
     @SuppressWarnings("unchecked")
@@ -629,11 +630,11 @@ public class Featurevisor {
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey, Map<String, Object> context) {
-        return getVariableObject(featureKey, variableKey, context, null);
+        return getVariableObject(featureKey, variableKey, context, (OverrideOptions) null);
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey) {
-        return getVariableObject(featureKey, variableKey, null, null);
+        return getVariableObject(featureKey, variableKey, null, (OverrideOptions) null);
     }
 
     @SuppressWarnings("unchecked")
@@ -648,6 +649,142 @@ public class Featurevisor {
 
     public <T> T getVariableJSON(String featureKey, String variableKey) {
         return getVariableJSON(featureKey, variableKey, null, null);
+    }
+
+    public <T> List<T> getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        Class<T> itemType
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object arrayValue = Helpers.getValueByType(variableValue, "array");
+        if (arrayValue == null) {
+            return null;
+        }
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.convertValue(
+                arrayValue,
+                mapper.getTypeFactory().constructCollectionType(List.class, itemType)
+            );
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> List<T> getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Class<T> itemType
+    ) {
+        return getVariableArray(featureKey, variableKey, context, null, itemType);
+    }
+
+    public <T> List<T> getVariableArray(String featureKey, String variableKey, Class<T> itemType) {
+        return getVariableArray(featureKey, variableKey, null, null, itemType);
+    }
+
+    public <T> T getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        TypeReference<T> typeRef
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object arrayValue = Helpers.getValueByType(variableValue, "array");
+        if (arrayValue == null) {
+            return null;
+        }
+
+        try {
+            return new ObjectMapper().convertValue(arrayValue, typeRef);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> T getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        TypeReference<T> typeRef
+    ) {
+        return getVariableArray(featureKey, variableKey, context, null, typeRef);
+    }
+
+    public <T> T getVariableArray(String featureKey, String variableKey, TypeReference<T> typeRef) {
+        return getVariableArray(featureKey, variableKey, null, null, typeRef);
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        Class<T> type
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object objectValue = Helpers.getValueByType(variableValue, "object");
+        if (objectValue == null) {
+            return null;
+        }
+
+        try {
+            return new ObjectMapper().convertValue(objectValue, type);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Class<T> type
+    ) {
+        return getVariableObject(featureKey, variableKey, context, null, type);
+    }
+
+    public <T> T getVariableObject(String featureKey, String variableKey, Class<T> type) {
+        return getVariableObject(featureKey, variableKey, null, null, type);
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        TypeReference<T> typeRef
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object objectValue = Helpers.getValueByType(variableValue, "object");
+        if (objectValue == null) {
+            return null;
+        }
+
+        try {
+            return new ObjectMapper().convertValue(objectValue, typeRef);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        TypeReference<T> typeRef
+    ) {
+        return getVariableObject(featureKey, variableKey, context, null, typeRef);
+    }
+
+    public <T> T getVariableObject(String featureKey, String variableKey, TypeReference<T> typeRef) {
+        return getVariableObject(featureKey, variableKey, null, null, typeRef);
     }
 
     /**
