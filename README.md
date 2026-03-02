@@ -52,6 +52,8 @@ This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 proje
   - [Releasing](#releasing)
 - [License](#license)
 
+<!-- FEATUREVISOR_DOCS_BEGIN -->
+
 ## Installation
 
 In your Java application, update `pom.xml` to add the following:
@@ -79,7 +81,7 @@ Add Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>0.0.6</version>
+        <version>0.1.0/version>
     </dependency>
 </dependencies>
 ```
@@ -793,6 +795,8 @@ Learn more about assessing distribution [here](https://featurevisor.com/docs/cli
 $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="assess-distribution --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --environment=production --feature=foo --variation --context='{\"country\": \"nl\"}' --populateUuid=userId --populateUuid=deviceId --n=1000"
 ```
 
+<!-- FEATUREVISOR_DOCS_END -->
+
 ## Development of this package
 
 ### Setting up
@@ -813,7 +817,7 @@ $ mvn test
 
 - Manually create a new release on [GitHub](https://github.com/featurevisor/featurevisor-java/releases)
 - Tag it with a prefix of `v`, like `v1.0.0`
-- GitHub Actions is set up to automatically notify [Maven Central](https://search.maven.org/) about the new release
+- GitHub Actions is set up to automatically publish the package to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java)
 
 ## License
 
