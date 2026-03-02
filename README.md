@@ -303,6 +303,7 @@ f.<MyCustomClass>getVariableObject(featureKey, variableKey, context);
 
 f.<Map<String, Object>>getVariableJSON(featureKey, variableKey, context);
 f.<MyCustomClass>getVariableJSON(featureKey, variableKey, context);
+f.getVariableJSONNode(featureKey, variableKey, context);
 ```
 
 For strongly typed decoding, additional overloads are available:
@@ -334,6 +335,24 @@ Map<String, List<MyConfig>> nested = f.getVariableObject(
 ```
 
 Typed overloads are additive and non-breaking. If decoding fails for the requested target type, these methods return `null`.
+
+For dynamic JSON values with unknown shape, use `getVariableJSONNode`:
+
+```java
+import com.fasterxml.jackson.databind.JsonNode;
+
+JsonNode node = f.getVariableJSONNode(featureKey, variableKey, context);
+
+if (node != null && node.isObject()) {
+    String nested = node.path("key").path("nested").asText(null);
+}
+```
+
+If a variable schema type is `json` and the resolved value is a malformed stringified JSON, JSON parsing fails safely and these methods return `null`:
+
+- `getVariable(...)`
+- `getVariableJSONNode(...)`
+- `getVariableJSON(...)`
 
 ## Getting all evaluations
 
@@ -720,6 +739,7 @@ Similar to parent SDK, child instances also support several additional methods:
 - `getVariableArray`
 - `getVariableObject`
 - `getVariableJSON`
+- `getVariableJSONNode`
 - `getAllEvaluations`
 - `on`
 - `close`

@@ -1,6 +1,7 @@
 package com.featurevisor.sdk;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -392,6 +393,28 @@ public class ChildInstance {
 
     public <T> T getVariableJSON(String featureKey, String variableKey) {
         return getVariableJSON(featureKey, variableKey, null, null);
+    }
+
+    public JsonNode getVariableJSONNode(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Featurevisor.OverrideOptions options
+    ) {
+        return this.parent.getVariableJSONNode(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options)
+        );
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey, Map<String, Object> context) {
+        return getVariableJSONNode(featureKey, variableKey, context, null);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey) {
+        return getVariableJSONNode(featureKey, variableKey, null, null);
     }
 
     /**

@@ -6,6 +6,7 @@ import com.featurevisor.types.EvaluatedFeature;
 import com.featurevisor.types.EvaluatedFeatures;
 import com.featurevisor.types.VariableType;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.HashMap;
@@ -17,6 +18,8 @@ import java.util.ArrayList;
  * Provides the primary interface for feature flag evaluation and factory methods
  */
 public class Featurevisor {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     // from options
     private Map<String, Object> context = new HashMap<>();
     private Logger logger;
@@ -531,10 +534,9 @@ public class Featurevisor {
                                          evaluation.getVariableSchema().getType() == VariableType.JSON;
                     if (isJsonType) {
                         try {
-                            ObjectMapper mapper = new ObjectMapper();
-                            return mapper.readValue(strValue, Object.class);
+                            return OBJECT_MAPPER.readValue(strValue, Object.class);
                         } catch (Exception e) {
-                            // fallback to string
+                            return null;
                         }
                     }
                 }
@@ -650,6 +652,27 @@ public class Featurevisor {
         return getVariableJSON(featureKey, variableKey, null, null);
     }
 
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey, Map<String, Object> context, OverrideOptions options) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        if (variableValue == null) {
+            return null;
+        }
+
+        if (variableValue instanceof JsonNode) {
+            return (JsonNode) variableValue;
+        }
+
+        return OBJECT_MAPPER.valueToTree(variableValue);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey, Map<String, Object> context) {
+        return getVariableJSONNode(featureKey, variableKey, context, null);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey) {
+        return getVariableJSONNode(featureKey, variableKey, null, null);
+    }
+
     public <T> List<T> getVariableArray(
         String featureKey,
         String variableKey,
@@ -664,10 +687,9 @@ public class Featurevisor {
         }
 
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.convertValue(
+            return OBJECT_MAPPER.convertValue(
                 arrayValue,
-                mapper.getTypeFactory().constructCollectionType(List.class, itemType)
+                OBJECT_MAPPER.getTypeFactory().constructCollectionType(List.class, itemType)
             );
         } catch (IllegalArgumentException e) {
             return null;
@@ -701,7 +723,7 @@ public class Featurevisor {
         }
 
         try {
-            return new ObjectMapper().convertValue(arrayValue, typeRef);
+            return OBJECT_MAPPER.convertValue(arrayValue, typeRef);
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -734,7 +756,7 @@ public class Featurevisor {
         }
 
         try {
-            return new ObjectMapper().convertValue(objectValue, type);
+            return OBJECT_MAPPER.convertValue(objectValue, type);
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -767,7 +789,7 @@ public class Featurevisor {
         }
 
         try {
-            return new ObjectMapper().convertValue(objectValue, typeRef);
+            return OBJECT_MAPPER.convertValue(objectValue, typeRef);
         } catch (IllegalArgumentException e) {
             return null;
         }
