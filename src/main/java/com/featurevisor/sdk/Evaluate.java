@@ -1,8 +1,8 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.VariableSchema;
-import com.featurevisor.types.Force;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.VariableSchema;
+import com.featurevisor.sdk.Force;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Bucket;
+import com.featurevisor.sdk.Bucket;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;

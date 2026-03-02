@@ -1,7 +1,7 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Segment;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Segment;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;

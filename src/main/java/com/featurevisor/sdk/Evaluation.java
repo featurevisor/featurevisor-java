@@ -1,9 +1,9 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Bucket;
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.Variation;
-import com.featurevisor.types.VariableSchema;
+import com.featurevisor.sdk.Bucket;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.Variation;
+import com.featurevisor.sdk.VariableSchema;
 import java.util.Map;
 import java.util.List;
 
@@ -27,7 +27,10 @@ public class Evaluation {
     public static final String REASON_VARIABLE_NOT_FOUND = "variable_not_found";
     public static final String REASON_VARIABLE_DEFAULT = "variable_default";
     public static final String REASON_VARIABLE_DISABLED = "variable_disabled";
+    @Deprecated
     public static final String REASON_VARIABLE_OVERRIDE = "variable_override";
+    public static final String REASON_VARIABLE_OVERRIDE_RULE = "variable_override_rule";
+    public static final String REASON_VARIABLE_OVERRIDE_VARIATION = "variable_override_variation";
     public static final String REASON_NO_MATCH = "no_match";
     public static final String REASON_FORCED = "forced";
     public static final String REASON_STICKY = "sticky";
@@ -60,6 +63,7 @@ public class Evaluation {
     private String variableKey;
     private Object variableValue;
     private VariableSchema variableSchema;
+    private Integer variableOverrideIndex;
 
     // Required feature fields
     private String requiredFeatureKey;
@@ -94,6 +98,7 @@ public class Evaluation {
     public String getVariableKey() { return variableKey; }
     public Object getVariableValue() { return variableValue; }
     public VariableSchema getVariableSchema() { return variableSchema; }
+    public Integer getVariableOverrideIndex() { return variableOverrideIndex; }
     public String getRequiredFeatureKey() { return requiredFeatureKey; }
     public String getRequiredVariation() { return requiredVariation; }
     public String getActualVariation() { return actualVariation; }
@@ -117,6 +122,7 @@ public class Evaluation {
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
     public void setVariableValue(Object variableValue) { this.variableValue = variableValue; }
     public void setVariableSchema(VariableSchema variableSchema) { this.variableSchema = variableSchema; }
+    public void setVariableOverrideIndex(Integer variableOverrideIndex) { this.variableOverrideIndex = variableOverrideIndex; }
     public void setRequiredFeatureKey(String requiredFeatureKey) { this.requiredFeatureKey = requiredFeatureKey; }
     public void setRequiredVariation(String requiredVariation) { this.requiredVariation = requiredVariation; }
     public void setActualVariation(String actualVariation) { this.actualVariation = actualVariation; }
@@ -212,6 +218,11 @@ public class Evaluation {
         return this;
     }
 
+    public Evaluation variableOverrideIndex(Integer variableOverrideIndex) {
+        this.variableOverrideIndex = variableOverrideIndex;
+        return this;
+    }
+
     public Evaluation requiredFeatureKey(String requiredFeatureKey) {
         this.requiredFeatureKey = requiredFeatureKey;
         return this;
@@ -248,6 +259,7 @@ public class Evaluation {
         copy.variableKey = this.variableKey;
         copy.variableValue = this.variableValue;
         copy.variableSchema = this.variableSchema;
+        copy.variableOverrideIndex = this.variableOverrideIndex;
         copy.requiredFeatureKey = this.requiredFeatureKey;
         copy.requiredVariation = this.requiredVariation;
         copy.actualVariation = this.actualVariation;

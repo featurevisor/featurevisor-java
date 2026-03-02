@@ -1,8 +1,8 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Condition;
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Operator;
+import com.featurevisor.sdk.Condition;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Operator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;

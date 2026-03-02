@@ -1,9 +1,12 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.EvaluatedFeature;
-import com.featurevisor.types.EvaluatedFeatures;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.EvaluatedFeature;
+import com.featurevisor.sdk.EvaluatedFeatures;
+import com.featurevisor.sdk.VariableType;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.HashMap;
@@ -15,6 +18,8 @@ import java.util.ArrayList;
  * Provides the primary interface for feature flag evaluation and factory methods
  */
 public class Featurevisor {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     // from options
     private Map<String, Object> context = new HashMap<>();
     private Logger logger;
@@ -525,16 +530,13 @@ public class Featurevisor {
                 Object value = evaluation.getVariableValue();
                 if (value instanceof String) {
                     String strValue = (String) value;
-                    boolean looksLikeJson = (strValue.startsWith("{") && strValue.endsWith("}")) ||
-                                            (strValue.startsWith("[") && strValue.endsWith("]"));
                     boolean isJsonType = evaluation.getVariableSchema() != null &&
-                                         "json".equals(evaluation.getVariableSchema().getType());
-                    if (isJsonType || looksLikeJson) {
+                                         evaluation.getVariableSchema().getType() == VariableType.JSON;
+                    if (isJsonType) {
                         try {
-                            ObjectMapper mapper = new ObjectMapper();
-                            return mapper.readValue(strValue, Object.class);
+                            return OBJECT_MAPPER.readValue(strValue, Object.class);
                         } catch (Exception e) {
-                            // fallback to string
+                            return null;
                         }
                     }
                 }
@@ -615,11 +617,11 @@ public class Featurevisor {
     }
 
     public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context) {
-        return getVariableArray(featureKey, variableKey, context, null);
+        return getVariableArray(featureKey, variableKey, context, (OverrideOptions) null);
     }
 
     public List<String> getVariableArray(String featureKey, String variableKey) {
-        return getVariableArray(featureKey, variableKey, null, null);
+        return getVariableArray(featureKey, variableKey, null, (OverrideOptions) null);
     }
 
     @SuppressWarnings("unchecked")
@@ -629,11 +631,11 @@ public class Featurevisor {
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey, Map<String, Object> context) {
-        return getVariableObject(featureKey, variableKey, context, null);
+        return getVariableObject(featureKey, variableKey, context, (OverrideOptions) null);
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey) {
-        return getVariableObject(featureKey, variableKey, null, null);
+        return getVariableObject(featureKey, variableKey, null, (OverrideOptions) null);
     }
 
     @SuppressWarnings("unchecked")
@@ -648,6 +650,162 @@ public class Featurevisor {
 
     public <T> T getVariableJSON(String featureKey, String variableKey) {
         return getVariableJSON(featureKey, variableKey, null, null);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey, Map<String, Object> context, OverrideOptions options) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        if (variableValue == null) {
+            return null;
+        }
+
+        if (variableValue instanceof JsonNode) {
+            return (JsonNode) variableValue;
+        }
+
+        return OBJECT_MAPPER.valueToTree(variableValue);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey, Map<String, Object> context) {
+        return getVariableJSONNode(featureKey, variableKey, context, null);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey) {
+        return getVariableJSONNode(featureKey, variableKey, null, null);
+    }
+
+    public <T> List<T> getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        Class<T> itemType
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object arrayValue = Helpers.getValueByType(variableValue, "array");
+        if (arrayValue == null) {
+            return null;
+        }
+
+        try {
+            return OBJECT_MAPPER.convertValue(
+                arrayValue,
+                OBJECT_MAPPER.getTypeFactory().constructCollectionType(List.class, itemType)
+            );
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> List<T> getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Class<T> itemType
+    ) {
+        return getVariableArray(featureKey, variableKey, context, null, itemType);
+    }
+
+    public <T> List<T> getVariableArray(String featureKey, String variableKey, Class<T> itemType) {
+        return getVariableArray(featureKey, variableKey, null, null, itemType);
+    }
+
+    public <T> T getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        TypeReference<T> typeRef
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object arrayValue = Helpers.getValueByType(variableValue, "array");
+        if (arrayValue == null) {
+            return null;
+        }
+
+        try {
+            return OBJECT_MAPPER.convertValue(arrayValue, typeRef);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> T getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        TypeReference<T> typeRef
+    ) {
+        return getVariableArray(featureKey, variableKey, context, null, typeRef);
+    }
+
+    public <T> T getVariableArray(String featureKey, String variableKey, TypeReference<T> typeRef) {
+        return getVariableArray(featureKey, variableKey, null, null, typeRef);
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        Class<T> type
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object objectValue = Helpers.getValueByType(variableValue, "object");
+        if (objectValue == null) {
+            return null;
+        }
+
+        try {
+            return OBJECT_MAPPER.convertValue(objectValue, type);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Class<T> type
+    ) {
+        return getVariableObject(featureKey, variableKey, context, null, type);
+    }
+
+    public <T> T getVariableObject(String featureKey, String variableKey, Class<T> type) {
+        return getVariableObject(featureKey, variableKey, null, null, type);
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        OverrideOptions options,
+        TypeReference<T> typeRef
+    ) {
+        Object variableValue = getVariable(featureKey, variableKey, context, options);
+        Object objectValue = Helpers.getValueByType(variableValue, "object");
+        if (objectValue == null) {
+            return null;
+        }
+
+        try {
+            return OBJECT_MAPPER.convertValue(objectValue, typeRef);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        TypeReference<T> typeRef
+    ) {
+        return getVariableObject(featureKey, variableKey, context, null, typeRef);
+    }
+
+    public <T> T getVariableObject(String featureKey, String variableKey, TypeReference<T> typeRef) {
+        return getVariableObject(featureKey, variableKey, null, null, typeRef);
     }
 
     /**

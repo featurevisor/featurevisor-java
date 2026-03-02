@@ -40,18 +40,17 @@ public class Helpers {
                     }
                     return null;
                 case "boolean":
-                    if (value instanceof Boolean) {
-                        return (T) value;
-                    } else if (value instanceof String) {
-                        return (T) Boolean.valueOf((String) value);
-                    } else if (value instanceof Number) {
-                        return (T) Boolean.valueOf(((Number) value).intValue() != 0);
-                    }
-                    return null;
+                    return (T) Boolean.valueOf(Boolean.TRUE.equals(value));
                 case "array":
                     return (T) (value instanceof List ? value : null);
                 case "object":
-                    return (T) (value instanceof Map ? value : null);
+                    if (value instanceof Map) {
+                        return (T) value;
+                    }
+                    if (value instanceof List) {
+                        return (T) value;
+                    }
+                    return null;
                 case "json":
                     // JSON type is handled specially in the calling code
                     return (T) value;

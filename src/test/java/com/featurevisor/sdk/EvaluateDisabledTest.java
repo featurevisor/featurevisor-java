@@ -1,9 +1,9 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.VariableSchema;
-import com.featurevisor.types.VariableType;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.VariableSchema;
+import com.featurevisor.sdk.VariableType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;

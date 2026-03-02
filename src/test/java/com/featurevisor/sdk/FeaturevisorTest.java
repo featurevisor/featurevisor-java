@@ -1,18 +1,18 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.Segment;
-import com.featurevisor.types.Variation;
-import com.featurevisor.types.Traffic;
-import com.featurevisor.types.Allocation;
-import com.featurevisor.types.VariableSchema;
-import com.featurevisor.types.Force;
-import com.featurevisor.types.Condition;
-import com.featurevisor.types.Bucket;
-import com.featurevisor.types.Range;
-import com.featurevisor.types.Operator;
-import com.featurevisor.types.VariableType;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.Segment;
+import com.featurevisor.sdk.Variation;
+import com.featurevisor.sdk.Traffic;
+import com.featurevisor.sdk.Allocation;
+import com.featurevisor.sdk.VariableSchema;
+import com.featurevisor.sdk.Force;
+import com.featurevisor.sdk.Condition;
+import com.featurevisor.sdk.Bucket;
+import com.featurevisor.sdk.Range;
+import com.featurevisor.sdk.Operator;
+import com.featurevisor.sdk.VariableType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1722,7 +1722,7 @@ public class FeaturevisorTest {
         );
 
         // Test getAllEvaluations
-        com.featurevisor.types.EvaluatedFeatures evaluatedFeatures = sdk.getAllEvaluations(context);
+        com.featurevisor.sdk.EvaluatedFeatures evaluatedFeatures = sdk.getAllEvaluations(context);
         assertNotNull(evaluatedFeatures);
         assertNotNull(evaluatedFeatures.getValue());
         assertTrue(evaluatedFeatures.getValue().containsKey("test"));

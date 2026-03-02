@@ -1,7 +1,7 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Feature;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Feature;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -89,13 +89,13 @@ public class EventsTest {
         Map<String, Feature> features = new HashMap<>();
 
         Feature feature1 = new Feature();
-        feature1.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature1.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature1.setHash("hash1");
         feature1.setTraffic(new ArrayList<>());
         features.put("feature1", feature1);
 
         Feature feature2 = new Feature();
-        feature2.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature2.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature2.setHash("hash2");
         feature2.setTraffic(new ArrayList<>());
         features.put("feature2", feature2);
@@ -130,13 +130,13 @@ public class EventsTest {
         Map<String, Feature> previousFeatures = new HashMap<>();
 
         Feature feature1 = new Feature();
-        feature1.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature1.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature1.setHash("hash-same");
         feature1.setTraffic(new ArrayList<>());
         previousFeatures.put("feature1", feature1);
 
         Feature feature2 = new Feature();
-        feature2.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature2.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature2.setHash("hash1-2");
         feature2.setTraffic(new ArrayList<>());
         previousFeatures.put("feature2", feature2);
@@ -152,19 +152,19 @@ public class EventsTest {
         Map<String, Feature> newFeatures = new HashMap<>();
 
         Feature newFeature1 = new Feature();
-        newFeature1.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        newFeature1.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         newFeature1.setHash("hash-same"); // Same hash
         newFeature1.setTraffic(new ArrayList<>());
         newFeatures.put("feature1", newFeature1);
 
         Feature newFeature2 = new Feature();
-        newFeature2.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        newFeature2.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         newFeature2.setHash("hash2-2"); // Changed hash
         newFeature2.setTraffic(new ArrayList<>());
         newFeatures.put("feature2", newFeature2);
 
         Feature feature3 = new Feature();
-        feature3.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature3.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature3.setHash("hash2-3");
         feature3.setTraffic(new ArrayList<>());
         newFeatures.put("feature3", feature3); // New feature
@@ -200,13 +200,13 @@ public class EventsTest {
         Map<String, Feature> previousFeatures = new HashMap<>();
 
         Feature feature1 = new Feature();
-        feature1.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature1.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature1.setHash("hash-same");
         feature1.setTraffic(new ArrayList<>());
         previousFeatures.put("feature1", feature1);
 
         Feature feature2 = new Feature();
-        feature2.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        feature2.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         feature2.setHash("hash1-2");
         feature2.setTraffic(new ArrayList<>());
         previousFeatures.put("feature2", feature2);
@@ -222,7 +222,7 @@ public class EventsTest {
         Map<String, Feature> newFeatures = new HashMap<>();
 
         Feature newFeature2 = new Feature();
-        newFeature2.setBucketBy(new com.featurevisor.types.Bucket("userId"));
+        newFeature2.setBucketBy(new com.featurevisor.sdk.Bucket("userId"));
         newFeature2.setHash("hash2-2"); // Changed hash
         newFeature2.setTraffic(new ArrayList<>());
         newFeatures.put("feature2", newFeature2);

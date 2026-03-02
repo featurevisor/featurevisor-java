@@ -1,7 +1,7 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.VariableSchema;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.VariableSchema;
 
 /**
  * Evaluates not found scenarios and returns appropriate evaluation results

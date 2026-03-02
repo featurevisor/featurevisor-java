@@ -1,6 +1,6 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Bucket;
+import com.featurevisor.sdk.Bucket;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;

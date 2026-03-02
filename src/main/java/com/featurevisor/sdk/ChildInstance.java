@@ -1,9 +1,11 @@
 package com.featurevisor.sdk;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
-import com.featurevisor.types.EvaluatedFeatures;
+import com.featurevisor.sdk.EvaluatedFeatures;
 
 /**
  * Child instance of Featurevisor SDK
@@ -236,11 +238,69 @@ public class ChildInstance {
     }
 
     public List<String> getVariableArray(String featureKey, String variableKey, Map<String, Object> context) {
-        return getVariableArray(featureKey, variableKey, context, null);
+        return getVariableArray(featureKey, variableKey, context, (Featurevisor.OverrideOptions) null);
     }
 
     public List<String> getVariableArray(String featureKey, String variableKey) {
-        return getVariableArray(featureKey, variableKey, null, null);
+        return getVariableArray(featureKey, variableKey, null, (Featurevisor.OverrideOptions) null);
+    }
+
+    public <T> List<T> getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Featurevisor.OverrideOptions options,
+        Class<T> itemType
+    ) {
+        return this.parent.getVariableArray(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options),
+            itemType
+        );
+    }
+
+    public <T> List<T> getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Class<T> itemType
+    ) {
+        return getVariableArray(featureKey, variableKey, context, null, itemType);
+    }
+
+    public <T> List<T> getVariableArray(String featureKey, String variableKey, Class<T> itemType) {
+        return getVariableArray(featureKey, variableKey, null, null, itemType);
+    }
+
+    public <T> T getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Featurevisor.OverrideOptions options,
+        TypeReference<T> typeRef
+    ) {
+        return this.parent.getVariableArray(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options),
+            typeRef
+        );
+    }
+
+    public <T> T getVariableArray(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        TypeReference<T> typeRef
+    ) {
+        return getVariableArray(featureKey, variableKey, context, null, typeRef);
+    }
+
+    public <T> T getVariableArray(String featureKey, String variableKey, TypeReference<T> typeRef) {
+        return getVariableArray(featureKey, variableKey, null, null, typeRef);
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
@@ -253,11 +313,69 @@ public class ChildInstance {
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey, Map<String, Object> context) {
-        return getVariableObject(featureKey, variableKey, context, null);
+        return getVariableObject(featureKey, variableKey, context, (Featurevisor.OverrideOptions) null);
     }
 
     public <T> T getVariableObject(String featureKey, String variableKey) {
-        return getVariableObject(featureKey, variableKey, null, null);
+        return getVariableObject(featureKey, variableKey, null, (Featurevisor.OverrideOptions) null);
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Featurevisor.OverrideOptions options,
+        Class<T> type
+    ) {
+        return this.parent.getVariableObject(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options),
+            type
+        );
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Class<T> type
+    ) {
+        return getVariableObject(featureKey, variableKey, context, null, type);
+    }
+
+    public <T> T getVariableObject(String featureKey, String variableKey, Class<T> type) {
+        return getVariableObject(featureKey, variableKey, null, null, type);
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Featurevisor.OverrideOptions options,
+        TypeReference<T> typeRef
+    ) {
+        return this.parent.getVariableObject(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options),
+            typeRef
+        );
+    }
+
+    public <T> T getVariableObject(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        TypeReference<T> typeRef
+    ) {
+        return getVariableObject(featureKey, variableKey, context, null, typeRef);
+    }
+
+    public <T> T getVariableObject(String featureKey, String variableKey, TypeReference<T> typeRef) {
+        return getVariableObject(featureKey, variableKey, null, null, typeRef);
     }
 
     public <T> T getVariableJSON(String featureKey, String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
@@ -275,6 +393,28 @@ public class ChildInstance {
 
     public <T> T getVariableJSON(String featureKey, String variableKey) {
         return getVariableJSON(featureKey, variableKey, null, null);
+    }
+
+    public JsonNode getVariableJSONNode(
+        String featureKey,
+        String variableKey,
+        Map<String, Object> context,
+        Featurevisor.OverrideOptions options
+    ) {
+        return this.parent.getVariableJSONNode(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options)
+        );
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey, Map<String, Object> context) {
+        return getVariableJSONNode(featureKey, variableKey, context, null);
+    }
+
+    public JsonNode getVariableJSONNode(String featureKey, String variableKey) {
+        return getVariableJSONNode(featureKey, variableKey, null, null);
     }
 
     /**

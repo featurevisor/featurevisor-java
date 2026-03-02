@@ -66,5 +66,8 @@ build/
 out/
 dist/
 example-1/
+monorepo
+featurevisor-go
+specs
 
 .flattened-pom.xml
