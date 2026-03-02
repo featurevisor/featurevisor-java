@@ -4,6 +4,7 @@ import com.featurevisor.types.DatafileContent;
 import com.featurevisor.types.Feature;
 import com.featurevisor.types.EvaluatedFeature;
 import com.featurevisor.types.EvaluatedFeatures;
+import com.featurevisor.types.VariableType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
@@ -526,11 +527,9 @@ public class Featurevisor {
                 Object value = evaluation.getVariableValue();
                 if (value instanceof String) {
                     String strValue = (String) value;
-                    boolean looksLikeJson = (strValue.startsWith("{") && strValue.endsWith("}")) ||
-                                            (strValue.startsWith("[") && strValue.endsWith("]"));
                     boolean isJsonType = evaluation.getVariableSchema() != null &&
-                                         "json".equals(evaluation.getVariableSchema().getType());
-                    if (isJsonType || looksLikeJson) {
+                                         evaluation.getVariableSchema().getType() == VariableType.JSON;
+                    if (isJsonType) {
                         try {
                             ObjectMapper mapper = new ObjectMapper();
                             return mapper.readValue(strValue, Object.class);
