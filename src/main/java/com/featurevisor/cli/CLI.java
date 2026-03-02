@@ -8,8 +8,8 @@ import picocli.CommandLine.Parameters;
 import com.featurevisor.sdk.Featurevisor;
 import com.featurevisor.sdk.Logger;
 import com.featurevisor.sdk.DatafileReader;
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Segment;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 

@@ -1,7 +1,7 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Condition;
-import com.featurevisor.types.Operator;
+import com.featurevisor.sdk.Condition;
+import com.featurevisor.sdk.Operator;
 import java.util.Map;
 import java.util.List;
 import java.util.regex.Pattern;

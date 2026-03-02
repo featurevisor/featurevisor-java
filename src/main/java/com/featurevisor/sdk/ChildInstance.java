@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
-import com.featurevisor.types.EvaluatedFeatures;
+import com.featurevisor.sdk.EvaluatedFeatures;
 
 /**
  * Child instance of Featurevisor SDK

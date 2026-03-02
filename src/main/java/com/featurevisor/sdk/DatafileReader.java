@@ -1,14 +1,14 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Allocation;
-import com.featurevisor.types.Condition;
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.Force;
-import com.featurevisor.types.Operator;
-import com.featurevisor.types.Range;
-import com.featurevisor.types.Segment;
-import com.featurevisor.types.Traffic;
+import com.featurevisor.sdk.Allocation;
+import com.featurevisor.sdk.Condition;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.Force;
+import com.featurevisor.sdk.Operator;
+import com.featurevisor.sdk.Range;
+import com.featurevisor.sdk.Segment;
+import com.featurevisor.sdk.Traffic;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.HashMap;

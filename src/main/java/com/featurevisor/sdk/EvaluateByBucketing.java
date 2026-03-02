@@ -1,13 +1,13 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.VariableSchema;
-import com.featurevisor.types.Force;
-import com.featurevisor.types.Variation;
-import com.featurevisor.types.VariableOverride;
-import com.featurevisor.types.Traffic;
-import com.featurevisor.types.Allocation;
-import com.featurevisor.types.Range;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.VariableSchema;
+import com.featurevisor.sdk.Force;
+import com.featurevisor.sdk.Variation;
+import com.featurevisor.sdk.VariableOverride;
+import com.featurevisor.sdk.Traffic;
+import com.featurevisor.sdk.Allocation;
+import com.featurevisor.sdk.Range;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;

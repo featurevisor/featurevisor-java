@@ -1,6 +1,6 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.VariableSchema;
+import com.featurevisor.sdk.VariableSchema;
 import java.util.Map;
 
 /**

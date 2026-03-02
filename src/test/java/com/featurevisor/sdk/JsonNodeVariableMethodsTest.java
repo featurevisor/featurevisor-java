@@ -1,7 +1,7 @@
 package com.featurevisor.sdk;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.featurevisor.types.DatafileContent;
+import com.featurevisor.sdk.DatafileContent;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

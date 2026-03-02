@@ -1,10 +1,10 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.DatafileContent;
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.EvaluatedFeature;
-import com.featurevisor.types.EvaluatedFeatures;
-import com.featurevisor.types.VariableType;
+import com.featurevisor.sdk.DatafileContent;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.EvaluatedFeature;
+import com.featurevisor.sdk.EvaluatedFeatures;
+import com.featurevisor.sdk.VariableType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

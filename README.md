@@ -359,8 +359,8 @@ If a variable schema type is `json` and the resolved value is a malformed string
 You can get evaluations of all features available in the SDK instance:
 
 ```java
-import com.featurevisor.types.EvaluatedFeatures;
-import com.featurevisor.types.EvaluatedFeature;
+import com.featurevisor.sdk.EvaluatedFeatures;
+import com.featurevisor.sdk.EvaluatedFeature;
 
 EvaluatedFeatures allEvaluations = f.getAllEvaluations(context);
 

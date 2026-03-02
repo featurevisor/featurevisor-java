@@ -1,7 +1,7 @@
 package com.featurevisor.sdk;
 
-import com.featurevisor.types.Feature;
-import com.featurevisor.types.DatafileContent;
+import com.featurevisor.sdk.Feature;
+import com.featurevisor.sdk.DatafileContent;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
