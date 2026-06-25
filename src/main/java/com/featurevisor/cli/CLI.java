@@ -11,6 +11,7 @@ import com.featurevisor.sdk.DatafileReader;
 import com.featurevisor.sdk.DatafileContent;
 import com.featurevisor.sdk.Segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.commons.exec.DefaultExecutor;
@@ -19,14 +20,9 @@ import org.apache.commons.exec.ExecuteException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Pattern;
 
-import com.featurevisor.sdk.HooksManager;
+import com.featurevisor.sdk.FeaturevisorModule;
 
 /**
  * Command Line Interface for Featurevisor Java Library
@@ -84,16 +80,16 @@ public class CLI implements Runnable {
     @Option(names = {"--inflate"}, description = "Inflate number")
     private Integer inflate = 0;
 
-    @Option(names = {"--with-scopes"}, description = "Test with scoped datafiles")
+    @Option(names = {"--with-scopes"}, description = "Legacy option accepted for compatibility and ignored")
     private Boolean withScopes = false;
 
-    @Option(names = {"--with-tags"}, description = "Test with tagged datafiles")
+    @Option(names = {"--with-tags"}, description = "Legacy option accepted for compatibility and ignored")
     private Boolean withTags = false;
 
     @Option(names = {"--showDatafile"}, description = "Show datafile content for assertion")
     private Boolean showDatafile = false;
 
-    @Option(names = {"--schemaVersion"}, description = "Datafile schema version")
+    @Option(names = {"--schemaVersion", "--schema-version"}, description = "Legacy option accepted for compatibility and ignored")
     private String schemaVersion;
 
     @Option(names = {"--rootDirectoryPath"}, description = "Root directory path")
@@ -201,12 +197,8 @@ public class CLI implements Runnable {
         return environment == null ? "__no_environment__" : environment;
     }
 
-    private String scopedDatafileCacheKey(String environment, String scope) {
-        return getEnvironmentKey(environment) + "-scope-" + scope;
-    }
-
-    private String taggedDatafileCacheKey(String environment, String tag) {
-        return getEnvironmentKey(environment) + "-tag-" + tag;
+    private String targetDatafileCacheKey(String environment, String target) {
+        return (environment == null ? "false" : environment) + "-target-" + target;
     }
 
     private DatafileContent parseDatafileContent(String datafileOutput, String contextForError) throws IOException {
@@ -220,17 +212,14 @@ public class CLI implements Runnable {
     private DatafileContent buildDatafile(
         String featurevisorProjectPath,
         String environment,
-        String tag
+        String target
     ) throws IOException {
         StringBuilder command = new StringBuilder("npx featurevisor build --json");
         if (environment != null) {
             command.append(" --environment=").append(environment);
         }
-        if (tag != null) {
-            command.append(" --tag=").append(tag);
-        }
-        if (schemaVersion != null && !schemaVersion.isBlank()) {
-            command.append(" --schema-version=").append(schemaVersion);
+        if (target != null) {
+            command.append(" --target=").append(target);
         }
         if (inflate != null && inflate > 0) {
             command.append(" --inflate=").append(inflate);
@@ -252,6 +241,21 @@ public class CLI implements Runnable {
         return datafilesByEnvironment;
     }
 
+    private Map<String, DatafileContent> buildTargetDatafiles(
+        String featurevisorProjectPath,
+        List<String> environments,
+        List<String> targets
+    ) throws IOException {
+        Map<String, DatafileContent> datafilesByTarget = new HashMap<>();
+        for (String env : environments) {
+            for (String target : targets) {
+                System.out.println("Building datafile for target: " + target + " environment: " + (env == null ? "default" : env) + "...");
+                datafilesByTarget.put(targetDatafileCacheKey(env, target), buildDatafile(featurevisorProjectPath, env, target));
+            }
+        }
+        return datafilesByTarget;
+    }
+
     private List<String> getEnvironmentList(Map<String, Object> config) {
         Object environmentsValue = config.get("environments");
         if (Boolean.FALSE.equals(environmentsValue)) {
@@ -269,61 +273,30 @@ public class CLI implements Runnable {
         return Collections.singletonList(null);
     }
 
-    private List<String> getTags(Map<String, Object> config) {
-        Object tagsValue = config.get("tags");
-        if (!(tagsValue instanceof List)) {
-            return Collections.emptyList();
-        }
+    private List<String> getTargets(String featurevisorProjectPath) throws IOException {
+        System.out.println("Getting targets...");
+        String targetsOutput = executeCommandInDirectory(featurevisorProjectPath, "npx featurevisor list --targets --json");
+        JsonNode targetsNode = objectMapper.readTree(targetsOutput);
+        List<String> targets = new ArrayList<>();
 
-        @SuppressWarnings("unchecked")
-        List<Object> rawTags = (List<Object>) tagsValue;
-        List<String> tags = new ArrayList<>();
-        for (Object tag : rawTags) {
-            if (tag instanceof String) {
-                tags.add((String) tag);
+        if (targetsNode.isArray()) {
+            for (JsonNode targetNode : targetsNode) {
+                if (targetNode.isTextual()) {
+                    targets.add(targetNode.asText());
+                } else if (targetNode.has("name")) {
+                    targets.add(targetNode.get("name").asText());
+                } else if (targetNode.has("key")) {
+                    targets.add(targetNode.get("key").asText());
+                }
             }
-        }
-        return tags;
-    }
-
-    private Map<String, Map<String, Object>> getScopesByName(Map<String, Object> config) {
-        Object scopesValue = config.get("scopes");
-        if (!(scopesValue instanceof List)) {
-            return Collections.emptyMap();
-        }
-
-        @SuppressWarnings("unchecked")
-        List<Object> scopes = (List<Object>) scopesValue;
-        Map<String, Map<String, Object>> scopesByName = new HashMap<>();
-
-        for (Object scopeObj : scopes) {
-            if (!(scopeObj instanceof Map)) {
-                continue;
-            }
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> scope = (Map<String, Object>) scopeObj;
-            Object name = scope.get("name");
-            if (name instanceof String && !((String) name).isBlank()) {
-                scopesByName.put((String) name, scope);
+        } else if (targetsNode.isObject()) {
+            Iterator<String> fieldNames = targetsNode.fieldNames();
+            while (fieldNames.hasNext()) {
+                targets.add(fieldNames.next());
             }
         }
 
-        return scopesByName;
-    }
-
-    private Path getScopedDatafilePath(String featurevisorProjectPath, Map<String, Object> config, String environment, String scopeName) {
-        String datafilesDirectory = "datafiles";
-        Object configuredDir = config.get("datafilesDirectoryPath");
-        if (configuredDir instanceof String && !((String) configuredDir).isBlank()) {
-            datafilesDirectory = (String) configuredDir;
-        }
-
-        if (environment != null) {
-            return Paths.get(featurevisorProjectPath, datafilesDirectory, environment, "featurevisor-scope-" + scopeName + ".json");
-        }
-
-        return Paths.get(featurevisorProjectPath, datafilesDirectory, "featurevisor-scope-" + scopeName + ".json");
+        return targets;
     }
 
     /**
@@ -686,44 +659,13 @@ public class CLI implements Runnable {
 
             Map<String, Object> config = getConfig(featurevisorProjectPath);
             List<String> environments = getEnvironmentList(config);
-            List<String> tags = getTags(config);
-            Map<String, Map<String, Object>> scopesByName = getScopesByName(config);
+            List<String> targets = getTargets(featurevisorProjectPath);
 
             Map<String, Segment> segmentsByKey = getSegments(featurevisorProjectPath);
             Map<String, DatafileContent> datafileCache = new HashMap<>();
 
             datafileCache.putAll(buildBaseDatafiles(featurevisorProjectPath, environments));
-
-            if (Boolean.TRUE.equals(withTags)) {
-                for (String env : environments) {
-                    for (String tag : tags) {
-                        datafileCache.put(
-                            taggedDatafileCacheKey(env, tag),
-                            buildDatafile(featurevisorProjectPath, env, tag)
-                        );
-                    }
-                }
-            }
-
-            if (Boolean.TRUE.equals(withScopes) && !scopesByName.isEmpty()) {
-                // Ensure scoped datafiles are materialized on disk.
-                executeCommandInDirectory(featurevisorProjectPath, "npx featurevisor build");
-
-                for (String env : environments) {
-                    for (String scopeName : scopesByName.keySet()) {
-                        Path scopedPath = getScopedDatafilePath(featurevisorProjectPath, config, env, scopeName);
-                        if (!Files.exists(scopedPath)) {
-                            continue;
-                        }
-
-                        String scopedDatafileOutput = Files.readString(scopedPath);
-                        datafileCache.put(
-                            scopedDatafileCacheKey(env, scopeName),
-                            parseDatafileContent(scopedDatafileOutput, scopedPath.toString())
-                        );
-                    }
-                }
-            }
+            datafileCache.putAll(buildTargetDatafiles(featurevisorProjectPath, environments, targets));
 
             System.out.println();
 
@@ -761,15 +703,10 @@ public class CLI implements Runnable {
                         String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
                         String selectedDatafileKey = baseDatafileKey;
 
-                        String scope = assertion.get("scope") instanceof String ? (String) assertion.get("scope") : null;
-                        String tag = assertion.get("tag") instanceof String ? (String) assertion.get("tag") : null;
+                        String target = assertion.get("target") instanceof String ? (String) assertion.get("target") : null;
 
-                        if (scope != null && datafileCache.containsKey(scopedDatafileCacheKey(assertionEnvironment, scope))) {
-                            selectedDatafileKey = scopedDatafileCacheKey(assertionEnvironment, scope);
-                        }
-
-                        if (scope == null && tag != null && datafileCache.containsKey(taggedDatafileCacheKey(assertionEnvironment, tag))) {
-                            selectedDatafileKey = taggedDatafileCacheKey(assertionEnvironment, tag);
+                        if (target != null && datafileCache.containsKey(targetDatafileCacheKey(assertionEnvironment, target))) {
+                            selectedDatafileKey = targetDatafileCacheKey(assertionEnvironment, target);
                         }
 
                         DatafileContent selectedDatafile = datafileCache.get(selectedDatafileKey);
@@ -787,17 +724,6 @@ public class CLI implements Runnable {
                             new TypeReference<Map<String, Object>>() {}
                         );
 
-                        if (scope != null && !Boolean.TRUE.equals(withScopes) && scopesByName.containsKey(scope)) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> currentContext = (Map<String, Object>) effectiveAssertion.getOrDefault("context", new HashMap<>());
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> scopeContext = (Map<String, Object>) scopesByName.get(scope).getOrDefault("context", new HashMap<>());
-
-                            Map<String, Object> mergedContext = new HashMap<>(scopeContext);
-                            mergedContext.putAll(currentContext);
-                            effectiveAssertion.put("context", mergedContext);
-                        }
-
                         if (Boolean.TRUE.equals(showDatafile)) {
                             System.out.println();
                             System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(selectedDatafile));
@@ -808,7 +734,7 @@ public class CLI implements Runnable {
                             .datafile(selectedDatafile)
                             .logLevel(level));
 
-                        // If "at" parameter is provided, create a new SDK instance with the specific hook
+                        // If "at" parameter is provided, create a new SDK instance with the specific module
                         if (effectiveAssertion.containsKey("at")) {
                             Object atObj = effectiveAssertion.get("at");
                             double atValue;
@@ -819,17 +745,13 @@ public class CLI implements Runnable {
                                 atValue = Double.parseDouble(atObj.toString());
                             }
 
-                            // Create a hook that sets the bucket value to at * 1000
-                            Logger logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(level));
-                            HooksManager hooksManager = new HooksManager(new HooksManager.HooksManagerOptions(logger));
-
-                            hooksManager.add(new HooksManager.Hook("at-parameter")
-                                .bucketValue((options) -> (int) (atValue * 1000)));
+                            FeaturevisorModule testModule = new FeaturevisorModule("test-module")
+                                .bucketValue((options) -> (int) (atValue * 1000));
 
                             f = Featurevisor.createInstance(new Featurevisor.Options()
                                 .datafile(selectedDatafile)
                                 .logLevel(level)
-                                .hooks(hooksManager.getAll()));
+                                .modules(Collections.singletonList(testModule)));
                         }
 
                         testResult = testFeature(effectiveAssertion, (String) test.get("feature"), f, level);

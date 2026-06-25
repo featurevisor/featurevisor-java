@@ -60,7 +60,8 @@ public class Events {
      */
     public static Emitter.EventDetails getParamsForDatafileSetEvent(
             DatafileContent previousDatafileContent,
-            DatafileContent newDatafileContent) {
+            DatafileContent newDatafileContent,
+            boolean replace) {
 
         if (previousDatafileContent == null) {
             previousDatafileContent = new DatafileContent();
@@ -131,6 +132,7 @@ public class Events {
         details.put("previousRevision", previousRevision);
         details.put("revisionChanged", !(previousRevision == null ? newRevision == null : previousRevision.equals(newRevision)));
         details.put("features", uniqueAffectedFeatures);
+        details.put("replaced", replace);
 
         return details;
     }

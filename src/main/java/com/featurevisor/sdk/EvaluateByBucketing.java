@@ -69,7 +69,7 @@ public class EvaluateByBucketing {
         String variableKey = options.getVariableKey();
         Map<String, Object> context = options.getContext();
         Logger logger = options.getLogger();
-        HooksManager hooksManager = options.getHooksManager();
+        ModulesManager modulesManager = options.getModulesManager();
         DatafileReader datafileReader = options.getDatafileReader();
 
         // Get bucket key
@@ -79,18 +79,18 @@ public class EvaluateByBucketing {
             .context(context)
             .logger(logger));
 
-        // Apply bucket key hooks
-        if (hooksManager != null) {
-            bucketKey = hooksManager.executeBucketKeyHooks(new HooksManager.ConfigureBucketKeyOptions(
+        // Apply bucket key modules
+        if (modulesManager != null) {
+            bucketKey = modulesManager.executeBucketKeyModules(new ModulesManager.ConfigureBucketKeyOptions(
                 featureKey, context, feature.getBucketBy(), bucketKey));
         }
 
         // Get bucket value
         Integer bucketValue = Bucketer.getBucketedNumber(bucketKey);
 
-        // Apply bucket value hooks
-        if (hooksManager != null) {
-            bucketValue = hooksManager.executeBucketValueHooks(new HooksManager.ConfigureBucketValueOptions(
+        // Apply bucket value modules
+        if (modulesManager != null) {
+            bucketValue = modulesManager.executeBucketValueModules(new ModulesManager.ConfigureBucketValueOptions(
                 featureKey, bucketKey, context, bucketValue));
         }
 

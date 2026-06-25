@@ -76,14 +76,14 @@ public class EventsTest {
     public void testGetParamsForDatafileSetEventEmptyToNew() {
         // Create empty previous datafile
         DatafileContent previousDatafileContent = new DatafileContent();
-        previousDatafileContent.setSchemaVersion("1.0.0");
+        previousDatafileContent.setSchemaVersion("2");
         previousDatafileContent.setRevision("1");
         previousDatafileContent.setFeatures(new HashMap<>());
         previousDatafileContent.setSegments(new HashMap<>());
 
         // Create new datafile with features
         DatafileContent newDatafileContent = new DatafileContent();
-        newDatafileContent.setSchemaVersion("1.0.0");
+        newDatafileContent.setSchemaVersion("2");
         newDatafileContent.setRevision("2");
 
         Map<String, Feature> features = new HashMap<>();
@@ -104,7 +104,7 @@ public class EventsTest {
         newDatafileContent.setSegments(new HashMap<>());
 
         Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
-            previousDatafileContent, newDatafileContent);
+            previousDatafileContent, newDatafileContent, false);
 
         String revision = (String) result.get("revision");
         String previousRevision = (String) result.get("previousRevision");
@@ -115,6 +115,7 @@ public class EventsTest {
         assertEquals("2", revision);
         assertEquals("1", previousRevision);
         assertEquals(true, revisionChanged);
+        assertEquals(false, result.get("replaced"));
         assertEquals(2, featuresList.size());
         assertTrue(featuresList.contains("feature1"));
         assertTrue(featuresList.contains("feature2"));
@@ -124,7 +125,7 @@ public class EventsTest {
     public void testGetParamsForDatafileSetEventChangeHashAddition() {
         // Create previous datafile with features
         DatafileContent previousDatafileContent = new DatafileContent();
-        previousDatafileContent.setSchemaVersion("1.0.0");
+        previousDatafileContent.setSchemaVersion("2");
         previousDatafileContent.setRevision("1");
 
         Map<String, Feature> previousFeatures = new HashMap<>();
@@ -146,7 +147,7 @@ public class EventsTest {
 
         // Create new datafile with changed and added features
         DatafileContent newDatafileContent = new DatafileContent();
-        newDatafileContent.setSchemaVersion("1.0.0");
+        newDatafileContent.setSchemaVersion("2");
         newDatafileContent.setRevision("2");
 
         Map<String, Feature> newFeatures = new HashMap<>();
@@ -173,7 +174,7 @@ public class EventsTest {
         newDatafileContent.setSegments(new HashMap<>());
 
         Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
-            previousDatafileContent, newDatafileContent);
+            previousDatafileContent, newDatafileContent, true);
 
         String revision = (String) result.get("revision");
         String previousRevision = (String) result.get("previousRevision");
@@ -184,6 +185,7 @@ public class EventsTest {
         assertEquals("2", revision);
         assertEquals("1", previousRevision);
         assertEquals(true, revisionChanged);
+        assertEquals(true, result.get("replaced"));
         assertEquals(2, featuresList.size());
         assertTrue(featuresList.contains("feature2")); // Changed
         assertTrue(featuresList.contains("feature3")); // Added
@@ -194,7 +196,7 @@ public class EventsTest {
     public void testGetParamsForDatafileSetEventChangeHashRemoval() {
         // Create previous datafile with features
         DatafileContent previousDatafileContent = new DatafileContent();
-        previousDatafileContent.setSchemaVersion("1.0.0");
+        previousDatafileContent.setSchemaVersion("2");
         previousDatafileContent.setRevision("1");
 
         Map<String, Feature> previousFeatures = new HashMap<>();
@@ -216,7 +218,7 @@ public class EventsTest {
 
         // Create new datafile with one feature removed and one changed
         DatafileContent newDatafileContent = new DatafileContent();
-        newDatafileContent.setSchemaVersion("1.0.0");
+        newDatafileContent.setSchemaVersion("2");
         newDatafileContent.setRevision("2");
 
         Map<String, Feature> newFeatures = new HashMap<>();
@@ -232,7 +234,7 @@ public class EventsTest {
         newDatafileContent.setSegments(new HashMap<>());
 
         Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
-            previousDatafileContent, newDatafileContent);
+            previousDatafileContent, newDatafileContent, false);
 
         String revision = (String) result.get("revision");
         String previousRevision = (String) result.get("previousRevision");
@@ -251,7 +253,7 @@ public class EventsTest {
     @Test
     public void testGetParamsForDatafileSetEventWithNullInputs() {
         // Test with null inputs
-        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(null, null);
+        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(null, null, false);
 
         String revision = (String) result.get("revision");
         String previousRevision = (String) result.get("previousRevision");
@@ -277,7 +279,7 @@ public class EventsTest {
         newDatafileContent.setFeatures(new HashMap<>());
 
         Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
-            previousDatafileContent, newDatafileContent);
+            previousDatafileContent, newDatafileContent, false);
 
         Boolean revisionChanged = (Boolean) result.get("revisionChanged");
         assertEquals(false, revisionChanged);

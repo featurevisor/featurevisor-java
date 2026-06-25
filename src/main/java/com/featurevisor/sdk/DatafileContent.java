@@ -19,6 +19,9 @@ public class DatafileContent {
     @JsonProperty("revision")
     private String revision;
 
+    @JsonProperty("featurevisorVersion")
+    private String featurevisorVersion;
+
     @JsonProperty("segments")
     private Map<String, Segment> segments;
 
@@ -49,6 +52,14 @@ public class DatafileContent {
 
     public void setRevision(String revision) {
         this.revision = revision;
+    }
+
+    public String getFeaturevisorVersion() {
+        return featurevisorVersion;
+    }
+
+    public void setFeaturevisorVersion(String featurevisorVersion) {
+        this.featurevisorVersion = featurevisorVersion;
     }
 
     public Map<String, Segment> getSegments() {

@@ -78,6 +78,7 @@ public class DatafileReader {
 
     private String schemaVersion;
     private String revision;
+    private String featurevisorVersion;
     private Map<String, Segment> segments;
     private Map<String, Feature> features;
     private Logger logger;
@@ -91,8 +92,15 @@ public class DatafileReader {
 
         this.schemaVersion = datafile.getSchemaVersion();
         this.revision = datafile.getRevision();
+        this.featurevisorVersion = datafile.getFeaturevisorVersion();
         this.segments = datafile.getSegments();
         this.features = datafile.getFeatures();
+        if (this.segments == null) {
+            this.segments = new HashMap<>();
+        }
+        if (this.features == null) {
+            this.features = new HashMap<>();
+        }
         this.regexCache = new HashMap<>();
     }
 
@@ -108,6 +116,7 @@ public class DatafileReader {
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion(this.schemaVersion);
         datafile.setRevision(this.revision);
+        datafile.setFeaturevisorVersion(this.featurevisorVersion);
         datafile.setSegments(this.segments);
         datafile.setFeatures(this.features);
         return datafile;

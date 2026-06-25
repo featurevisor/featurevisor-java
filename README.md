@@ -1,8 +1,8 @@
 # Featurevisor Java SDK <!-- omit in toc -->
 
-This is a port of Featurevisor [Javascript SDK](https://featurevisor.com/docs/sdks/javascript/) v2.x to Java, providing a way to evaluate feature flags, variations, and variables in your Java applications.
+This is a port of Featurevisor [Javascript SDK](https://featurevisor.com/docs/sdks/javascript/) v3.x to Java, providing a way to evaluate feature flags, variations, and variables in your Java applications.
 
-This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 projects and above.
+This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles continue to carry `schemaVersion: "2"`.
 
 ## Table of contents <!-- omit in toc -->
 
@@ -37,9 +37,10 @@ This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 proje
   - [`context_set`](#context_set)
   - [`sticky_set`](#sticky_set)
 - [Evaluation details](#evaluation-details)
-- [Hooks](#hooks)
-  - [Defining a hook](#defining-a-hook)
-  - [Registering hooks](#registering-hooks)
+- [Modules](#modules)
+  - [Defining a module](#defining-a-module)
+  - [Registering modules](#registering-modules)
+  - [Diagnostics](#diagnostics)
 - [Child instance](#child-instance)
 - [Close](#close)
 - [CLI usage](#cli-usage)
@@ -437,6 +438,14 @@ You may also initialize the SDK without passing `datafile`, and set it later on:
 f.setDatafile(datafileContent);
 ```
 
+By default, `setDatafile(datafile)` merges the incoming datafile with the SDK's stored datafile. Incoming top-level metadata is used, and incoming segments/features override existing segments/features with the same keys.
+
+To replace the stored datafile entirely, pass `true`:
+
+```java
+f.setDatafile(datafileContent, true);
+```
+
 ### Updating datafile
 
 You can set the datafile as many times as you want in your application, which will result in emitting a [`datafile_set`](#datafile_set) event that you can listen and react to accordingly.
@@ -460,7 +469,7 @@ scheduler.scheduleAtFixedRate(() -> {
     String newDatafileContent = // ... fetch from your CDN
     DatafileContent newDatafile = DatafileContent.fromJson(newDatafileContent);
 
-    // Update the SDK
+    // Merge into the SDK's existing datafile
     f.setDatafile(newDatafile);
 }, 0, 5, TimeUnit.MINUTES);
 ```
@@ -621,87 +630,96 @@ And optionally these properties depending on whether you are evaluating a featur
 - `variableValue`: the variable value
 - `variableSchema`: the variable schema
 
-## Hooks
+## Modules
 
-Hooks allow you to intercept the evaluation process and customize it further as per your needs.
+Modules allow you to intercept the evaluation process and customize it further as per your needs.
 
-### Defining a hook
+### Defining a module
 
-A hook is a simple object with a unique required `name` and optional functions:
+A module is a `FeaturevisorModule` with a unique `name` and optional lifecycle functions:
 
 ```java
-Map<String, Object> myCustomHook = new HashMap<>();
-myCustomHook.put("name", "my-custom-hook");
+FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
+    .setup(api -> {
+        System.out.println("Current revision: " + api.getRevision());
+    })
 
-// before evaluation
-myCustomHook.put("before", (options) -> {
-    String type = (String) options.get("type"); // "feature" | "variation" | "variable"
-    String featureKey = (String) options.get("featureKey");
-    String variableKey = (String) options.get("variableKey"); // if type is "variable"
-    @SuppressWarnings("unchecked")
-    Map<String, Object> context = (Map<String, Object>) options.get("context");
+    // before evaluation
+    .before(options -> {
+        Map<String, Object> context = new HashMap<>(options.getContext());
+        context.put("someAdditionalAttribute", "value");
+        return options.copy().context(context);
+    })
 
-    // update context before evaluation
-    context.put("someAdditionalAttribute", "value");
-    options.put("context", context);
+    // configure bucket key
+    .bucketKey(options -> {
+        String bucketKey = options.getBucketKey();
+        return bucketKey;
+    })
 
-    return options;
-});
+    // configure bucket value (between 0 and 100,000)
+    .bucketValue(options -> {
+        int bucketValue = options.getBucketValue();
+        return bucketValue;
+    })
 
-// after evaluation
-myCustomHook.put("after", (evaluation, options) -> {
-    String reason = (String) evaluation.get("reason"); // "error" | "feature_not_found" | "variable_not_found" | ...
+    // after evaluation
+    .after((evaluation, options) -> evaluation)
 
-    if ("error".equals(reason)) {
-        // log error
-        return;
-    }
-});
-
-// configure bucket key
-myCustomHook.put("bucketKey", (options) -> {
-    String featureKey = (String) options.get("featureKey");
-    @SuppressWarnings("unchecked")
-    Map<String, Object> context = (Map<String, Object>) options.get("context");
-    String bucketBy = (String) options.get("bucketBy");
-    String bucketKey = (String) options.get("bucketKey"); // default bucket key
-
-    // return custom bucket key
-    return bucketKey;
-});
-
-// configure bucket value (between 0 and 100,000)
-myCustomHook.put("bucketValue", (options) -> {
-    String featureKey = (String) options.get("featureKey");
-    @SuppressWarnings("unchecked")
-    Map<String, Object> context = (Map<String, Object>) options.get("context");
-    String bucketKey = (String) options.get("bucketKey");
-    Integer bucketValue = (Integer) options.get("bucketValue"); // default bucket value
-
-    // return custom bucket value
-    return bucketValue;
-});
+    // called by f.close()
+    .close(() -> {
+        // clean up resources
+    });
 ```
 
-### Registering hooks
+### Registering modules
 
-You can register hooks at the time of SDK initialization:
+You can register modules at the time of SDK initialization:
 
 ```java
-List<Map<String, Object>> hooks = new ArrayList<>();
-hooks.add(myCustomHook);
+List<FeaturevisorModule> modules = new ArrayList<>();
+modules.add(myCustomModule);
 
 Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
     .datafile(datafile)
-    .hooks(hooks));
+    .modules(modules));
 ```
 
 Or after initialization:
 
 ```java
-Runnable removeHook = f.addHook(myCustomHook);
+Runnable removeModule = f.addModule(myCustomModule);
 
-// removeHook.run();
+// removeModule.run();
+// or:
+f.removeModule("my-custom-module");
+```
+
+### Diagnostics
+
+You can listen for SDK diagnostics at initialization:
+
+```java
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+    .onDiagnostic(diagnostic -> {
+        System.out.println(diagnostic.getLevel() + ": " + diagnostic.getCode());
+    }));
+```
+
+Modules receive an API during `setup` and can subscribe to diagnostics or report their own:
+
+```java
+FeaturevisorModule module = new FeaturevisorModule("diagnostic-module")
+    .setup(api -> {
+        Runnable unsubscribe = api.onDiagnostic(diagnostic -> {
+            // observe diagnostics from the SDK and other modules
+        });
+
+        api.reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(Logger.LogLevel.WARN)
+            .code("custom_module_warning")
+            .message("Something notable happened"));
+    });
 ```
 
 ## Child instance
@@ -769,15 +787,12 @@ $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --
 Additional options that are available:
 
 ```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1 --with-tags --with-scopes --showDatafile --schemaVersion=2 --inflate=1"
+$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1 --showDatafile --inflate=1"
 ```
 
-Scoped and tagged test behavior mirrors the JavaScript tester:
+The test runner builds base datafiles and Target datafiles, then uses a Target datafile when an assertion contains `target`.
 
-- `--with-tags`: builds and tests assertions against tagged datafiles.
-- `--with-scopes`: builds scoped datafiles and tests scoped assertions against those scoped files.
-- without `--with-scopes`: scoped assertions still run by merging scope context into assertion context (fallback behavior).
-- if both `scope` and `tag` are present in an assertion, scope datafile takes precedence.
+Legacy `--with-tags`, `--with-scopes`, `--schemaVersion`, and `--schema-version` flags are accepted for compatibility but ignored.
 
 ### Benchmark
 

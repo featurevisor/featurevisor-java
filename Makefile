@@ -1,4 +1,4 @@
-.PHONY: install build test setup-monorepo update-monorepo setup-golang-sdk update-golang-sdk setup-references update-references
+.PHONY: install build test test-example-1 setup-monorepo update-monorepo setup-golang-sdk update-golang-sdk setup-references update-references
 
 install:
 	mvn install
@@ -8,6 +8,10 @@ build:
 
 test:
 	mvn test
+
+test-example-1:
+	mvn test
+	mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/Users/fahad/Projects/featurevisor/featurevisor/examples/example-1 --onlyFailures"
 
 ##
 # Monorepo

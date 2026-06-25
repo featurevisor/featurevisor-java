@@ -13,7 +13,7 @@ public class DatafileContentTest {
     public void testParseJson() throws Exception {
         // Example JSON string that matches the DatafileContent structure
         String jsonString = "{\n" +
-            "    \"schemaVersion\": \"1.0\",\n" +
+            "    \"schemaVersion\": \"2\",\n" +
             "    \"revision\": \"abc123\",\n" +
             "    \"segments\": {\n" +
             "        \"netherlands\": {\n" +
@@ -44,7 +44,7 @@ public class DatafileContentTest {
         DatafileContent datafile = DatafileContent.fromJson(jsonString);
 
         // Verify the parsed data
-        assertEquals("1.0", datafile.getSchemaVersion());
+        assertEquals("2", datafile.getSchemaVersion());
         assertEquals("abc123", datafile.getRevision());
         assertEquals(1, datafile.getSegmentCount());
         assertEquals(1, datafile.getFeatureCount());
@@ -65,7 +65,7 @@ public class DatafileContentTest {
     @Test
     public void testToJson() throws Exception {
         // Create a DatafileContent object
-        DatafileContent datafile = new DatafileContent("1.0", "test123");
+        DatafileContent datafile = new DatafileContent("2", "test123");
 
         // Convert to JSON
         String json = datafile.toJson();
@@ -81,7 +81,7 @@ public class DatafileContentTest {
     @Test
     public void testComplexFeature() throws Exception {
         String jsonString = "{\n" +
-            "    \"schemaVersion\": \"1.0\",\n" +
+            "    \"schemaVersion\": \"2\",\n" +
             "    \"revision\": \"complex123\",\n" +
             "    \"segments\": {},\n" +
             "    \"features\": {\n" +

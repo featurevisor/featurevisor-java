@@ -375,19 +375,19 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to capture bucket key
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketKey(options -> {
+        // Create module to capture bucket key
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketKey(options -> {
             capturedBucketKey[0] = options.getBucketKey();
             return options.getBucketKey();
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         String featureKey = "test";
         Map<String, Object> context = Map.of(
@@ -450,19 +450,19 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to capture bucket key
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketKey(options -> {
+        // Create module to capture bucket key
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketKey(options -> {
             capturedBucketKey[0] = options.getBucketKey();
             return options.getBucketKey();
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         String featureKey = "test";
         Map<String, Object> context = Map.of(
@@ -527,19 +527,19 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to capture bucket key
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketKey(options -> {
+        // Create module to capture bucket key
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketKey(options -> {
             capturedBucketKey[0] = options.getBucketKey();
             return options.getBucketKey();
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         // Test with both userId and deviceId
         Map<String, Object> context1 = new HashMap<>();
@@ -559,7 +559,7 @@ public class FeaturevisorTest {
     }
 
     @Test
-    public void testInterceptContextBeforeHook() {
+    public void testInterceptContextBeforeModule() {
         final boolean[] intercepted = {false};
         final String[] interceptedFeatureKey = {""};
         final String[] interceptedVariableKey = {""};
@@ -611,30 +611,30 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to intercept before
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBefore(options -> {
+        // Create module to intercept before
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBefore(options -> {
             intercepted[0] = true;
             interceptedFeatureKey[0] = options.getFeatureKey();
             interceptedVariableKey[0] = options.getVariableKey();
             return options;
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
         );
 
         Object variation = sdk.getVariation("test", context);
-        System.out.println("DEBUG: testInterceptContextBeforeHook variation = " + variation);
+        System.out.println("DEBUG: testInterceptContextBeforeModule variation = " + variation);
 
-        // The hook should be called, but the variation might be null if the feature doesn't exist
+        // The module should be called, but the variation might be null if the feature doesn't exist
         assertTrue(intercepted[0]);
         assertEquals("test", interceptedFeatureKey[0]);
         assertEquals(null, interceptedVariableKey[0]);
@@ -643,7 +643,7 @@ public class FeaturevisorTest {
     }
 
     @Test
-    public void testInterceptValueAfterHook() {
+    public void testInterceptValueAfterModule() {
         final boolean[] intercepted = {false};
         final String[] interceptedFeatureKey = {""};
         final String[] interceptedVariableKey = {""};
@@ -695,9 +695,9 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to intercept after and manipulate value
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setAfter((evaluation, options) -> {
+        // Create module to intercept after and manipulate value
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setAfter((evaluation, options) -> {
             intercepted[0] = true;
             interceptedFeatureKey[0] = options.getFeatureKey();
             interceptedVariableKey[0] = options.getVariableKey();
@@ -705,25 +705,25 @@ public class FeaturevisorTest {
             return evaluation;
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
         );
 
         Object variation = sdk.getVariation("test", context);
-        System.out.println("DEBUG: testInterceptValueAfterHook variation = " + variation);
+        System.out.println("DEBUG: testInterceptValueAfterModule variation = " + variation);
 
-        // The hook should be called and the value should be intercepted
+        // The module should be called and the value should be intercepted
         assertTrue(intercepted[0]);
         assertEquals("test", interceptedFeatureKey[0]);
         assertEquals(null, interceptedVariableKey[0]);
-        // The variation should be "control_intercepted" based on the after hook
+        // The variation should be "control_intercepted" based on the after module
         assertEquals("control_intercepted", variation);
     }
 
@@ -808,6 +808,131 @@ public class FeaturevisorTest {
         // unsetting sticky features will make it treatment
         sdk.setSticky(new HashMap<>(), true);
         assertEquals("treatment", sdk.getVariation("test", context));
+    }
+
+    @Test
+    public void testSetDatafileMergesByDefaultAndReplacesWhenRequested() throws Exception {
+        DatafileContent firstDatafile = DatafileContent.fromJson("""
+            {
+              "schemaVersion": "2",
+              "revision": "first",
+              "features": {
+                "first": {
+                  "key": "first",
+                  "bucketBy": "userId",
+                  "traffic": []
+                }
+              },
+              "segments": {}
+            }""");
+
+        DatafileContent secondDatafile = DatafileContent.fromJson("""
+            {
+              "schemaVersion": "2",
+              "revision": "second",
+              "featurevisorVersion": "3.0.0",
+              "features": {
+                "second": {
+                  "key": "second",
+                  "bucketBy": "userId",
+                  "traffic": []
+                }
+              },
+              "segments": {}
+            }""");
+
+        Featurevisor sdk = Featurevisor.createInstance(firstDatafile);
+
+        sdk.setDatafile(secondDatafile);
+
+        assertNotNull(sdk.getFeature("first"));
+        assertNotNull(sdk.getFeature("second"));
+        assertEquals("second", sdk.getRevision());
+
+        sdk.setDatafile(secondDatafile, true);
+
+        assertNull(sdk.getFeature("first"));
+        assertNotNull(sdk.getFeature("second"));
+    }
+
+    @Test
+    public void testSetDatafileEventIncludesReplaced() throws Exception {
+        DatafileContent datafile = DatafileContent.fromJson("""
+            {
+              "schemaVersion": "2",
+              "revision": "test",
+              "features": {},
+              "segments": {}
+            }""");
+
+        Featurevisor sdk = Featurevisor.createInstance();
+        final Object[] replaced = {null};
+        sdk.on(Emitter.EventName.DATAFILE_SET, details -> replaced[0] = details.get("replaced"));
+
+        sdk.setDatafile(datafile, true);
+
+        assertEquals(true, replaced[0]);
+    }
+
+    @Test
+    public void testDuplicateModuleReportsDiagnostic() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options()
+            .onDiagnostic(diagnostics::add)
+            .modules(List.of(new FeaturevisorModule("duplicate"))));
+
+        Runnable unsubscribe = sdk.addModule(new FeaturevisorModule("duplicate"));
+
+        assertNull(unsubscribe);
+        assertTrue(diagnostics.stream().anyMatch(diagnostic ->
+            "duplicate_module".equals(diagnostic.getCode()) &&
+            "duplicate".equals(diagnostic.getModuleName()) &&
+            Logger.LogLevel.ERROR.equals(diagnostic.getLevel())
+        ));
+    }
+
+    @Test
+    public void testModuleDiagnosticSubscriptionsAndCleanup() {
+        List<FeaturevisorDiagnostic> received = new ArrayList<>();
+        final FeaturevisorModuleApi[] apiRef = {null};
+
+        FeaturevisorModule observer = new FeaturevisorModule("observer")
+            .setup(api -> api.onDiagnostic(received::add));
+        FeaturevisorModule reporter = new FeaturevisorModule("reporter")
+            .setup(api -> apiRef[0] = api);
+
+        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options()
+            .modules(List.of(observer, reporter)));
+
+        received.clear();
+
+        apiRef[0].reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(Logger.LogLevel.WARN)
+            .code("from_reporter")
+            .message("from reporter"));
+
+        assertEquals(1, received.size());
+        assertEquals("from_reporter", received.get(0).getCode());
+
+        sdk.removeModule("observer");
+        apiRef[0].reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(Logger.LogLevel.WARN)
+            .code("after_remove")
+            .message("after remove"));
+
+        assertEquals(1, received.size());
+    }
+
+    @Test
+    public void testCloseClosesModules() {
+        final boolean[] closed = {false};
+        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options()
+            .modules(List.of(new FeaturevisorModule("close-test")
+                .close(() -> closed[0] = true))));
+
+        sdk.close();
+
+        assertTrue(closed[0]);
     }
 
     @Test
@@ -1481,12 +1606,12 @@ public class FeaturevisorTest {
     public void testCheckIfEnabledForMutuallyExclusiveFeatures() {
         final int[] bucketValue = {10000};
 
-        // Create hook to control bucket value
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketValue(options -> bucketValue[0]);
+        // Create module to control bucket value
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketValue(options -> bucketValue[0]);
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         // Create datafile content using JSON string for better readability
         String datafileJson = """
@@ -1523,7 +1648,7 @@ public class FeaturevisorTest {
 
         Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         // Test with no context (should be disabled)
         assertFalse(sdk.isEnabled("test"));

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Main Featurevisor SDK class
@@ -24,11 +25,14 @@ public class Featurevisor {
     private Map<String, Object> context = new HashMap<>();
     private Logger logger;
     private Map<String, Object> sticky;
+    private FeaturevisorDiagnosticHandler onDiagnostic;
+    private boolean closed = false;
 
     // internally created
     private DatafileReader datafileReader;
-    private HooksManager hooksManager;
+    private ModulesManager modulesManager;
     private Emitter emitter;
+    private final List<ModuleDiagnosticSubscription> moduleDiagnosticSubscriptions = new ArrayList<>();
 
     private static final DatafileContent emptyDatafile;
 
@@ -92,7 +96,8 @@ public class Featurevisor {
         private Logger.LogLevel logLevel;
         private Logger logger;
         private Map<String, Object> sticky;
-        private List<HooksManager.Hook> hooks;
+        private List<FeaturevisorModule> modules;
+        private FeaturevisorDiagnosticHandler onDiagnostic;
 
         public Options() {}
 
@@ -103,7 +108,8 @@ public class Featurevisor {
         public Logger.LogLevel getLogLevel() { return logLevel; }
         public Logger getLogger() { return logger; }
         public Map<String, Object> getSticky() { return sticky; }
-        public List<HooksManager.Hook> getHooks() { return hooks; }
+        public List<FeaturevisorModule> getModules() { return modules; }
+        public FeaturevisorDiagnosticHandler getOnDiagnostic() { return onDiagnostic; }
 
         // Setters
         public void setDatafile(DatafileContent datafile) { this.datafile = datafile; }
@@ -112,7 +118,8 @@ public class Featurevisor {
         public void setLogLevel(Logger.LogLevel logLevel) { this.logLevel = logLevel; }
         public void setLogger(Logger logger) { this.logger = logger; }
         public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
-        public void setHooks(List<HooksManager.Hook> hooks) { this.hooks = hooks; }
+        public void setModules(List<FeaturevisorModule> modules) { this.modules = modules; }
+        public void setOnDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) { this.onDiagnostic = onDiagnostic; }
 
         // Builder pattern methods
         public Options datafile(DatafileContent datafile) {
@@ -145,9 +152,28 @@ public class Featurevisor {
             return this;
         }
 
-        public Options hooks(List<HooksManager.Hook> hooks) {
-            this.hooks = hooks;
+        public Options modules(List<FeaturevisorModule> modules) {
+            this.modules = modules;
             return this;
+        }
+
+        public Options onDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) {
+            this.onDiagnostic = onDiagnostic;
+            return this;
+        }
+    }
+
+    private static class ModuleDiagnosticSubscription {
+        private final String id;
+        private final String moduleId;
+        private final FeaturevisorDiagnosticHandler handler;
+        private final Logger.LogLevel logLevel;
+
+        ModuleDiagnosticSubscription(String moduleId, FeaturevisorDiagnosticHandler handler, Logger.LogLevel logLevel) {
+            this.id = UUID.randomUUID().toString();
+            this.moduleId = moduleId;
+            this.handler = handler;
+            this.logLevel = logLevel != null ? logLevel : Logger.LogLevel.INFO;
         }
     }
 
@@ -211,33 +237,31 @@ public class Featurevisor {
                 options.getLogLevel() != null ? options.getLogLevel() : Logger.LogLevel.INFO
             ));
 
-        this.hooksManager = new HooksManager(new HooksManager.HooksManagerOptions(this.logger)
-            .hooks(options.getHooks() != null ? options.getHooks() : new ArrayList<>()));
-
         this.emitter = new Emitter();
         this.sticky = options.getSticky();
+        this.onDiagnostic = options.getOnDiagnostic();
 
         // datafile
         this.datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
             .datafile(emptyDatafile)
             .logger(this.logger));
 
+        this.modulesManager = new ModulesManager(new ModulesManager.ModulesManagerOptions()
+            .modules(options.getModules() != null ? options.getModules() : new ArrayList<>())
+            .diagnosticReporter(this::reportDiagnostic)
+            .moduleApiFactory(this::createModuleApi)
+            .clearModuleDiagnosticSubscriptions(this::clearModuleDiagnosticSubscriptions));
+
         if (options.getDatafile() != null) {
-            this.datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
-                .datafile(options.getDatafile())
-                .logger(this.logger));
+            setDatafile(options.getDatafile(), true);
         } else if (options.getDatafileString() != null) {
-            try {
-                DatafileContent datafile = DatafileContent.fromJson(options.getDatafileString());
-                this.datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
-                    .datafile(datafile)
-                    .logger(this.logger));
-            } catch (Exception e) {
-                this.logger.error("could not parse datafile string", Map.of("error", e.getMessage()));
-            }
+            setDatafile(options.getDatafileString(), true);
         }
 
-        this.logger.info("Featurevisor SDK initialized", null);
+        reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(Logger.LogLevel.INFO)
+            .code("sdk_initialized")
+            .message("Featurevisor SDK initialized"), null);
     }
 
     /**
@@ -247,24 +271,157 @@ public class Featurevisor {
         this.logger.setLevel(level);
     }
 
+    private FeaturevisorModuleApi createModuleApi(FeaturevisorModule module) {
+        return new FeaturevisorModuleApi() {
+            @Override
+            public String getRevision() {
+                return Featurevisor.this.getRevision();
+            }
+
+            @Override
+            public Runnable onDiagnostic(FeaturevisorDiagnosticHandler handler) {
+                return onDiagnostic(handler, new FeaturevisorModuleDiagnosticOptions());
+            }
+
+            @Override
+            public Runnable onDiagnostic(FeaturevisorDiagnosticHandler handler, FeaturevisorModuleDiagnosticOptions options) {
+                if (handler == null) {
+                    return () -> {};
+                }
+
+                ModuleDiagnosticSubscription subscription = new ModuleDiagnosticSubscription(
+                    module.getId(),
+                    handler,
+                    options != null ? options.getLogLevel() : Logger.LogLevel.INFO
+                );
+                moduleDiagnosticSubscriptions.add(subscription);
+
+                return () -> moduleDiagnosticSubscriptions.removeIf(item -> item.id.equals(subscription.id));
+            }
+
+            @Override
+            public void reportDiagnostic(FeaturevisorDiagnostic diagnostic) {
+                Featurevisor.this.reportDiagnostic(diagnostic, module);
+            }
+        };
+    }
+
+    private void clearModuleDiagnosticSubscriptions(FeaturevisorModule module) {
+        if (module == null) {
+            return;
+        }
+        moduleDiagnosticSubscriptions.removeIf(item -> item.moduleId.equals(module.getId()));
+    }
+
+    private boolean shouldReport(Logger.LogLevel diagnosticLevel, Logger.LogLevel subscriptionLevel) {
+        return getLogLevelIndex(diagnosticLevel) >= getLogLevelIndex(subscriptionLevel);
+    }
+
+    private int getLogLevelIndex(Logger.LogLevel level) {
+        if (level == null) {
+            level = Logger.LogLevel.INFO;
+        }
+        switch (level) {
+            case DEBUG: return 0;
+            case INFO: return 1;
+            case WARN: return 2;
+            case ERROR: return 3;
+            case FATAL: return 4;
+            default: return 1;
+        }
+    }
+
+    private Map<String, Object> diagnosticDetails(FeaturevisorDiagnostic diagnostic) {
+        Map<String, Object> details = new HashMap<>();
+        details.put("code", diagnostic.getCode());
+        if (diagnostic.getModule() != null) {
+            details.put("module", diagnostic.getModule());
+        }
+        if (diagnostic.getModuleName() != null) {
+            details.put("moduleName", diagnostic.getModuleName());
+        }
+        if (diagnostic.getOriginalError() != null) {
+            details.put("originalError", diagnostic.getOriginalError());
+        }
+        if (diagnostic.getDetails() != null) {
+            details.putAll(diagnostic.getDetails());
+        }
+        return details;
+    }
+
+    public void reportDiagnostic(FeaturevisorDiagnostic diagnostic) {
+        reportDiagnostic(diagnostic, null);
+    }
+
+    void reportDiagnostic(FeaturevisorDiagnostic diagnostic, FeaturevisorModule sourceModule) {
+        if (diagnostic == null) {
+            return;
+        }
+        if (diagnostic.getLevel() == null) {
+            diagnostic.setLevel(Logger.LogLevel.INFO);
+        }
+
+        if (sourceModule != null && diagnostic.getModule() == null) {
+            diagnostic.setModule(sourceModule.getName());
+        }
+
+        for (ModuleDiagnosticSubscription subscription : new ArrayList<>(moduleDiagnosticSubscriptions)) {
+            if (sourceModule != null && sourceModule.getId().equals(subscription.moduleId)) {
+                continue;
+            }
+            if (shouldReport(diagnostic.getLevel(), subscription.logLevel)) {
+                subscription.handler.handle(diagnostic);
+            }
+        }
+
+        if (onDiagnostic != null) {
+            if (shouldReport(diagnostic.getLevel(), this.logger.getLevel())) {
+                onDiagnostic.handle(diagnostic);
+            }
+        } else {
+            this.logger.log(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));
+        }
+
+        if (Logger.LogLevel.ERROR.equals(diagnostic.getLevel()) || Logger.LogLevel.FATAL.equals(diagnostic.getLevel())) {
+            this.emitter.trigger(Emitter.EventName.ERROR, new Emitter.EventDetails(diagnosticDetails(diagnostic)));
+        }
+    }
+
     /**
      * Set datafile
      */
     public void setDatafile(DatafileContent datafile) {
+        setDatafile(datafile, false);
+    }
+
+    public void setDatafile(DatafileContent datafile, boolean replace) {
+        if (this.closed) {
+            return;
+        }
         try {
+            DatafileContent nextDatafile = replace ? datafile : mergeDatafiles(this.datafileReader.getDatafile(), datafile);
             DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
-                .datafile(datafile)
+                .datafile(nextDatafile)
                 .logger(this.logger));
 
             Emitter.EventDetails details = Events.getParamsForDatafileSetEvent(
-                this.datafileReader.getDatafile(), newDatafileReader.getDatafile());
+                this.datafileReader.getDatafile(), newDatafileReader.getDatafile(), replace);
 
             this.datafileReader = newDatafileReader;
 
             this.logger.info("datafile set", details);
             this.emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
+            reportDiagnostic(new FeaturevisorDiagnostic()
+                .level(Logger.LogLevel.INFO)
+                .code("datafile_set")
+                .message("datafile set")
+                .details(details), null);
         } catch (Exception e) {
-            this.logger.error("could not parse datafile", Map.of("error", e.getMessage()));
+            reportDiagnostic(new FeaturevisorDiagnostic()
+                .level(Logger.LogLevel.ERROR)
+                .code("invalid_datafile")
+                .message("could not parse datafile")
+                .originalError(e.getMessage()), null);
         }
     }
 
@@ -272,12 +429,54 @@ public class Featurevisor {
      * Set datafile from string
      */
     public void setDatafile(String datafileString) {
+        setDatafile(datafileString, false);
+    }
+
+    public void setDatafile(String datafileString, boolean replace) {
         try {
             DatafileContent datafile = DatafileContent.fromJson(datafileString);
-            setDatafile(datafile);
+            setDatafile(datafile, replace);
         } catch (Exception e) {
-            this.logger.error("could not parse datafile string", Map.of("error", e.getMessage()));
+            reportDiagnostic(new FeaturevisorDiagnostic()
+                .level(Logger.LogLevel.ERROR)
+                .code("invalid_datafile")
+                .message("could not parse datafile string")
+                .originalError(e.getMessage()), null);
         }
+    }
+
+    private DatafileContent mergeDatafiles(DatafileContent previous, DatafileContent incoming) {
+        if (previous == null) {
+            previous = emptyDatafile;
+        }
+        if (incoming == null) {
+            incoming = emptyDatafile;
+        }
+
+        DatafileContent merged = new DatafileContent();
+        merged.setSchemaVersion(incoming.getSchemaVersion());
+        merged.setRevision(incoming.getRevision());
+        merged.setFeaturevisorVersion(incoming.getFeaturevisorVersion());
+
+        Map<String, Segment> segments = new HashMap<>();
+        if (previous.getSegments() != null) {
+            segments.putAll(previous.getSegments());
+        }
+        if (incoming.getSegments() != null) {
+            segments.putAll(incoming.getSegments());
+        }
+        merged.setSegments(segments);
+
+        Map<String, Feature> features = new HashMap<>();
+        if (previous.getFeatures() != null) {
+            features.putAll(previous.getFeatures());
+        }
+        if (incoming.getFeatures() != null) {
+            features.putAll(incoming.getFeatures());
+        }
+        merged.setFeatures(features);
+
+        return merged;
     }
 
     /**
@@ -316,10 +515,14 @@ public class Featurevisor {
     }
 
     /**
-     * Add hook
+     * Add module
      */
-    public Runnable addHook(HooksManager.Hook hook) {
-        return this.hooksManager.add(hook);
+    public Runnable addModule(FeaturevisorModule module) {
+        return this.modulesManager.add(module);
+    }
+
+    public void removeModule(String name) {
+        this.modulesManager.remove(name);
     }
 
     /**
@@ -333,6 +536,9 @@ public class Featurevisor {
      * Close instance
      */
     public void close() {
+        this.closed = true;
+        this.modulesManager.closeAll();
+        this.moduleDiagnosticSubscriptions.clear();
         this.emitter.clearAll();
     }
 
@@ -414,7 +620,7 @@ public class Featurevisor {
         return new EvaluateOptions()
             .context(getContext(context))
             .logger(this.logger)
-            .hooksManager(this.hooksManager)
+            .modulesManager(this.modulesManager)
             .datafileReader(this.datafileReader)
             .sticky(mergedSticky)
             .defaultVariationValue(options.getDefaultVariationValue())
@@ -427,7 +633,7 @@ public class Featurevisor {
             .type(Evaluation.TYPE_FLAG)
             .featureKey(featureKey);
 
-        return Evaluate.evaluateWithHooks(evaluateOptions);
+        return Evaluate.evaluateWithModules(evaluateOptions);
     }
 
     public Evaluation evaluateFlag(String featureKey, Map<String, Object> context) {
@@ -464,7 +670,7 @@ public class Featurevisor {
             .type(Evaluation.TYPE_VARIATION)
             .featureKey(featureKey);
 
-        return Evaluate.evaluateWithHooks(evaluateOptions);
+        return Evaluate.evaluateWithModules(evaluateOptions);
     }
 
     public Evaluation evaluateVariation(String featureKey, Map<String, Object> context) {
@@ -511,7 +717,7 @@ public class Featurevisor {
             .featureKey(featureKey)
             .variableKey(variableKey);
 
-        return Evaluate.evaluateWithHooks(evaluateOptions);
+        return Evaluate.evaluateWithModules(evaluateOptions);
     }
 
     public Evaluation evaluateVariable(String featureKey, String variableKey, Map<String, Object> context) {
