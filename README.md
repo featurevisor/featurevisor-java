@@ -26,21 +26,25 @@ This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles
   - [Initialize with sticky](#initialize-with-sticky)
   - [Set sticky afterwards](#set-sticky-afterwards)
 - [Setting datafile](#setting-datafile)
+  - [Merging by default](#merging-by-default)
+  - [Replacing](#replacing)
+  - [Loading datafiles on demand](#loading-datafiles-on-demand)
   - [Updating datafile](#updating-datafile)
   - [Interval-based update](#interval-based-update)
 - [Logging](#logging)
   - [Levels](#levels)
   - [Customizing levels](#customizing-levels)
   - [Handler](#handler)
+- [Diagnostics](#diagnostics)
 - [Events](#events)
   - [`datafile_set`](#datafile_set)
   - [`context_set`](#context_set)
   - [`sticky_set`](#sticky_set)
+  - [`error`](#error)
 - [Evaluation details](#evaluation-details)
 - [Modules](#modules)
   - [Defining a module](#defining-a-module)
   - [Registering modules](#registering-modules)
-  - [Diagnostics](#diagnostics)
 - [Child instance](#child-instance)
 - [Close](#close)
 - [CLI usage](#cli-usage)
@@ -438,12 +442,42 @@ You may also initialize the SDK without passing `datafile`, and set it later on:
 f.setDatafile(datafileContent);
 ```
 
+### Merging by default
+
 By default, `setDatafile(datafile)` merges the incoming datafile with the SDK's stored datafile. Incoming top-level metadata is used, and incoming segments/features override existing segments/features with the same keys.
+
+This means you can call `setDatafile` more than once with different datafiles, and the SDK instance accumulates their features and segments together. This is what makes [loading datafiles on demand](#loading-datafiles-on-demand) possible.
+
+### Replacing
 
 To replace the stored datafile entirely, pass `true`:
 
 ```java
 f.setDatafile(datafileContent, true);
+```
+
+### Loading datafiles on demand
+
+Because merging is the default, a single SDK instance can start with a small datafile and load more datafiles later as your application needs them, instead of downloading every feature upfront.
+
+This pairs well with [targets](https://featurevisor.com/docs/targets/), where each target produces a smaller datafile for a specific part of your application:
+
+```java
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options());
+
+void loadDatafile(String target) throws Exception {
+    String url = "https://cdn.yoursite.com/production/featurevisor-" + target + ".json";
+    String json = fetchJson(url); // use your HTTP client of choice
+    DatafileContent datafile = DatafileContent.fromJson(json);
+
+    // merges into whatever was loaded before
+    f.setDatafile(datafile);
+}
+
+loadDatafile("products");
+
+// later, when the user reaches checkout
+loadDatafile("checkout");
 ```
 
 ### Updating datafile
@@ -540,6 +574,19 @@ Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
 
 Further log levels like `info` and `debug` will help you understand how the feature variations and variables are evaluated in the runtime against given context.
 
+## Diagnostics
+
+You can listen for SDK diagnostics at initialization:
+
+```java
+Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+    .onDiagnostic(diagnostic -> {
+        System.out.println(diagnostic.getLevel() + ": " + diagnostic.getCode());
+    }));
+```
+
+If `onDiagnostic` is not provided, diagnostics are written through the configured logger. Error-level diagnostics also emit the SDK `error` event.
+
 ## Events
 
 Featurevisor SDK implements a simple event emitter that allows you to listen to events that happen in the runtime.
@@ -595,6 +642,14 @@ Runnable unsubscribe = f.on("sticky_set", (event) -> {
     List<String> features = (List<String>) event.get("features"); // list of all affected feature keys
 
     System.out.println("Sticky features set");
+});
+```
+
+### `error`
+
+```java
+Emitter.UnsubscribeFunction unsubscribe = f.on(Emitter.EventName.ERROR, (event) -> {
+    System.err.println(event.get("message"));
 });
 ```
 
@@ -693,17 +748,6 @@ Runnable removeModule = f.addModule(myCustomModule);
 // removeModule.run();
 // or:
 f.removeModule("my-custom-module");
-```
-
-### Diagnostics
-
-You can listen for SDK diagnostics at initialization:
-
-```java
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .onDiagnostic(diagnostic -> {
-        System.out.println(diagnostic.getLevel() + ": " + diagnostic.getCode());
-    }));
 ```
 
 Modules receive an API during `setup` and can subscribe to diagnostics or report their own:

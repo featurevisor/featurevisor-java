@@ -193,12 +193,26 @@ public class CLI implements Runnable {
         return segmentsByKey;
     }
 
-    private String getEnvironmentKey(String environment) {
+    String getEnvironmentKey(String environment) {
         return environment == null ? "__no_environment__" : environment;
     }
 
-    private String targetDatafileCacheKey(String environment, String target) {
+    String targetDatafileCacheKey(String environment, String target) {
         return (environment == null ? "false" : environment) + "-target-" + target;
+    }
+
+    String selectDatafileKeyForAssertion(Map<String, Object> assertion, Map<String, DatafileContent> datafileCache) {
+        String assertionEnvironment = assertion.get("environment") instanceof String
+            ? (String) assertion.get("environment")
+            : null;
+        String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
+        String target = assertion.get("target") instanceof String ? (String) assertion.get("target") : null;
+
+        if (target != null && datafileCache.containsKey(targetDatafileCacheKey(assertionEnvironment, target))) {
+            return targetDatafileCacheKey(assertionEnvironment, target);
+        }
+
+        return baseDatafileKey;
     }
 
     private DatafileContent parseDatafileContent(String datafileOutput, String contextForError) throws IOException {
@@ -701,13 +715,7 @@ public class CLI implements Runnable {
                             ? (String) assertion.get("environment")
                             : null;
                         String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
-                        String selectedDatafileKey = baseDatafileKey;
-
-                        String target = assertion.get("target") instanceof String ? (String) assertion.get("target") : null;
-
-                        if (target != null && datafileCache.containsKey(targetDatafileCacheKey(assertionEnvironment, target))) {
-                            selectedDatafileKey = targetDatafileCacheKey(assertionEnvironment, target);
-                        }
+                        String selectedDatafileKey = selectDatafileKeyForAssertion(assertion, datafileCache);
 
                         DatafileContent selectedDatafile = datafileCache.get(selectedDatafileKey);
                         if (selectedDatafile == null) {
