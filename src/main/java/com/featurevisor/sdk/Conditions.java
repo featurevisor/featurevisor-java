@@ -99,14 +99,14 @@ public class Conditions {
         if (condition.isNotCondition()) {
             List<Condition> notConditions = condition.getNot();
             if (notConditions == null || notConditions.isEmpty()) {
-                return true;
+                return false;
             }
             for (Condition subCondition : notConditions) {
-                if (conditionIsMatched(subCondition, context, getRegex)) {
-                    return false;
+                if (!conditionIsMatched(subCondition, context, getRegex)) {
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
 
         // Handle plain condition

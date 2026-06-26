@@ -271,8 +271,6 @@ public class DatafileReader {
             // Handle NOT conditions
             if (conditionsMap.containsKey("not") && conditionsMap.get("not") instanceof List) {
                 List<Object> notConditions = (List<Object>) conditionsMap.get("not");
-                // NOT conditions are true if ALL conditions are false
-                // This matches the TypeScript implementation: conditions.not.every(() => allConditionsAreMatched({and: conditions.not}, context) === false)
                 Map<String, Object> andCondition = new HashMap<>();
                 andCondition.put("and", notConditions);
                 return !allConditionsAreMatched(andCondition, context);
@@ -337,8 +335,7 @@ public class DatafileReader {
             if (groupSegmentsMap.containsKey("not") && groupSegmentsMap.get("not") instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Object> notSegments = (List<Object>) groupSegmentsMap.get("not");
-                // This matches the TypeScript implementation: groupSegments.not.every((groupSegment) => allSegmentsAreMatched(groupSegment, context) === false)
-                return notSegments.stream().allMatch(s -> !allSegmentsAreMatched(s, context));
+                return !notSegments.stream().allMatch(s -> allSegmentsAreMatched(s, context));
             }
         }
 

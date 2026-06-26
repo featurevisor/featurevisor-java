@@ -154,8 +154,11 @@ public class ModulesManager {
         if (module == null) {
             return;
         }
-        if (modules.remove(module) && clearModuleDiagnosticSubscriptions != null) {
-            clearModuleDiagnosticSubscriptions.accept(module);
+        if (modules.remove(module)) {
+            if (clearModuleDiagnosticSubscriptions != null) {
+                clearModuleDiagnosticSubscriptions.accept(module);
+            }
+            closeModule(module);
         }
     }
 
@@ -215,14 +218,29 @@ public class ModulesManager {
 
     public void closeAll() {
         for (FeaturevisorModule module : new ArrayList<>(modules)) {
-            if (module.getClose() != null) {
-                module.getClose().run();
-            }
             if (clearModuleDiagnosticSubscriptions != null) {
                 clearModuleDiagnosticSubscriptions.accept(module);
             }
+            closeModule(module);
         }
         modules.clear();
+    }
+
+    private void closeModule(FeaturevisorModule module) {
+        if (module == null || module.getClose() == null) {
+            return;
+        }
+
+        try {
+            module.getClose().run();
+        } catch (Throwable error) {
+            report(new FeaturevisorDiagnostic()
+                .level(Logger.LogLevel.ERROR)
+                .code("module_close_error")
+                .message("Module close failed")
+                .moduleName(module.getName())
+                .originalError(String.valueOf(error)), null);
+        }
     }
 
     private void report(FeaturevisorDiagnostic diagnostic, FeaturevisorModule module) {

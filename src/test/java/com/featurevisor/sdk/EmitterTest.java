@@ -106,6 +106,23 @@ public class EmitterTest {
     }
 
     @Test
+    public void testTriggerUsesListenerSnapshot() {
+        List<String> calls = new ArrayList<>();
+        final Emitter.UnsubscribeFunction[] unsubscribeSecond = new Emitter.UnsubscribeFunction[1];
+
+        emitter.on(Emitter.EventName.STICKY_SET, details -> {
+            calls.add("first");
+            unsubscribeSecond[0].unsubscribe();
+        });
+        unsubscribeSecond[0] = emitter.on(Emitter.EventName.STICKY_SET, details -> calls.add("second"));
+
+        emitter.trigger(Emitter.EventName.STICKY_SET);
+        emitter.trigger(Emitter.EventName.STICKY_SET);
+
+        assertEquals(List.of("first", "second", "first"), calls);
+    }
+
+    @Test
     public void testTriggerWithoutDetails() {
         // Add a listener
         emitter.on(Emitter.EventName.STICKY_SET, this::handleDetails);

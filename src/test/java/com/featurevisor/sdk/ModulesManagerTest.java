@@ -37,7 +37,9 @@ public class ModulesManagerTest {
 
     @Test
     void testAddAndRemoveModule() {
-        FeaturevisorModule module = new FeaturevisorModule("test-module");
+        AtomicBoolean closeCalled = new AtomicBoolean(false);
+        FeaturevisorModule module = new FeaturevisorModule("test-module")
+            .close(() -> closeCalled.set(true));
 
         Runnable removeModule = modulesManager.add(module);
         assertNotNull(removeModule);
@@ -47,13 +49,17 @@ public class ModulesManagerTest {
         assertEquals("test-module", modules.get(0).getName());
 
         removeModule.run();
+        removeModule.run();
 
         assertEquals(0, modulesManager.getAll().size());
+        assertTrue(closeCalled.get());
     }
 
     @Test
     void testRemoveModuleByName() {
-        modulesManager.add(new FeaturevisorModule("module1"));
+        AtomicBoolean closeCalled = new AtomicBoolean(false);
+        modulesManager.add(new FeaturevisorModule("module1")
+            .close(() -> closeCalled.set(true)));
         modulesManager.add(new FeaturevisorModule("module2"));
 
         assertEquals(2, modulesManager.getAll().size());
@@ -63,6 +69,7 @@ public class ModulesManagerTest {
         List<FeaturevisorModule> modules = modulesManager.getAll();
         assertEquals(1, modules.size());
         assertEquals("module2", modules.get(0).getName());
+        assertTrue(closeCalled.get());
     }
 
     @Test
@@ -98,6 +105,46 @@ public class ModulesManagerTest {
 
         assertTrue(closeCalled.get());
         assertEquals(0, modulesManager.getAll().size());
+    }
+
+    @Test
+    void testCloseErrorsAreReportedAndDoNotStopCleanup() {
+        List<String> closed = new ArrayList<>();
+
+        modulesManager.add(new FeaturevisorModule("first")
+            .close(() -> {
+                closed.add("first");
+                throw new RuntimeException("first close failed");
+            }));
+        modulesManager.add(new FeaturevisorModule("second")
+            .close(() -> closed.add("second")));
+
+        modulesManager.closeAll();
+
+        assertEquals(List.of("first", "second"), closed);
+        assertTrue(diagnostics.stream().anyMatch(diagnostic ->
+            "module_close_error".equals(diagnostic.getCode()) &&
+            "first".equals(diagnostic.getModuleName()) &&
+            Logger.LogLevel.ERROR.equals(diagnostic.getLevel()) &&
+            diagnostic.getOriginalError().contains("first close failed")
+        ));
+    }
+
+    @Test
+    void testUnsubscribeReportsCloseErrorsOnce() {
+        Runnable unsubscribe = modulesManager.add(new FeaturevisorModule("dynamic")
+            .close(() -> {
+                throw new RuntimeException("dynamic close failed");
+            }));
+
+        assertNotNull(unsubscribe);
+        unsubscribe.run();
+        unsubscribe.run();
+
+        assertEquals(1, diagnostics.stream().filter(diagnostic ->
+            "module_close_error".equals(diagnostic.getCode()) &&
+            "dynamic".equals(diagnostic.getModuleName())
+        ).count());
     }
 
     @Test

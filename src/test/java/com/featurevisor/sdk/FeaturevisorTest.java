@@ -892,6 +892,33 @@ public class FeaturevisorTest {
     }
 
     @Test
+    public void testModuleCloseErrorReportsDiagnosticAndErrorEvent() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        List<Emitter.EventDetails> errorEvents = new ArrayList<>();
+
+        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options()
+            .onDiagnostic(diagnostics::add)
+            .modules(List.of(new FeaturevisorModule("closer")
+                .close(() -> {
+                    throw new RuntimeException("close failed");
+                }))));
+
+        sdk.on(Emitter.EventName.ERROR, errorEvents::add);
+        sdk.close();
+
+        assertTrue(diagnostics.stream().anyMatch(diagnostic ->
+            "module_close_error".equals(diagnostic.getCode()) &&
+            "closer".equals(diagnostic.getModuleName()) &&
+            Logger.LogLevel.ERROR.equals(diagnostic.getLevel()) &&
+            diagnostic.getOriginalError().contains("close failed")
+        ));
+        assertTrue(errorEvents.stream().anyMatch(details ->
+            "module_close_error".equals(details.get("code")) &&
+            "closer".equals(details.get("moduleName"))
+        ));
+    }
+
+    @Test
     public void testModuleDiagnosticSubscriptionsAndCleanup() {
         List<FeaturevisorDiagnostic> received = new ArrayList<>();
         final FeaturevisorModuleApi[] apiRef = {null};
