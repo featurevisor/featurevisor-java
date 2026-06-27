@@ -21,15 +21,7 @@ import java.util.regex.PatternSyntaxException;
  * DatafileReader for Featurevisor SDK
  * Handles reading and parsing datafile content
  */
-public class DatafileReader {
-
-    /**
-     * Functional interface for getting regex patterns
-     */
-    @FunctionalInterface
-    public interface GetRegex {
-        Pattern getRegex(String regexString, String regexFlags);
-    }
+class DatafileReader {
 
     /**
      * Options for creating a DatafileReader
@@ -199,7 +191,7 @@ public class DatafileReader {
             return false;
         }
 
-        GetRegex getRegex = (regexString, regexFlags) -> this.getRegex(regexString, regexFlags);
+        Conditions.GetRegex getRegex = (regexString, regexFlags) -> this.getRegex(regexString, regexFlags);
 
         // Handle Condition object
         if (conditions instanceof Condition) {

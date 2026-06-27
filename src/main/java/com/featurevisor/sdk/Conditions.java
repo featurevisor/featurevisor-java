@@ -14,6 +14,13 @@ import java.text.ParseException;
  * Provides condition matching functionality
  */
 public class Conditions {
+    /**
+     * Functional interface for getting regex patterns.
+     */
+    @FunctionalInterface
+    public interface GetRegex {
+        Pattern getRegex(String regexString, String regexFlags);
+    }
 
     /**
      * Check if a path exists in a context object
@@ -54,7 +61,7 @@ public class Conditions {
     public static boolean conditionIsMatched(
             Condition condition,
             Map<String, Object> context,
-            DatafileReader.GetRegex getRegex) {
+            GetRegex getRegex) {
 
         if (condition == null) {
             return false;
@@ -189,6 +196,24 @@ public class Conditions {
         }
     }
 
+    /**
+     * Check if all conditions are matched given a context.
+     * This mirrors the JavaScript SDK's narrow root helper without exposing the
+     * internal datafile reader implementation.
+     */
+    public static boolean allConditionsAreMatched(Object conditions, Map<String, Object> context) {
+        DatafileContent datafile = new DatafileContent();
+        datafile.setSchemaVersion("2");
+        datafile.setRevision("matcher");
+        datafile.setFeatures(new java.util.HashMap<>());
+        datafile.setSegments(new java.util.HashMap<>());
+
+        return new DatafileReader(new DatafileReader.DatafileReaderOptions()
+            .datafile(datafile)
+            .logger(Logger.createLogger(new Logger.CreateLoggerOptions())))
+            .allConditionsAreMatched(conditions, context);
+    }
+
     private static boolean equals(Object contextValue, Object conditionValue) {
         if (contextValue == null && conditionValue == null) {
             return true;
@@ -270,7 +295,7 @@ public class Conditions {
         return ((Number) contextValue).doubleValue() <= ((Number) conditionValue).doubleValue();
     }
 
-    private static boolean matches(Object contextValue, Object conditionValue, String regexFlags, DatafileReader.GetRegex getRegex) {
+    private static boolean matches(Object contextValue, Object conditionValue, String regexFlags, GetRegex getRegex) {
         if (!(contextValue instanceof String) || !(conditionValue instanceof String)) {
             return false;
         }

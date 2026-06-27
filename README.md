@@ -836,8 +836,6 @@ $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --
 
 The test runner builds base datafiles and Target datafiles, then uses a Target datafile when an assertion contains `target`.
 
-Legacy `--with-tags`, `--with-scopes`, `--schemaVersion`, and `--schema-version` flags are accepted for compatibility but ignored.
-
 ### Benchmark
 
 Learn more about benchmarking [here](https://featurevisor.com/docs/cli/#benchmarking).

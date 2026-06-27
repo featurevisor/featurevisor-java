@@ -46,7 +46,7 @@ public class EvaluateOptions {
     public Map<String, Object> getContext() { return context; }
     public Logger getLogger() { return logger; }
     public ModulesManager getModulesManager() { return modulesManager; }
-    public DatafileReader getDatafileReader() { return datafileReader; }
+    DatafileReader getDatafileReader() { return datafileReader; }
     public Map<String, Object> getSticky() { return sticky; }
     public String getDefaultVariationValue() { return defaultVariationValue; }
     public Object getDefaultVariableValue() { return defaultVariableValue; }
@@ -59,7 +59,7 @@ public class EvaluateOptions {
     public void setContext(Map<String, Object> context) { this.context = context; }
     public void setLogger(Logger logger) { this.logger = logger; }
     public void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
-    public void setDatafileReader(DatafileReader datafileReader) { this.datafileReader = datafileReader; }
+    void setDatafileReader(DatafileReader datafileReader) { this.datafileReader = datafileReader; }
     public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
     public void setDefaultVariableValue(Object defaultVariableValue) { this.defaultVariableValue = defaultVariableValue; }
@@ -96,7 +96,7 @@ public class EvaluateOptions {
         return this;
     }
 
-    public EvaluateOptions datafileReader(DatafileReader datafileReader) {
+    EvaluateOptions datafileReader(DatafileReader datafileReader) {
         this.datafileReader = datafileReader;
         return this;
     }

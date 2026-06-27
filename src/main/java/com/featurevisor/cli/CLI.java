@@ -7,7 +7,7 @@ import picocli.CommandLine.Parameters;
 
 import com.featurevisor.sdk.Featurevisor;
 import com.featurevisor.sdk.Logger;
-import com.featurevisor.sdk.DatafileReader;
+import com.featurevisor.sdk.Conditions;
 import com.featurevisor.sdk.DatafileContent;
 import com.featurevisor.sdk.Segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -637,22 +637,12 @@ public class CLI implements Runnable {
         Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
         Object conditions = segment.getConditions();
 
-        DatafileContent datafile = new DatafileContent();
-        datafile.setSchemaVersion("2");
-        datafile.setRevision("tester");
-        datafile.setFeatures(new HashMap<>());
-        datafile.setSegments(new HashMap<>());
-
-        DatafileReader datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
-            .datafile(datafile)
-            .logger(Logger.createLogger(new Logger.CreateLoggerOptions().level(level))));
-
         boolean hasError = false;
         StringBuilder errors = new StringBuilder();
         long startTime = System.nanoTime();
 
         if (assertion.containsKey("expectedToMatch")) {
-            boolean actual = datafileReader.allConditionsAreMatched(conditions, context);
+            boolean actual = Conditions.allConditionsAreMatched(conditions, context);
             boolean expected = (Boolean) assertion.get("expectedToMatch");
             if (actual != expected) {
                 hasError = true;
