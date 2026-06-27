@@ -420,7 +420,7 @@ public class Featurevisor {
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(Logger.LogLevel.ERROR)
                 .code("invalid_datafile")
-                .message("could not parse datafile")
+                .message("Could not parse datafile")
                 .originalError(e.getMessage()), null);
         }
     }
@@ -440,7 +440,7 @@ public class Featurevisor {
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(Logger.LogLevel.ERROR)
                 .code("invalid_datafile")
-                .message("could not parse datafile string")
+                .message("Could not parse datafile")
                 .originalError(e.getMessage()), null);
         }
     }
