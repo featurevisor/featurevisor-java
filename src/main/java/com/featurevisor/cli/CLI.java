@@ -842,8 +842,11 @@ public class CLI implements Runnable {
             System.out.println("Against context: " + contextMap);
             System.out.println("Running " + n + " times...");
 
-            long startTime = System.nanoTime();
+            long totalDurationNs = 0L;
+            long minDurationNs = 0L;
+            long maxDurationNs = 0L;
             for (int i = 0; i < n; i++) {
+                long evaluationStartTime = System.nanoTime();
                 if (variation) {
                     value = f.getVariation(feature, contextMap);
                 } else if (variable != null) {
@@ -851,13 +854,24 @@ public class CLI implements Runnable {
                 } else {
                     value = f.isEnabled(feature, contextMap);
                 }
+                long evaluationDurationNs = System.nanoTime() - evaluationStartTime;
+
+                totalDurationNs += evaluationDurationNs;
+                if (i == 0 || evaluationDurationNs < minDurationNs) {
+                    minDurationNs = evaluationDurationNs;
+                }
+                if (evaluationDurationNs > maxDurationNs) {
+                    maxDurationNs = evaluationDurationNs;
+                }
             }
 
-            double duration = (System.nanoTime() - startTime) / 1_000_000.0; // Convert to milliseconds
+            double duration = totalDurationNs / 1_000_000.0; // Convert to milliseconds
 
             System.out.println("Evaluated value: " + value);
             System.out.println("Total duration: " + String.format("%.3f", duration) + "ms");
-            System.out.println("Average duration: " + String.format("%.3f", duration / n) + "ms");
+            System.out.println("Minimum duration: " + String.format("%.6f", minDurationNs / 1_000_000.0) + "ms");
+            System.out.println("Average duration: " + String.format("%.6f", duration / n) + "ms");
+            System.out.println("Maximum duration: " + String.format("%.6f", maxDurationNs / 1_000_000.0) + "ms");
 
         } catch (Exception e) {
             System.err.println("Error running benchmark: " + e.getMessage());
