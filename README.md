@@ -397,6 +397,8 @@ This is handy especially when you want to pass all evaluations from a backend ap
 
 For the lifecycle of the SDK instance in your application, you can set some features with sticky values, meaning that they will not be evaluated against the fetched [datafile](https://featurevisor.com/docs/building-datafiles/):
 
+Sticky values belong to an SDK or child instance. Evaluation options do not accept sticky overrides; use `new Featurevisor.SpawnOptions().sticky(...)` when a child needs its own sticky state.
+
 ### Initialize with sticky
 
 ```java
@@ -586,6 +588,8 @@ Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
 ```
 
 If `onDiagnostic` is not provided, diagnostics are written through the configured logger. Error-level diagnostics also emit the SDK `error` event.
+
+Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance; evaluation metadata belongs in `details`.
 
 ## Events
 

@@ -189,23 +189,18 @@ public class Featurevisor {
         public OverrideOptions() {}
 
         // Getters
-        public Map<String, Object> getSticky() { return sticky; }
+        Map<String, Object> getInternalSticky() { return sticky; }
         public String getDefaultVariationValue() { return defaultVariationValue; }
         public Object getDefaultVariableValue() { return defaultVariableValue; }
         public Evaluation getFlagEvaluation() { return flagEvaluation; }
 
         // Setters
-        public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
+        void setInternalSticky(Map<String, Object> sticky) { this.sticky = sticky; }
         public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
         public void setDefaultVariableValue(Object defaultVariableValue) { this.defaultVariableValue = defaultVariableValue; }
         public void setFlagEvaluation(Evaluation flagEvaluation) { this.flagEvaluation = flagEvaluation; }
 
         // Builder pattern methods
-        public OverrideOptions sticky(Map<String, Object> sticky) {
-            this.sticky = sticky;
-            return this;
-        }
-
         public OverrideOptions defaultVariationValue(String defaultVariationValue) {
             this.defaultVariationValue = defaultVariationValue;
             return this;
@@ -218,6 +213,18 @@ public class Featurevisor {
 
         public OverrideOptions flagEvaluation(Evaluation flagEvaluation) {
             this.flagEvaluation = flagEvaluation;
+            return this;
+        }
+    }
+
+    /** Options used only when spawning a child instance. */
+    public static class SpawnOptions {
+        private Map<String, Object> sticky;
+
+        public Map<String, Object> getSticky() { return sticky; }
+        public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
+        public SpawnOptions sticky(Map<String, Object> sticky) {
+            this.sticky = sticky;
             return this;
         }
     }
@@ -584,12 +591,12 @@ public class Featurevisor {
     /**
      * Spawn child instance
      */
-    public ChildInstance spawn(Map<String, Object> context, OverrideOptions options) {
+    public ChildInstance spawn(Map<String, Object> context, SpawnOptions options) {
         if (context == null) {
             context = new HashMap<>();
         }
         if (options == null) {
-            options = new OverrideOptions();
+            options = new SpawnOptions();
         }
 
         return new ChildInstance(this, getContext(context), options.getSticky());
@@ -614,15 +621,7 @@ public class Featurevisor {
             options = new OverrideOptions();
         }
 
-        Map<String, Object> mergedSticky = this.sticky;
-        if (options.getSticky() != null) {
-            if (this.sticky != null) {
-                mergedSticky = new HashMap<>(this.sticky);
-                mergedSticky.putAll(options.getSticky());
-            } else {
-                mergedSticky = options.getSticky();
-            }
-        }
+        Map<String, Object> mergedSticky = options.getInternalSticky() != null ? options.getInternalSticky() : this.sticky;
 
         return new EvaluateOptions()
             .context(getContext(context))
@@ -1046,10 +1045,10 @@ public class Featurevisor {
             evaluatedFeature.setEnabled(Boolean.TRUE.equals(flagEvaluation.getEnabled()));
 
             OverrideOptions opts = new OverrideOptions()
-                .sticky(options.getSticky())
                 .defaultVariationValue(options.getDefaultVariationValue())
                 .defaultVariableValue(options.getDefaultVariableValue())
                 .flagEvaluation(flagEvaluation);
+            opts.setInternalSticky(options.getInternalSticky());
 
             // variation
             if (this.datafileReader.hasVariations(featureKey)) {
