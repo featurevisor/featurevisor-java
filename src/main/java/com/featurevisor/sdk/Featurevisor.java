@@ -409,12 +409,11 @@ public class Featurevisor {
 
             this.datafileReader = newDatafileReader;
 
-            this.logger.info("datafile set", details);
             this.emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(Logger.LogLevel.INFO)
                 .code("datafile_set")
-                .message("datafile set")
+                .message("Datafile set")
                 .details(details), null);
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
@@ -496,7 +495,11 @@ public class Featurevisor {
         Emitter.EventDetails params = Events.getParamsForStickySetEvent(
             previousStickyFeatures, this.sticky, replace);
 
-        this.logger.info("sticky features set", params);
+        reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(Logger.LogLevel.INFO)
+            .code("sticky_set")
+            .message("Sticky features set")
+            .details(params), null);
         this.emitter.trigger(Emitter.EventName.STICKY_SET, params);
     }
 
@@ -558,7 +561,11 @@ public class Featurevisor {
         eventDetails.put("replaced", replace);
 
         this.emitter.trigger(Emitter.EventName.CONTEXT_SET, eventDetails);
-        this.logger.debug(replace ? "context replaced" : "context updated", eventDetails);
+        reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(Logger.LogLevel.DEBUG)
+            .code("context_set")
+            .message(replace ? "Context replaced" : "Context updated")
+            .details(eventDetails), null);
     }
 
     public Map<String, Object> getContext(Map<String, Object> context) {

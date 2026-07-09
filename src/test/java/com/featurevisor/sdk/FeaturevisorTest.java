@@ -51,6 +51,22 @@ public class FeaturevisorTest {
     }
 
     @Test
+    public void testLifecycleMutationsReportDiagnostics() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options()
+            .logLevel(Logger.LogLevel.DEBUG)
+            .onDiagnostic(diagnostics::add));
+
+        sdk.setDatafile(new DatafileContent("2", "1"));
+        sdk.setSticky(Map.of("test", Map.of("enabled", true)), false);
+        sdk.setContext(Map.of("country", "nl"), false);
+
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "datafile_set".equals(diagnostic.getCode())));
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "sticky_set".equals(diagnostic.getCode())));
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "context_set".equals(diagnostic.getCode())));
+    }
+
+    @Test
     public void testCreateInstanceWithDatafileContent() {
         // Create datafile content using JSON string for better readability
         String datafileJson = """
