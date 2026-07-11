@@ -648,7 +648,6 @@ public class FeaturevisorTest {
         );
 
         Object variation = sdk.getVariation("test", context);
-        System.out.println("DEBUG: testInterceptContextBeforeModule variation = " + variation);
 
         // The module should be called, but the variation might be null if the feature doesn't exist
         assertTrue(intercepted[0]);
@@ -733,7 +732,6 @@ public class FeaturevisorTest {
         );
 
         Object variation = sdk.getVariation("test", context);
-        System.out.println("DEBUG: testInterceptValueAfterModule variation = " + variation);
 
         // The module should be called and the value should be intercepted
         assertTrue(intercepted[0]);
@@ -905,6 +903,19 @@ public class FeaturevisorTest {
             "duplicate".equals(diagnostic.getModuleName()) &&
             Logger.LogLevel.ERROR.equals(diagnostic.getLevel())
         ));
+    }
+
+    @Test
+    public void testDiagnosticHandlerFailureIsIsolated() {
+        assertDoesNotThrow(() -> {
+            Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options()
+                .onDiagnostic(diagnostic -> {
+                    throw new RuntimeException("handler failed");
+                }));
+
+            sdk.isEnabled("missing", Map.of());
+            sdk.close();
+        });
     }
 
     @Test

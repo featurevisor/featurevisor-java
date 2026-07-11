@@ -128,7 +128,21 @@ public class ModulesManager {
         }
 
         if (module.getSetup() != null && moduleApiFactory != null) {
-            module.getSetup().accept(moduleApiFactory.create(module));
+            try {
+                module.getSetup().accept(moduleApiFactory.create(module));
+            } catch (Throwable error) {
+                if (clearModuleDiagnosticSubscriptions != null) {
+                    clearModuleDiagnosticSubscriptions.accept(module);
+                }
+                report(new FeaturevisorDiagnostic()
+                    .level(Logger.LogLevel.ERROR)
+                    .code("module_setup_error")
+                    .message("Module setup failed")
+                    .moduleName(module.getName())
+                    .originalError(String.valueOf(error)), null);
+                closeModule(module);
+                return null;
+            }
         }
 
         modules.add(module);

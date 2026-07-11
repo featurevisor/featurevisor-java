@@ -377,13 +377,21 @@ public class Featurevisor {
                 continue;
             }
             if (shouldReport(diagnostic.getLevel(), subscription.logLevel)) {
-                subscription.handler.handle(diagnostic);
+                try {
+                    subscription.handler.handle(diagnostic);
+                } catch (Throwable error) {
+                    System.err.println("[Featurevisor] Diagnostic handler failed: " + error);
+                }
             }
         }
 
         if (onDiagnostic != null) {
             if (shouldReport(diagnostic.getLevel(), this.logger.getLevel())) {
-                onDiagnostic.handle(diagnostic);
+                try {
+                    onDiagnostic.handle(diagnostic);
+                } catch (Throwable error) {
+                    System.err.println("[Featurevisor] Diagnostic handler failed: " + error);
+                }
             }
         } else {
             this.logger.log(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));

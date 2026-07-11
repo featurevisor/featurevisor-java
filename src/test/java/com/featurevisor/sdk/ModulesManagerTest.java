@@ -108,6 +108,23 @@ public class ModulesManagerTest {
     }
 
     @Test
+    void testSetupFailureDoesNotRegisterModuleAndClosesIt() {
+        AtomicBoolean closeCalled = new AtomicBoolean(false);
+
+        Runnable unsubscribe = modulesManager.add(new FeaturevisorModule("broken-setup")
+            .setup(api -> { throw new RuntimeException("setup failed"); })
+            .close(() -> closeCalled.set(true)));
+
+        assertNull(unsubscribe);
+        assertTrue(closeCalled.get());
+        assertTrue(modulesManager.getAll().isEmpty());
+        assertTrue(diagnostics.stream().anyMatch(diagnostic ->
+            "module_setup_error".equals(diagnostic.getCode()) &&
+            "broken-setup".equals(diagnostic.getModuleName())
+        ));
+    }
+
+    @Test
     void testCloseErrorsAreReportedAndDoNotStopCleanup() {
         List<String> closed = new ArrayList<>();
 

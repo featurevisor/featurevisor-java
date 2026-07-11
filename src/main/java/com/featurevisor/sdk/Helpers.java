@@ -26,31 +26,35 @@ public class Helpers {
                 case "string":
                     return (T) (value instanceof String ? value : null);
                 case "integer":
-                    if (value instanceof Number) {
+                    if (value instanceof Byte || value instanceof Short || value instanceof Integer) {
                         return (T) Integer.valueOf(((Number) value).intValue());
-                    } else if (value instanceof String) {
-                        return (T) Integer.valueOf((String) value);
+                    }
+                    if (value instanceof Long) {
+                        long longValue = ((Long) value).longValue();
+                        return longValue >= Integer.MIN_VALUE && longValue <= Integer.MAX_VALUE
+                            ? (T) Integer.valueOf((int) longValue)
+                            : null;
+                    }
+                    if (value instanceof Float || value instanceof Double) {
+                        double doubleValue = ((Number) value).doubleValue();
+                        return Double.isFinite(doubleValue) && doubleValue == Math.rint(doubleValue)
+                            && doubleValue >= Integer.MIN_VALUE && doubleValue <= Integer.MAX_VALUE
+                            ? (T) Integer.valueOf((int) doubleValue)
+                            : null;
                     }
                     return null;
                 case "double":
                     if (value instanceof Number) {
-                        return (T) Double.valueOf(((Number) value).doubleValue());
-                    } else if (value instanceof String) {
-                        return (T) Double.valueOf((String) value);
+                        double doubleValue = ((Number) value).doubleValue();
+                        return Double.isFinite(doubleValue) ? (T) Double.valueOf(doubleValue) : null;
                     }
                     return null;
                 case "boolean":
-                    return (T) Boolean.valueOf(Boolean.TRUE.equals(value));
+                    return (T) (value instanceof Boolean ? value : null);
                 case "array":
                     return (T) (value instanceof List ? value : null);
                 case "object":
-                    if (value instanceof Map) {
-                        return (T) value;
-                    }
-                    if (value instanceof List) {
-                        return (T) value;
-                    }
-                    return null;
+                    return (T) (value instanceof Map ? value : null);
                 case "json":
                     // JSON type is handled specially in the calling code
                     return (T) value;

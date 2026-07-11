@@ -86,7 +86,7 @@ Add Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>0.1.0/version>
+        <version>0.1.0</version>
     </dependency>
 </dependencies>
 ```
@@ -312,6 +312,8 @@ f.<Map<String, Object>>getVariableJSON(featureKey, variableKey, context);
 f.<MyCustomClass>getVariableJSON(featureKey, variableKey, context);
 f.getVariableJSONNode(featureKey, variableKey, context);
 ```
+
+Type specific methods do not coerce values. `getVariableInteger()` returns `null` for the string `"1"`, and boolean getters return `null` for non-boolean values.
 
 For strongly typed decoding, additional overloads are available:
 
@@ -591,6 +593,8 @@ If `onDiagnostic` is not provided, diagnostics are written through the configure
 
 Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance; evaluation metadata belongs in `details`.
 
+Diagnostic handlers are isolated from SDK behavior. An exception in a handler does not stop other handlers or evaluations.
+
 ## Events
 
 Featurevisor SDK implements a simple event emitter that allows you to listen to events that happen in the runtime.
@@ -696,6 +700,8 @@ Modules allow you to intercept the evaluation process and customize it further a
 ### Defining a module
 
 A module is a `FeaturevisorModule` with a unique `name` and optional lifecycle functions:
+
+If `setup` throws, the module is not registered. Featurevisor removes subscriptions created during setup, reports `module_setup_error`, and calls `close` when present.
 
 ```java
 FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
