@@ -41,6 +41,15 @@ public class CLIOptionsTest {
     }
 
     @Test
+    public void testRepeatedTargets() {
+        CLI cli = new CLI();
+        CommandLine.ParseResult result = new CommandLine(cli).parseArgs(
+            "benchmark", "--target=web", "--target=mobile"
+        );
+        assertEquals(java.util.Arrays.asList("web", "mobile"), result.matchedOption("--target").getValue());
+    }
+
+    @Test
     public void testTargetAssertionSelectsTargetDatafile() {
         CLI cli = new CLI();
         Map<String, Object> assertion = new HashMap<>();

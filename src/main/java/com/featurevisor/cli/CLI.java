@@ -59,7 +59,7 @@ public class CLI implements Runnable {
     @Option(names = {"--keyPattern"}, description = "Key pattern filter")
     private String keyPattern;
 
-    @Option(names = {"-n"}, description = "Number of iterations")
+    @Option(names = {"-n", "--n"}, description = "Number of iterations")
     private Integer n = 1000;
 
     @Option(names = {"--onlyFailures"}, description = "Show only failures")
@@ -100,6 +100,9 @@ public class CLI implements Runnable {
 
     @Option(names = {"--populateUuid"}, description = "Populate UUID for specified keys")
     private List<String> populateUuid = new ArrayList<>();
+
+    @Option(names = {"--target"}, description = "Target datafile; repeat for multiple targets")
+    private List<String> targets = new ArrayList<>();
 
     private String cwd;
     private ObjectMapper objectMapper;
@@ -663,13 +666,16 @@ public class CLI implements Runnable {
 
             Map<String, Object> config = getConfig(featurevisorProjectPath);
             List<String> environments = getEnvironmentList(config);
-            List<String> targets = getTargets(featurevisorProjectPath);
+            List<String> availableTargets = getTargets(featurevisorProjectPath);
+            List<String> selectedTargets = targets.isEmpty()
+                ? availableTargets
+                : new ArrayList<>(new java.util.LinkedHashSet<>(targets));
 
             Map<String, Segment> segmentsByKey = getSegments(featurevisorProjectPath);
             Map<String, DatafileContent> datafileCache = new HashMap<>();
 
             datafileCache.putAll(buildBaseDatafiles(featurevisorProjectPath, environments));
-            datafileCache.putAll(buildTargetDatafiles(featurevisorProjectPath, environments, targets));
+            datafileCache.putAll(buildTargetDatafiles(featurevisorProjectPath, environments, selectedTargets));
 
             System.out.println();
 
@@ -690,6 +696,16 @@ public class CLI implements Runnable {
                 String testKey = (String) test.get("key");
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> assertions = (List<Map<String, Object>>) test.get("assertions");
+
+                if (test.containsKey("feature") && !targets.isEmpty()) {
+                    assertions = assertions.stream().filter(assertion -> {
+                        Object assertionTarget = assertion.get("target");
+                        return assertionTarget == null || targets.contains(assertionTarget.toString());
+                    }).collect(java.util.stream.Collectors.toList());
+                    if (assertions.isEmpty()) {
+                        continue;
+                    }
+                }
 
 
 
@@ -764,18 +780,18 @@ public class CLI implements Runnable {
                     testDuration += testResult.duration;
 
                     if (testResult.hasError) {
-                        results.append("  ✘ ").append(assertion.get("description")).append(" (").append(String.format("%.2f", testResult.duration)).append("ms)\n");
+                        results.append("  ✘ ").append(assertion.get("description")).append(" (").append(String.format(Locale.ROOT, "%.2f", testResult.duration)).append("ms)\n");
                         results.append(testResult.errors);
                         testHasError = true;
                         failedAssertionsCount++;
                     } else {
-                        results.append("  ✔ ").append(assertion.get("description")).append(" (").append(String.format("%.2f", testResult.duration)).append("ms)\n");
+                        results.append("  ✔ ").append(assertion.get("description")).append(" (").append(String.format(Locale.ROOT, "%.2f", testResult.duration)).append("ms)\n");
                         passedAssertionsCount++;
                     }
                 }
 
                 if (!onlyFailures || (onlyFailures && testHasError)) {
-                    System.out.println("\nTesting: " + testKey + " (" + String.format("%.2f", testDuration) + "ms)");
+                    System.out.println("\nTesting: " + testKey + " (" + String.format(Locale.ROOT, "%.2f", testDuration) + "ms)");
                     System.out.print(results);
                 }
 
@@ -817,19 +833,36 @@ public class CLI implements Runnable {
                 return;
             }
 
+            if (targets.size() > 1) {
+                List<String> requested = new ArrayList<>(new java.util.LinkedHashSet<>(targets));
+                for (String target : requested) {
+                    targets = Collections.singletonList(target);
+                    benchmark();
+                }
+                targets = requested;
+                return;
+            }
+
             Map<String, Object> contextMap = new HashMap<>();
             if (context != null) {
                 contextMap = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
             }
 
             Logger.LogLevel level = getLoggerLevel();
-            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, null);
+            String target = targets.isEmpty() ? null : targets.get(0);
+            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
             Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
                 .datafile(datafile)
                 .logLevel(level));
 
             Object value = null;
+
+            System.out.println("Benchmark Featurevisor feature");
+            System.out.println("  Feature: " + feature);
+            System.out.println("  Environment: " + environment);
+            if (target != null) System.out.println("  Target: " + target);
+            System.out.println("  Iterations: " + n);
 
             if (variation) {
                 System.out.println("Benchmarking variation for feature '" + feature + "'...");
@@ -868,10 +901,10 @@ public class CLI implements Runnable {
             double duration = totalDurationNs / 1_000_000.0; // Convert to milliseconds
 
             System.out.println("Evaluated value: " + value);
-            System.out.println("Total duration: " + String.format("%.3f", duration) + "ms");
-            System.out.println("Minimum duration: " + String.format("%.6f", minDurationNs / 1_000_000.0) + "ms");
-            System.out.println("Average duration: " + String.format("%.6f", duration / n) + "ms");
-            System.out.println("Maximum duration: " + String.format("%.6f", maxDurationNs / 1_000_000.0) + "ms");
+            System.out.println("Total duration: " + String.format(Locale.ROOT, "%.3f", duration) + "ms");
+            System.out.println("Minimum duration: " + String.format(Locale.ROOT, "%.6f", minDurationNs / 1_000_000.0) + "ms");
+            System.out.println("Average duration: " + String.format(Locale.ROOT, "%.6f", duration / n) + "ms");
+            System.out.println("Maximum duration: " + String.format(Locale.ROOT, "%.6f", maxDurationNs / 1_000_000.0) + "ms");
 
         } catch (Exception e) {
             System.err.println("Error running benchmark: " + e.getMessage());
@@ -895,18 +928,35 @@ public class CLI implements Runnable {
                 return;
             }
 
+            if (targets.size() > 1) {
+                List<String> requested = new ArrayList<>(new java.util.LinkedHashSet<>(targets));
+                for (String target : requested) {
+                    targets = Collections.singletonList(target);
+                    assessDistribution();
+                }
+                targets = requested;
+                return;
+            }
+
             Map<String, Object> contextMap = new HashMap<>();
             if (context != null) {
                 contextMap = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
             }
 
-            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, null);
+            String target = targets.isEmpty() ? null : targets.get(0);
+            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
             Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
                 .datafile(datafile)
                 .logLevel(getLoggerLevel()));
 
             Object value = null;
+
+            System.out.println("Assess Featurevisor distribution");
+            System.out.println("  Feature: " + feature);
+            System.out.println("  Environment: " + environment);
+            if (target != null) System.out.println("  Target: " + target);
+            System.out.println("  Iterations: " + n);
 
             if (variation) {
                 System.out.println("Assessing distribution for feature '" + feature + "'...");
@@ -946,7 +996,7 @@ public class CLI implements Runnable {
                 Object val = entry.getKey();
                 Integer count = entry.getValue();
                 double percentage = (count.doubleValue() / n) * 100;
-                System.out.println("  - " + val + ": " + count + " (" + String.format("%.2f", percentage) + "%)");
+                System.out.println("  - " + val + ": " + count + " (" + String.format(Locale.ROOT, "%.2f", percentage) + "%)");
             }
 
         } catch (Exception e) {
