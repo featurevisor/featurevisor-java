@@ -11,7 +11,7 @@ test:
 
 test-example-1:
 	mvn test
-	mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/Users/fahad/Projects/featurevisor/featurevisor/examples/example-1 --onlyFailures"
+	mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=../featurevisor/examples/example-1 --onlyFailures"
 
 ##
 # Monorepo
