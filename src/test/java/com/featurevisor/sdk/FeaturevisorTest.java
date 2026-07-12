@@ -58,7 +58,10 @@ public class FeaturevisorTest {
             .logLevel(FeaturevisorLogLevel.DEBUG)
             .onDiagnostic(diagnostics::add));
 
-        sdk.setDatafile(new DatafileContent("2", "1"));
+        DatafileContent datafile = new DatafileContent("2", "1");
+        datafile.setSegments(new HashMap<>());
+        datafile.setFeatures(new HashMap<>());
+        sdk.setDatafile(datafile);
         sdk.setSticky(Map.of("test", Map.of("enabled", true)), false);
         sdk.setContext(Map.of("country", "nl"), false);
 

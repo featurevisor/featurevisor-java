@@ -341,7 +341,7 @@ public class Featurevisor {
             diagnostic.setLevel(FeaturevisorLogLevel.INFO);
         }
 
-        if (sourceModule != null && diagnostic.getModule() == null) {
+        if (sourceModule != null && sourceModule.getName() != null) {
             diagnostic.setModule(sourceModule.getName());
         }
 
@@ -389,6 +389,10 @@ public class Featurevisor {
         try {
             if (datafile == null) {
                 throw new IllegalArgumentException("Datafile must be an object");
+            }
+            if (datafile.getSchemaVersion() == null || datafile.getRevision() == null ||
+                datafile.getSegments() == null || datafile.getFeatures() == null) {
+                throw new IllegalArgumentException("Invalid datafile");
             }
             DatafileContent nextDatafile = replace ? datafile : mergeDatafiles(this.datafileReader.getDatafile(), datafile);
             DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
