@@ -9,7 +9,7 @@ import java.util.ArrayList;
  * Bucketer for Featurevisor SDK
  * Handles bucketing logic for feature flags
  */
-public class Bucketer {
+final class Bucketer {
 
     /**
      * Bucket key type

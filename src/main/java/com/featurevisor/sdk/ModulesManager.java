@@ -123,7 +123,7 @@ public class ModulesManager {
                 .level(FeaturevisorLogLevel.ERROR)
                 .code("duplicate_module")
                 .message("Duplicate module name")
-                .moduleName(name), module);
+                .moduleName(name), null);
             return null;
         }
 
@@ -139,7 +139,7 @@ public class ModulesManager {
                     .code("module_setup_error")
                     .message("Module setup failed")
                     .moduleName(module.getName())
-                    .originalError(String.valueOf(error)), null);
+                    .originalError(error), null);
                 closeModule(module);
                 return null;
             }
@@ -253,7 +253,7 @@ public class ModulesManager {
                 .code("module_close_error")
                 .message("Module close failed")
                 .moduleName(module.getName())
-                .originalError(String.valueOf(error)), null);
+                .originalError(error), null);
         }
     }
 

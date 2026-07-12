@@ -17,7 +17,7 @@ import java.util.ArrayList;
  * EvaluateByBucketing for Featurevisor SDK
  * Handles bucketing evaluation logic for feature flags
  */
-public class EvaluateByBucketing {
+final class EvaluateByBucketing {
 
     /**
      * Result of bucketing evaluation

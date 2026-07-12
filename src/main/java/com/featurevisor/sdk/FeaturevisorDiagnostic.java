@@ -9,7 +9,7 @@ public class FeaturevisorDiagnostic {
     private String message;
     private String module;
     private String moduleName;
-    private String originalError;
+    private Object originalError;
     private Map<String, Object> details = new HashMap<>();
 
     public FeaturevisorDiagnostic() {}
@@ -25,7 +25,7 @@ public class FeaturevisorDiagnostic {
     public String getMessage() { return message; }
     public String getModule() { return module; }
     public String getModuleName() { return moduleName; }
-    public String getOriginalError() { return originalError; }
+    public Object getOriginalError() { return originalError; }
     public Map<String, Object> getDetails() { return details; }
 
     public void setLevel(FeaturevisorLogLevel level) { this.level = level; }
@@ -33,7 +33,7 @@ public class FeaturevisorDiagnostic {
     public void setMessage(String message) { this.message = message; }
     public void setModule(String module) { this.module = module; }
     public void setModuleName(String moduleName) { this.moduleName = moduleName; }
-    public void setOriginalError(String originalError) { this.originalError = originalError; }
+    public void setOriginalError(Object originalError) { this.originalError = originalError; }
     public void setDetails(Map<String, Object> details) {
         this.details = details != null ? details : new HashMap<>();
     }
@@ -63,7 +63,7 @@ public class FeaturevisorDiagnostic {
         return this;
     }
 
-    public FeaturevisorDiagnostic originalError(String originalError) {
+    public FeaturevisorDiagnostic originalError(Object originalError) {
         this.originalError = originalError;
         return this;
     }

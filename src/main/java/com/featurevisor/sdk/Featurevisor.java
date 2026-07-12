@@ -241,7 +241,7 @@ public class Featurevisor {
         reportDiagnostic(new FeaturevisorDiagnostic()
             .level(FeaturevisorLogLevel.INFO)
             .code("sdk_initialized")
-            .message("Featurevisor SDK initialized"), null);
+            .message("SDK initialized"), null);
     }
 
     /**
@@ -329,7 +329,7 @@ public class Featurevisor {
         return details;
     }
 
-    public void reportDiagnostic(FeaturevisorDiagnostic diagnostic) {
+    void reportDiagnostic(FeaturevisorDiagnostic diagnostic) {
         reportDiagnostic(diagnostic, null);
     }
 
@@ -370,8 +370,8 @@ public class Featurevisor {
             Logger.writeToConsole(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));
         }
 
-        if (FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel()) || FeaturevisorLogLevel.FATAL.equals(diagnostic.getLevel())) {
-            this.emitter.trigger(Emitter.EventName.ERROR, new Emitter.EventDetails(diagnosticDetails(diagnostic)));
+        if (FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel())) {
+            this.emitter.trigger(Emitter.EventName.ERROR, new Emitter.EventDetails(Map.of("diagnostic", diagnostic)));
         }
     }
 
@@ -387,6 +387,9 @@ public class Featurevisor {
             return;
         }
         try {
+            if (datafile == null) {
+                throw new IllegalArgumentException("Datafile must be an object");
+            }
             DatafileContent nextDatafile = replace ? datafile : mergeDatafiles(this.datafileReader.getDatafile(), datafile);
             DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
                 .datafile(nextDatafile)
@@ -397,18 +400,18 @@ public class Featurevisor {
 
             this.datafileReader = newDatafileReader;
 
-            this.emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(FeaturevisorLogLevel.INFO)
                 .code("datafile_set")
                 .message("Datafile set")
                 .details(details), null);
+            this.emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(FeaturevisorLogLevel.ERROR)
                 .code("invalid_datafile")
                 .message("Could not parse datafile")
-                .originalError(e.getMessage()), null);
+                .originalError(e), null);
         }
     }
 
@@ -428,7 +431,7 @@ public class Featurevisor {
                 .level(FeaturevisorLogLevel.ERROR)
                 .code("invalid_datafile")
                 .message("Could not parse datafile")
-                .originalError(e.getMessage()), null);
+                .originalError(e), null);
         }
     }
 

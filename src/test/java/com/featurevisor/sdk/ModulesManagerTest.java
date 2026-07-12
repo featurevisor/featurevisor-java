@@ -143,7 +143,8 @@ public class ModulesManagerTest {
             "module_close_error".equals(diagnostic.getCode()) &&
             "first".equals(diagnostic.getModuleName()) &&
             FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel()) &&
-            diagnostic.getOriginalError().contains("first close failed")
+            diagnostic.getOriginalError() instanceof RuntimeException &&
+            ((RuntimeException) diagnostic.getOriginalError()).getMessage().contains("first close failed")
         ));
     }
 

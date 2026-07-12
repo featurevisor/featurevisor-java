@@ -11,7 +11,7 @@ import java.util.List;
  * Main evaluation logic for Featurevisor SDK
  * Handles the evaluation of features, variations, and variables
  */
-public class Evaluate {
+final class Evaluate {
 
     /**
      * Evaluate with modules

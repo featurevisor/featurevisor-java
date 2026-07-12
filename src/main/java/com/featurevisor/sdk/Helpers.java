@@ -7,7 +7,7 @@ import java.util.Map;
  * Helper utilities for Featurevisor SDK
  * Provides common utility functions used throughout the SDK
  */
-public class Helpers {
+final class Helpers {
 
     /**
      * Get value by type, converting the value to the specified type if possible

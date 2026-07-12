@@ -14,7 +14,7 @@ import java.util.List;
  * Evaluates forced features and returns appropriate evaluation results
  * This class handles the logic for evaluating forced features, variables, and variations
  */
-public class EvaluateForced {
+final class EvaluateForced {
 
     /**
      * Result of forced evaluation containing evaluation, force, and forceIndex

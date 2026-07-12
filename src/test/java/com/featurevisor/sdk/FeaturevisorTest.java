@@ -944,11 +944,13 @@ public class FeaturevisorTest {
             "module_close_error".equals(diagnostic.getCode()) &&
             "closer".equals(diagnostic.getModuleName()) &&
             FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel()) &&
-            diagnostic.getOriginalError().contains("close failed")
+            diagnostic.getOriginalError() instanceof RuntimeException &&
+            ((RuntimeException) diagnostic.getOriginalError()).getMessage().contains("close failed")
         ));
         assertTrue(errorEvents.stream().anyMatch(details ->
-            "module_close_error".equals(details.get("code")) &&
-            "closer".equals(details.get("moduleName"))
+            details.get("diagnostic") instanceof FeaturevisorDiagnostic &&
+            "module_close_error".equals(((FeaturevisorDiagnostic) details.get("diagnostic")).getCode()) &&
+            "closer".equals(((FeaturevisorDiagnostic) details.get("diagnostic")).getModuleName())
         ));
     }
 

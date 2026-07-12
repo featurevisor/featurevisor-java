@@ -7,7 +7,7 @@ import com.featurevisor.sdk.VariableSchema;
  * Evaluates disabled features and returns appropriate evaluation results
  * This class handles the logic for evaluating disabled features, variables, and variations
  */
-public class EvaluateDisabled {
+final class EvaluateDisabled {
 
     /**
      * Evaluates a disabled feature and returns the appropriate evaluation result

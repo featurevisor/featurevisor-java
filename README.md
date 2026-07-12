@@ -624,9 +624,12 @@ Runnable unsubscribe = f.on("sticky_set", (event) -> {
 
 ```java
 Emitter.UnsubscribeFunction unsubscribe = f.on(Emitter.EventName.ERROR, (event) -> {
-    System.err.println(event.get("message"));
+    FeaturevisorDiagnostic diagnostic = (FeaturevisorDiagnostic) event.get("diagnostic");
+    System.err.println(diagnostic.getMessage());
 });
 ```
+
+The `error` event is emitted for diagnostics whose level is `ERROR`.
 
 ## Evaluation details
 
