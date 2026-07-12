@@ -7,6 +7,7 @@ This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles
 ## Table of contents <!-- omit in toc -->
 
 - [Installation](#installation)
+- [Public API](#public-api)
   - [Repository](#repository)
   - [Dependency](#dependency)
   - [Authentication](#authentication)
@@ -31,11 +32,9 @@ This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles
   - [Loading datafiles on demand](#loading-datafiles-on-demand)
   - [Updating datafile](#updating-datafile)
   - [Interval-based update](#interval-based-update)
-- [Logging](#logging)
-  - [Levels](#levels)
-  - [Customizing levels](#customizing-levels)
-  - [Handler](#handler)
 - [Diagnostics](#diagnostics)
+  - [Levels](#levels)
+  - [Handler](#handler)
 - [Events](#events)
   - [`datafile_set`](#datafile_set)
   - [`context_set`](#context_set)
@@ -119,6 +118,20 @@ You can generate a new GitHub token with `read:packages` scope here: [https://gi
 
 See example application here: [https://github.com/featurevisor/featurevisor-example-java](https://github.com/featurevisor/featurevisor-example-java)
 
+## Public API
+
+The main runtime API is `Featurevisor.createFeaturevisor()`:
+
+```java
+import com.featurevisor.sdk.FeaturevisorLogLevel;
+
+Featurevisor f = Featurevisor.createFeaturevisor(
+    new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
+);
+```
+
+Most applications only need `Featurevisor.createFeaturevisor`, the `Featurevisor` instance type, and `Featurevisor.FeaturevisorOptions`. Public extension and observability types include `FeaturevisorModule`, `FeaturevisorDiagnostic`, and the datafile model types.
+
 ## Initialization
 
 The SDK can be initialized by passing [datafile](https://featurevisor.com/docs/building-datafiles/) content directly:
@@ -131,13 +144,15 @@ String datafileUrl = "https://cdn.yoursite.com/datafile.json";
 String datafileContent = "..." // load your datafile content
 
 // Create SDK instance
-Featurevisor f = Featurevisor.createInstance(datafileContent);
+Featurevisor f = Featurevisor.createFeaturevisor(
+    new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
+);
 ```
 
-or by constructing a `Featurevisor.Options` object:
+or by constructing a `Featurevisor.FeaturevisorOptions` object:
 
 ```java
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafileContent)
 );
 ```
@@ -180,7 +195,7 @@ Map<String, Object> initialContext = new HashMap<>();
 initialContext.put("deviceId", "123");
 initialContext.put("country", "nl");
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafileContent)
     .context(initialContext));
 ```
@@ -420,7 +435,7 @@ Map<String, Object> anotherFeatureSticky = new HashMap<>();
 anotherFeatureSticky.put("enabled", false);
 stickyFeatures.put("anotherFeatureKey", anotherFeatureSticky);
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafile)
     .sticky(stickyFeatures));
 ```
@@ -467,7 +482,7 @@ Because merging is the default, a single SDK instance can start with a small dat
 This pairs well with [targets](https://featurevisor.com/docs/targets/), where each target produces a smaller datafile for a specific part of your application:
 
 ```java
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options());
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions());
 
 void loadDatafile(String target) throws Exception {
     String url = "https://cdn.yoursite.com/production/featurevisor-" + target + ".json";
@@ -512,88 +527,40 @@ scheduler.scheduleAtFixedRate(() -> {
 }, 0, 5, TimeUnit.MINUTES);
 ```
 
-## Logging
+## Diagnostics
 
-By default, Featurevisor SDKs will print out logs to the console for `info` level and above.
+By default, Featurevisor reports diagnostics to the console for `info` level and above with a `[Featurevisor]` prefix.
 
 ### Levels
 
-These are all the available log levels:
+Available diagnostic levels are `FATAL`, `ERROR`, `WARN`, `INFO`, and `DEBUG`.
 
-- `error`
-- `warn`
-- `info`
-- `debug`
-
-### Customizing levels
-
-If you choose `debug` level to make the logs more verbose, you can set it at the time of SDK initialization.
-
-Setting `debug` level will print out all logs, including `info`, `warn`, and `error` levels.
+Set the level during initialization or update it afterwards:
 
 ```java
-import com.featurevisor.sdk.Logger;
+Featurevisor f = Featurevisor.createFeaturevisor(
+    new Featurevisor.FeaturevisorOptions().logLevel(FeaturevisorLogLevel.DEBUG)
+);
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
-    .logLevel(Logger.LogLevel.DEBUG));
-```
-
-You can also set log level from SDK instance afterwards:
-
-```java
-f.setLogLevel(Logger.LogLevel.DEBUG);
+f.setLogLevel(FeaturevisorLogLevel.INFO);
 ```
 
 ### Handler
 
-You can also pass your own log handler, if you do not wish to print the logs to the console:
+Use `onDiagnostic` to send structured diagnostics to your observability system:
 
 ```java
-// Create a custom logger with a custom handler
-Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
-    .level(Logger.LogLevel.INFO)
-    .handler((level, message, details) -> {
-        // do something with the log
-        System.out.println("[" + level + "] " + message);
-    }));
-
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
-    .logger(customLogger));
-```
-
-Alternatively, you can create a custom logger directly:
-
-```java
-Logger customLogger = new Logger(Logger.LogLevel.INFO, (level, message, details) -> {
-    // do something with the log
-    System.out.println("[" + level + "] " + message);
-});
-
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
-    .logger(customLogger));
-```
-
-Further log levels like `info` and `debug` will help you understand how the feature variations and variables are evaluated in the runtime against given context.
-
-## Diagnostics
-
-You can listen for SDK diagnostics at initialization:
-
-```java
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+    .logLevel(FeaturevisorLogLevel.INFO)
     .onDiagnostic(diagnostic -> {
         System.out.println(diagnostic.getLevel() + ": " + diagnostic.getCode());
     }));
 ```
 
-If `onDiagnostic` is not provided, diagnostics are written through the configured logger. Error-level diagnostics also emit the SDK `error` event.
-
-Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance; evaluation metadata belongs in `details`.
+Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance. Evaluation metadata belongs in `details`.
 
 Diagnostic handlers are isolated from SDK behavior. An exception in a handler does not stop other handlers or evaluations.
+
 
 ## Events
 
@@ -745,7 +712,7 @@ You can register modules at the time of SDK initialization:
 List<FeaturevisorModule> modules = new ArrayList<>();
 modules.add(myCustomModule);
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafile)
     .modules(modules));
 ```
@@ -770,7 +737,7 @@ FeaturevisorModule module = new FeaturevisorModule("diagnostic-module")
         });
 
         api.reportDiagnostic(new FeaturevisorDiagnostic()
-            .level(Logger.LogLevel.WARN)
+            .level(FeaturevisorLogLevel.WARN)
             .code("custom_module_warning")
             .message("Something notable happened"));
     });

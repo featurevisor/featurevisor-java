@@ -6,7 +6,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import com.featurevisor.sdk.Featurevisor;
-import com.featurevisor.sdk.Logger;
+import com.featurevisor.sdk.FeaturevisorLogLevel;
 import com.featurevisor.sdk.Conditions;
 import com.featurevisor.sdk.DatafileContent;
 import com.featurevisor.sdk.Segment;
@@ -319,13 +319,13 @@ public class CLI implements Runnable {
     /**
      * Get logger level based on CLI options
      */
-    private Logger.LogLevel getLoggerLevel() {
+    private FeaturevisorLogLevel getLoggerLevel() {
         if (verbose) {
-            return Logger.LogLevel.DEBUG;
+            return FeaturevisorLogLevel.DEBUG;
         } else if (quiet) {
-            return Logger.LogLevel.ERROR;
+            return FeaturevisorLogLevel.ERROR;
         } else {
-            return Logger.LogLevel.WARN;
+            return FeaturevisorLogLevel.WARN;
         }
     }
 
@@ -355,7 +355,7 @@ public class CLI implements Runnable {
     /**
      * Test a feature
      */
-    private TestResult testFeature(Map<String, Object> assertion, String featureKey, Object f, Logger.LogLevel level) {
+    private TestResult testFeature(Map<String, Object> assertion, String featureKey, Object f, FeaturevisorLogLevel level) {
         @SuppressWarnings("unchecked")
         Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
         @SuppressWarnings("unchecked")
@@ -635,7 +635,7 @@ public class CLI implements Runnable {
     /**
      * Test a segment
      */
-    private TestResult testSegment(Map<String, Object> assertion, Segment segment, Logger.LogLevel level) {
+    private TestResult testSegment(Map<String, Object> assertion, Segment segment, FeaturevisorLogLevel level) {
         @SuppressWarnings("unchecked")
         Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
         Object conditions = segment.getConditions();
@@ -679,7 +679,7 @@ public class CLI implements Runnable {
 
             System.out.println();
 
-            Logger.LogLevel level = getLoggerLevel();
+            FeaturevisorLogLevel level = getLoggerLevel();
             List<Map<String, Object>> tests = getTests(featurevisorProjectPath);
 
             if (tests.isEmpty()) {
@@ -744,7 +744,7 @@ public class CLI implements Runnable {
                             System.out.println();
                         }
 
-                        Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+                        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                             .datafile(selectedDatafile)
                             .logLevel(level));
 
@@ -762,7 +762,7 @@ public class CLI implements Runnable {
                             FeaturevisorModule testModule = new FeaturevisorModule("test-module")
                                 .bucketValue((options) -> (int) (atValue * 1000));
 
-                            f = Featurevisor.createInstance(new Featurevisor.Options()
+                            f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                                 .datafile(selectedDatafile)
                                 .logLevel(level)
                                 .modules(Collections.singletonList(testModule)));
@@ -848,11 +848,11 @@ public class CLI implements Runnable {
                 contextMap = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
             }
 
-            Logger.LogLevel level = getLoggerLevel();
+            FeaturevisorLogLevel level = getLoggerLevel();
             String target = targets.isEmpty() ? null : targets.get(0);
             DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
-            Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+            Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                 .datafile(datafile)
                 .logLevel(level));
 
@@ -946,7 +946,7 @@ public class CLI implements Runnable {
             String target = targets.isEmpty() ? null : targets.get(0);
             DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
-            Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+            Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                 .datafile(datafile)
                 .logLevel(getLoggerLevel()));
 

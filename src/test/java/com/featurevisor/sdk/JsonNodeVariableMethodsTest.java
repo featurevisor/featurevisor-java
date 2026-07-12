@@ -61,8 +61,8 @@ public class JsonNodeVariableMethodsTest {
 
     @Test
     public void testJsonNodeMethodsAndMalformedJsonHandling() throws Exception {
-        Featurevisor sdk = Featurevisor.createInstance(
-            new Featurevisor.Options().datafile(DatafileContent.fromJson(DATAFILE_JSON))
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafile(DatafileContent.fromJson(DATAFILE_JSON))
         );
         Map<String, Object> context = Map.of("userId", "123");
 
@@ -94,8 +94,8 @@ public class JsonNodeVariableMethodsTest {
 
     @Test
     public void testChildInstanceJsonNodeParity() throws Exception {
-        Featurevisor sdk = Featurevisor.createInstance(
-            new Featurevisor.Options().datafile(DatafileContent.fromJson(DATAFILE_JSON))
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafile(DatafileContent.fromJson(DATAFILE_JSON))
         );
         ChildInstance child = sdk.spawn(Map.of("userId", "123"));
 

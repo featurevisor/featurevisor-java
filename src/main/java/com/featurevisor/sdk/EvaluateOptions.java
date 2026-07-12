@@ -44,8 +44,8 @@ public class EvaluateOptions {
     public String getFeatureKey() { return featureKey; }
     public String getVariableKey() { return variableKey; }
     public Map<String, Object> getContext() { return context; }
-    public Logger getLogger() { return logger; }
-    public ModulesManager getModulesManager() { return modulesManager; }
+    Logger getLogger() { return logger; }
+    ModulesManager getModulesManager() { return modulesManager; }
     DatafileReader getDatafileReader() { return datafileReader; }
     public Map<String, Object> getSticky() { return sticky; }
     public String getDefaultVariationValue() { return defaultVariationValue; }
@@ -57,8 +57,8 @@ public class EvaluateOptions {
     public void setFeatureKey(String featureKey) { this.featureKey = featureKey; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
     public void setContext(Map<String, Object> context) { this.context = context; }
-    public void setLogger(Logger logger) { this.logger = logger; }
-    public void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
+    void setLogger(Logger logger) { this.logger = logger; }
+    void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
     void setDatafileReader(DatafileReader datafileReader) { this.datafileReader = datafileReader; }
     public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
@@ -86,12 +86,12 @@ public class EvaluateOptions {
         return this;
     }
 
-    public EvaluateOptions logger(Logger logger) {
+    EvaluateOptions logger(Logger logger) {
         this.logger = logger;
         return this;
     }
 
-    public EvaluateOptions modulesManager(ModulesManager modulesManager) {
+    EvaluateOptions modulesManager(ModulesManager modulesManager) {
         this.modulesManager = modulesManager;
         return this;
     }

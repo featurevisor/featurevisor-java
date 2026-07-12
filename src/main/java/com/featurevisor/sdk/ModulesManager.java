@@ -120,7 +120,7 @@ public class ModulesManager {
         String name = module.getName();
         if (name != null && !name.isBlank() && modules.stream().anyMatch(existingModule -> name.equals(existingModule.getName()))) {
             report(new FeaturevisorDiagnostic()
-                .level(Logger.LogLevel.ERROR)
+                .level(FeaturevisorLogLevel.ERROR)
                 .code("duplicate_module")
                 .message("Duplicate module name")
                 .moduleName(name), module);
@@ -135,7 +135,7 @@ public class ModulesManager {
                     clearModuleDiagnosticSubscriptions.accept(module);
                 }
                 report(new FeaturevisorDiagnostic()
-                    .level(Logger.LogLevel.ERROR)
+                    .level(FeaturevisorLogLevel.ERROR)
                     .code("module_setup_error")
                     .message("Module setup failed")
                     .moduleName(module.getName())
@@ -249,7 +249,7 @@ public class ModulesManager {
             module.getClose().run();
         } catch (Throwable error) {
             report(new FeaturevisorDiagnostic()
-                .level(Logger.LogLevel.ERROR)
+                .level(FeaturevisorLogLevel.ERROR)
                 .code("module_close_error")
                 .message("Module close failed")
                 .moduleName(module.getName())

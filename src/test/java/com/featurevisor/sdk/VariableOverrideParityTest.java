@@ -65,7 +65,7 @@ public class VariableOverrideParityTest {
             """;
 
         DatafileContent datafile = DatafileContent.fromJson(datafileJson);
-        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Evaluation evaluation = sdk.evaluateVariable("test", "config", Map.of("userId", "123", "country", "de"));
         assertEquals(Evaluation.REASON_VARIABLE_OVERRIDE_RULE, evaluation.getReason());
@@ -129,7 +129,7 @@ public class VariableOverrideParityTest {
             """;
 
         DatafileContent datafile = DatafileContent.fromJson(datafileJson);
-        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Evaluation evaluation = sdk.evaluateVariable("test", "config", Map.of("userId", "123", "country", "de"));
         assertEquals(Evaluation.REASON_VARIABLE_OVERRIDE_VARIATION, evaluation.getReason());

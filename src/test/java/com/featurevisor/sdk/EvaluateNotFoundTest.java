@@ -22,7 +22,7 @@ public class EvaluateNotFoundTest {
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
 
         // Create a test feature with variations
         feature = new Feature("test-feature");

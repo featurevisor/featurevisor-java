@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FeaturevisorDiagnostic {
-    private Logger.LogLevel level = Logger.LogLevel.INFO;
+    private FeaturevisorLogLevel level = FeaturevisorLogLevel.INFO;
     private String code;
     private String message;
     private String module;
@@ -14,13 +14,13 @@ public class FeaturevisorDiagnostic {
 
     public FeaturevisorDiagnostic() {}
 
-    public FeaturevisorDiagnostic(Logger.LogLevel level, String code, String message) {
+    public FeaturevisorDiagnostic(FeaturevisorLogLevel level, String code, String message) {
         this.level = level;
         this.code = code;
         this.message = message;
     }
 
-    public Logger.LogLevel getLevel() { return level; }
+    public FeaturevisorLogLevel getLevel() { return level; }
     public String getCode() { return code; }
     public String getMessage() { return message; }
     public String getModule() { return module; }
@@ -28,7 +28,7 @@ public class FeaturevisorDiagnostic {
     public String getOriginalError() { return originalError; }
     public Map<String, Object> getDetails() { return details; }
 
-    public void setLevel(Logger.LogLevel level) { this.level = level; }
+    public void setLevel(FeaturevisorLogLevel level) { this.level = level; }
     public void setCode(String code) { this.code = code; }
     public void setMessage(String message) { this.message = message; }
     public void setModule(String module) { this.module = module; }
@@ -38,7 +38,7 @@ public class FeaturevisorDiagnostic {
         this.details = details != null ? details : new HashMap<>();
     }
 
-    public FeaturevisorDiagnostic level(Logger.LogLevel level) {
+    public FeaturevisorDiagnostic level(FeaturevisorLogLevel level) {
         this.level = level;
         return this;
     }

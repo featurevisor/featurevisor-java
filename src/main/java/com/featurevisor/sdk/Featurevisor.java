@@ -47,66 +47,36 @@ public class Featurevisor {
     /**
      * Factory methods
      */
-    public static Featurevisor createInstance(Options options) {
+    public static Featurevisor createFeaturevisor(FeaturevisorOptions options) {
         if (options == null) {
-            options = new Options();
+            options = new FeaturevisorOptions();
         }
         return new Featurevisor(options);
     }
 
-    public static Featurevisor createInstance() {
-        return createInstance(new Options());
-    }
-
-    public static Featurevisor createInstance(DatafileContent datafile) {
-        return createInstance(new Options().datafile(datafile));
-    }
-
-    public static Featurevisor createInstance(String datafileString) {
-        return createInstance(new Options().datafileString(datafileString));
-    }
-
-    public static Featurevisor createInstance(Map<String, Object> context) {
-        return createInstance(new Options().context(context));
-    }
-
-    public static Featurevisor createInstance(Logger.LogLevel logLevel) {
-        return createInstance(new Options().logLevel(logLevel));
-    }
-
-    public static Featurevisor createInstance(Logger logger) {
-        return createInstance(new Options().logger(logger));
-    }
-
-    public static Featurevisor createInstance(Map<String, Object> sticky, boolean isSticky) {
-        if (isSticky) {
-            return createInstance(new Options().sticky(sticky));
-        } else {
-            return createInstance(new Options().context(sticky));
-        }
+    public static Featurevisor createFeaturevisor() {
+        return createFeaturevisor(new FeaturevisorOptions());
     }
 
     /**
      * Options for creating an instance
      */
-    public static class Options {
+    public static class FeaturevisorOptions {
         private DatafileContent datafile;
         private String datafileString;
         private Map<String, Object> context;
-        private Logger.LogLevel logLevel;
-        private Logger logger;
+        private FeaturevisorLogLevel logLevel;
         private Map<String, Object> sticky;
         private List<FeaturevisorModule> modules;
         private FeaturevisorDiagnosticHandler onDiagnostic;
 
-        public Options() {}
+        public FeaturevisorOptions() {}
 
         // Getters
         public DatafileContent getDatafile() { return datafile; }
         public String getDatafileString() { return datafileString; }
         public Map<String, Object> getContext() { return context; }
-        public Logger.LogLevel getLogLevel() { return logLevel; }
-        public Logger getLogger() { return logger; }
+        public FeaturevisorLogLevel getLogLevel() { return logLevel; }
         public Map<String, Object> getSticky() { return sticky; }
         public List<FeaturevisorModule> getModules() { return modules; }
         public FeaturevisorDiagnosticHandler getOnDiagnostic() { return onDiagnostic; }
@@ -115,49 +85,43 @@ public class Featurevisor {
         public void setDatafile(DatafileContent datafile) { this.datafile = datafile; }
         public void setDatafileString(String datafileString) { this.datafileString = datafileString; }
         public void setContext(Map<String, Object> context) { this.context = context; }
-        public void setLogLevel(Logger.LogLevel logLevel) { this.logLevel = logLevel; }
-        public void setLogger(Logger logger) { this.logger = logger; }
+        public void setLogLevel(FeaturevisorLogLevel logLevel) { this.logLevel = logLevel; }
         public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
         public void setModules(List<FeaturevisorModule> modules) { this.modules = modules; }
         public void setOnDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) { this.onDiagnostic = onDiagnostic; }
 
         // Builder pattern methods
-        public Options datafile(DatafileContent datafile) {
+        public FeaturevisorOptions datafile(DatafileContent datafile) {
             this.datafile = datafile;
             return this;
         }
 
-        public Options datafileString(String datafileString) {
+        public FeaturevisorOptions datafileString(String datafileString) {
             this.datafileString = datafileString;
             return this;
         }
 
-        public Options context(Map<String, Object> context) {
+        public FeaturevisorOptions context(Map<String, Object> context) {
             this.context = context;
             return this;
         }
 
-        public Options logLevel(Logger.LogLevel logLevel) {
+        public FeaturevisorOptions logLevel(FeaturevisorLogLevel logLevel) {
             this.logLevel = logLevel;
             return this;
         }
 
-        public Options logger(Logger logger) {
-            this.logger = logger;
-            return this;
-        }
-
-        public Options sticky(Map<String, Object> sticky) {
+        public FeaturevisorOptions sticky(Map<String, Object> sticky) {
             this.sticky = sticky;
             return this;
         }
 
-        public Options modules(List<FeaturevisorModule> modules) {
+        public FeaturevisorOptions modules(List<FeaturevisorModule> modules) {
             this.modules = modules;
             return this;
         }
 
-        public Options onDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) {
+        public FeaturevisorOptions onDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) {
             this.onDiagnostic = onDiagnostic;
             return this;
         }
@@ -167,13 +131,13 @@ public class Featurevisor {
         private final String id;
         private final String moduleId;
         private final FeaturevisorDiagnosticHandler handler;
-        private final Logger.LogLevel logLevel;
+        private final FeaturevisorLogLevel logLevel;
 
-        ModuleDiagnosticSubscription(String moduleId, FeaturevisorDiagnosticHandler handler, Logger.LogLevel logLevel) {
+        ModuleDiagnosticSubscription(String moduleId, FeaturevisorDiagnosticHandler handler, FeaturevisorLogLevel logLevel) {
             this.id = UUID.randomUUID().toString();
             this.moduleId = moduleId;
             this.handler = handler;
-            this.logLevel = logLevel != null ? logLevel : Logger.LogLevel.INFO;
+            this.logLevel = logLevel != null ? logLevel : FeaturevisorLogLevel.INFO;
         }
     }
 
@@ -232,17 +196,26 @@ public class Featurevisor {
     /**
      * Constructor
      */
-    public Featurevisor(Options options) {
+    private Featurevisor(FeaturevisorOptions options) {
         // from options
         if (options.getContext() != null) {
             this.context = new HashMap<>(options.getContext());
         }
 
-        this.logger = options.getLogger() != null ?
-            options.getLogger() :
-            Logger.createLogger(new Logger.CreateLoggerOptions().level(
-                options.getLogLevel() != null ? options.getLogLevel() : Logger.LogLevel.INFO
-            ));
+        this.logger = Logger.createLogger(new Logger.CreateLoggerOptions()
+            .level(options.getLogLevel() != null ? options.getLogLevel() : FeaturevisorLogLevel.INFO)
+            .handler((level, message, details) -> {
+                Map<String, Object> normalizedDetails = details != null ? details : new HashMap<>();
+                Object reason = normalizedDetails.get("reason");
+                String code = reason != null ? reason.toString() : message;
+                if ("feature is deprecated".equals(message)) code = "deprecated_feature";
+                if ("variable is deprecated".equals(message)) code = "deprecated_variable";
+                if ("feature not found".equals(message)) code = "feature_not_found";
+                if ("variable schema not found".equals(message)) code = "variable_not_found";
+                if ("no variations".equals(message)) code = "no_variations";
+                if ("invalid bucketBy".equals(message)) code = "invalid_bucket_by";
+                reportDiagnostic(new FeaturevisorDiagnostic(level, code, message).details(normalizedDetails), null);
+            }));
 
         this.emitter = new Emitter();
         this.sticky = options.getSticky();
@@ -266,7 +239,7 @@ public class Featurevisor {
         }
 
         reportDiagnostic(new FeaturevisorDiagnostic()
-            .level(Logger.LogLevel.INFO)
+            .level(FeaturevisorLogLevel.INFO)
             .code("sdk_initialized")
             .message("Featurevisor SDK initialized"), null);
     }
@@ -274,7 +247,7 @@ public class Featurevisor {
     /**
      * Set log level
      */
-    public void setLogLevel(Logger.LogLevel level) {
+    public void setLogLevel(FeaturevisorLogLevel level) {
         this.logger.setLevel(level);
     }
 
@@ -299,7 +272,7 @@ public class Featurevisor {
                 ModuleDiagnosticSubscription subscription = new ModuleDiagnosticSubscription(
                     module.getId(),
                     handler,
-                    options != null ? options.getLogLevel() : Logger.LogLevel.INFO
+                    options != null ? options.getLogLevel() : FeaturevisorLogLevel.INFO
                 );
                 moduleDiagnosticSubscriptions.add(subscription);
 
@@ -320,13 +293,13 @@ public class Featurevisor {
         moduleDiagnosticSubscriptions.removeIf(item -> item.moduleId.equals(module.getId()));
     }
 
-    private boolean shouldReport(Logger.LogLevel diagnosticLevel, Logger.LogLevel subscriptionLevel) {
+    private boolean shouldReport(FeaturevisorLogLevel diagnosticLevel, FeaturevisorLogLevel subscriptionLevel) {
         return getLogLevelIndex(diagnosticLevel) >= getLogLevelIndex(subscriptionLevel);
     }
 
-    private int getLogLevelIndex(Logger.LogLevel level) {
+    private int getLogLevelIndex(FeaturevisorLogLevel level) {
         if (level == null) {
-            level = Logger.LogLevel.INFO;
+            level = FeaturevisorLogLevel.INFO;
         }
         switch (level) {
             case DEBUG: return 0;
@@ -365,7 +338,7 @@ public class Featurevisor {
             return;
         }
         if (diagnostic.getLevel() == null) {
-            diagnostic.setLevel(Logger.LogLevel.INFO);
+            diagnostic.setLevel(FeaturevisorLogLevel.INFO);
         }
 
         if (sourceModule != null && diagnostic.getModule() == null) {
@@ -393,11 +366,11 @@ public class Featurevisor {
                     System.err.println("[Featurevisor] Diagnostic handler failed: " + error);
                 }
             }
-        } else {
-            this.logger.log(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));
+        } else if (shouldReport(diagnostic.getLevel(), this.logger.getLevel())) {
+            Logger.writeToConsole(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));
         }
 
-        if (Logger.LogLevel.ERROR.equals(diagnostic.getLevel()) || Logger.LogLevel.FATAL.equals(diagnostic.getLevel())) {
+        if (FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel()) || FeaturevisorLogLevel.FATAL.equals(diagnostic.getLevel())) {
             this.emitter.trigger(Emitter.EventName.ERROR, new Emitter.EventDetails(diagnosticDetails(diagnostic)));
         }
     }
@@ -426,13 +399,13 @@ public class Featurevisor {
 
             this.emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
             reportDiagnostic(new FeaturevisorDiagnostic()
-                .level(Logger.LogLevel.INFO)
+                .level(FeaturevisorLogLevel.INFO)
                 .code("datafile_set")
                 .message("Datafile set")
                 .details(details), null);
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
-                .level(Logger.LogLevel.ERROR)
+                .level(FeaturevisorLogLevel.ERROR)
                 .code("invalid_datafile")
                 .message("Could not parse datafile")
                 .originalError(e.getMessage()), null);
@@ -452,7 +425,7 @@ public class Featurevisor {
             setDatafile(datafile, replace);
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
-                .level(Logger.LogLevel.ERROR)
+                .level(FeaturevisorLogLevel.ERROR)
                 .code("invalid_datafile")
                 .message("Could not parse datafile")
                 .originalError(e.getMessage()), null);
@@ -511,7 +484,7 @@ public class Featurevisor {
             previousStickyFeatures, this.sticky, replace);
 
         reportDiagnostic(new FeaturevisorDiagnostic()
-            .level(Logger.LogLevel.INFO)
+            .level(FeaturevisorLogLevel.INFO)
             .code("sticky_set")
             .message("Sticky features set")
             .details(params), null);
@@ -523,6 +496,26 @@ public class Featurevisor {
      */
     public String getRevision() {
         return this.datafileReader.getRevision();
+    }
+
+    public String getSchemaVersion() {
+        return this.datafileReader.getSchemaVersion();
+    }
+
+    public Segment getSegment(String segmentKey) {
+        return this.datafileReader.getSegment(segmentKey);
+    }
+
+    public List<String> getFeatureKeys() {
+        return this.datafileReader.getFeatureKeys();
+    }
+
+    public List<String> getVariableKeys(String featureKey) {
+        return this.datafileReader.getVariableKeys(featureKey);
+    }
+
+    public boolean hasVariations(String featureKey) {
+        return this.datafileReader.hasVariations(featureKey);
     }
 
     /**
@@ -577,7 +570,7 @@ public class Featurevisor {
 
         this.emitter.trigger(Emitter.EventName.CONTEXT_SET, eventDetails);
         reportDiagnostic(new FeaturevisorDiagnostic()
-            .level(Logger.LogLevel.DEBUG)
+            .level(FeaturevisorLogLevel.DEBUG)
             .code("context_set")
             .message(replace ? "Context replaced" : "Context updated")
             .details(eventDetails), null);

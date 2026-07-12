@@ -84,7 +84,7 @@ public class ModulesManagerTest {
         assertEquals(1, diagnostics.size());
         assertEquals("duplicate_module", diagnostics.get(0).getCode());
         assertEquals("duplicate", diagnostics.get(0).getModuleName());
-        assertEquals(Logger.LogLevel.ERROR, diagnostics.get(0).getLevel());
+        assertEquals(FeaturevisorLogLevel.ERROR, diagnostics.get(0).getLevel());
     }
 
     @Test
@@ -142,7 +142,7 @@ public class ModulesManagerTest {
         assertTrue(diagnostics.stream().anyMatch(diagnostic ->
             "module_close_error".equals(diagnostic.getCode()) &&
             "first".equals(diagnostic.getModuleName()) &&
-            Logger.LogLevel.ERROR.equals(diagnostic.getLevel()) &&
+            FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel()) &&
             diagnostic.getOriginalError().contains("first close failed")
         ));
     }
