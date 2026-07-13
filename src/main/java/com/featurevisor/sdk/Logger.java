@@ -6,30 +6,26 @@ import java.util.HashMap;
 /**
  * Logger for Featurevisor SDK
  */
-public class Logger {
-    public enum LogLevel {
-        DEBUG, INFO, WARN, ERROR, FATAL
-    }
-
-    private static final LogLevel[] ALL_LEVELS = {
-        LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.FATAL
+final class Logger {
+    private static final FeaturevisorLogLevel[] ALL_LEVELS = {
+        FeaturevisorLogLevel.DEBUG, FeaturevisorLogLevel.INFO, FeaturevisorLogLevel.WARN, FeaturevisorLogLevel.ERROR, FeaturevisorLogLevel.FATAL
     };
 
-    private static final LogLevel DEFAULT_LEVEL = LogLevel.INFO;
+    private static final FeaturevisorLogLevel DEFAULT_LEVEL = FeaturevisorLogLevel.INFO;
     private static final String LOGGER_PREFIX = "[Featurevisor]";
 
-    private LogLevel level;
+    private FeaturevisorLogLevel level;
     private LogHandler handler;
 
-    public interface LogHandler {
-        void handle(LogLevel level, String message, Map<String, Object> details);
+    interface LogHandler {
+        void handle(FeaturevisorLogLevel level, String message, Map<String, Object> details);
     }
 
-    public static class CreateLoggerOptions {
-        private LogLevel level;
+    static class CreateLoggerOptions {
+        private FeaturevisorLogLevel level;
         private LogHandler handler;
 
-        public CreateLoggerOptions level(LogLevel level) {
+        public CreateLoggerOptions level(FeaturevisorLogLevel level) {
             this.level = level;
             return this;
         }
@@ -39,7 +35,7 @@ public class Logger {
             return this;
         }
 
-        public LogLevel getLevel() {
+        public FeaturevisorLogLevel getLevel() {
             return level;
         }
 
@@ -48,27 +44,27 @@ public class Logger {
         }
     }
 
-    public Logger() {
+    Logger() {
         this.level = DEFAULT_LEVEL;
         this.handler = this::defaultLogHandler;
     }
 
-    public Logger(LogLevel level) {
+    Logger(FeaturevisorLogLevel level) {
         this.level = level != null ? level : DEFAULT_LEVEL;
         this.handler = this::defaultLogHandler;
     }
 
-    public Logger(LogHandler handler) {
+    Logger(LogHandler handler) {
         this.level = DEFAULT_LEVEL;
         this.handler = handler != null ? handler : this::defaultLogHandler;
     }
 
-    public Logger(LogLevel level, LogHandler handler) {
+    Logger(FeaturevisorLogLevel level, LogHandler handler) {
         this.level = level != null ? level : DEFAULT_LEVEL;
         this.handler = handler != null ? handler : this::defaultLogHandler;
     }
 
-    public Logger(CreateLoggerOptions options) {
+    Logger(CreateLoggerOptions options) {
         this.level = options.getLevel() != null ? options.getLevel() : DEFAULT_LEVEL;
         this.handler = options.getHandler() != null ? options.getHandler() : this::defaultLogHandler;
     }
@@ -78,7 +74,7 @@ public class Logger {
     }
 
     public void debug(String message, Map<String, Object> details) {
-        log(LogLevel.DEBUG, message, details);
+        log(FeaturevisorLogLevel.DEBUG, message, details);
     }
 
     public void info(String message) {
@@ -86,7 +82,7 @@ public class Logger {
     }
 
     public void info(String message, Map<String, Object> details) {
-        log(LogLevel.INFO, message, details);
+        log(FeaturevisorLogLevel.INFO, message, details);
     }
 
     public void warn(String message) {
@@ -94,7 +90,7 @@ public class Logger {
     }
 
     public void warn(String message, Map<String, Object> details) {
-        log(LogLevel.WARN, message, details);
+        log(FeaturevisorLogLevel.WARN, message, details);
     }
 
     public void error(String message) {
@@ -102,7 +98,7 @@ public class Logger {
     }
 
     public void error(String message, Map<String, Object> details) {
-        log(LogLevel.ERROR, message, details);
+        log(FeaturevisorLogLevel.ERROR, message, details);
     }
 
     public void fatal(String message) {
@@ -110,16 +106,16 @@ public class Logger {
     }
 
     public void fatal(String message, Map<String, Object> details) {
-        log(LogLevel.FATAL, message, details);
+        log(FeaturevisorLogLevel.FATAL, message, details);
     }
 
-    public void log(LogLevel logLevel, String message, Map<String, Object> details) {
+    public void log(FeaturevisorLogLevel logLevel, String message, Map<String, Object> details) {
         if (shouldLog(logLevel)) {
             handler.handle(logLevel, message, details);
         }
     }
 
-    private boolean shouldLog(LogLevel logLevel) {
+    private boolean shouldLog(FeaturevisorLogLevel logLevel) {
         int currentLevelIndex = getLevelIndex(this.level);
         int messageLevelIndex = getLevelIndex(logLevel);
 
@@ -127,7 +123,7 @@ public class Logger {
         return messageLevelIndex >= currentLevelIndex;
     }
 
-    private int getLevelIndex(LogLevel level) {
+    private int getLevelIndex(FeaturevisorLogLevel level) {
         for (int i = 0; i < ALL_LEVELS.length; i++) {
             if (ALL_LEVELS[i] == level) {
                 return i;
@@ -136,7 +132,11 @@ public class Logger {
         return 0;
     }
 
-    private void defaultLogHandler(LogLevel level, String message, Map<String, Object> details) {
+    private void defaultLogHandler(FeaturevisorLogLevel level, String message, Map<String, Object> details) {
+        writeToConsole(level, message, details);
+    }
+
+    static void writeToConsole(FeaturevisorLogLevel level, String message, Map<String, Object> details) {
         String levelStr = level.name().toLowerCase();
         String logMessage = String.format("%s %s: %s", LOGGER_PREFIX, levelStr, message);
 
@@ -147,27 +147,27 @@ public class Logger {
         System.out.println(logMessage);
     }
 
-    public LogLevel getLevel() {
+    public FeaturevisorLogLevel getLevel() {
         return level;
     }
 
-    public void setLevel(LogLevel level) {
+    public void setLevel(FeaturevisorLogLevel level) {
         this.level = level != null ? level : DEFAULT_LEVEL;
     }
 
-    public LogHandler getHandler() {
+    LogHandler getHandler() {
         return handler;
     }
 
-    public void setHandler(LogHandler handler) {
+    void setHandler(LogHandler handler) {
         this.handler = handler != null ? handler : this::defaultLogHandler;
     }
 
-    public static Logger createLogger() {
+    static Logger createLogger() {
         return createLogger(new CreateLoggerOptions());
     }
 
-    public static Logger createLogger(CreateLoggerOptions options) {
+    static Logger createLogger(CreateLoggerOptions options) {
         return new Logger(options);
     }
 }

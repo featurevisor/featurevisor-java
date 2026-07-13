@@ -42,7 +42,7 @@ public class LoggerTest {
 
     @Test
     public void testCreateLoggerWithCustomLevel() {
-        Logger logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
         assertNotNull(logger);
         assertTrue(logger instanceof Logger);
     }
@@ -82,7 +82,7 @@ public class LoggerTest {
 
     @Test
     public void testLoggerConstructorWithProvidedLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
         logger.debug("debug message");
 
         // Debug should be logged with debug level
@@ -126,7 +126,7 @@ public class LoggerTest {
 
     @Test
     public void testSetLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.INFO));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.INFO));
 
         // Debug should not be logged initially
         logger.debug("debug message");
@@ -137,7 +137,7 @@ public class LoggerTest {
         outputStream.reset();
 
         // Set to debug level
-        logger.setLevel(Logger.LogLevel.DEBUG);
+        logger.setLevel(FeaturevisorLogLevel.DEBUG);
         logger.debug("debug message");
         output = outputStream.toString();
         assertTrue(output.contains("debug message"));
@@ -145,9 +145,9 @@ public class LoggerTest {
 
     @Test
     public void testLogLevelFilteringErrorMessages() {
-        Logger.LogLevel[] levels = {Logger.LogLevel.DEBUG, Logger.LogLevel.INFO, Logger.LogLevel.WARN, Logger.LogLevel.ERROR};
+        FeaturevisorLogLevel[] levels = {FeaturevisorLogLevel.DEBUG, FeaturevisorLogLevel.INFO, FeaturevisorLogLevel.WARN, FeaturevisorLogLevel.ERROR};
 
-        for (Logger.LogLevel level : levels) {
+        for (FeaturevisorLogLevel level : levels) {
             Logger logger = new Logger(new Logger.CreateLoggerOptions().level(level));
             logger.error("error message");
 
@@ -161,7 +161,7 @@ public class LoggerTest {
 
     @Test
     public void testLogLevelFilteringWarnMessages() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
 
         logger.warn("warn message");
         String output = outputStream.toString();
@@ -176,7 +176,7 @@ public class LoggerTest {
 
     @Test
     public void testLogLevelFilteringInfoMessages() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
 
         logger.info("info message");
         String output = outputStream.toString();
@@ -185,7 +185,7 @@ public class LoggerTest {
 
     @Test
     public void testLogLevelFilteringDebugMessages() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.INFO));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.INFO));
 
         logger.debug("debug message");
         String output = outputStream.toString();
@@ -194,7 +194,7 @@ public class LoggerTest {
 
     @Test
     public void testLogLevelFilteringDebugLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         logger.debug("debug message");
         String output = outputStream.toString();
@@ -221,7 +221,7 @@ public class LoggerTest {
 
     @Test
     public void testConvenienceMethods() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Test debug method
         logger.debug("debug message");
@@ -252,7 +252,7 @@ public class LoggerTest {
 
     @Test
     public void testHandleDetailsParameter() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.INFO));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.INFO));
 
         Map<String, Object> details = new HashMap<>();
         details.put("key", "value");
@@ -280,12 +280,12 @@ public class LoggerTest {
 
         Logger logger = new Logger(new Logger.CreateLoggerOptions()
             .handler(customHandler)
-            .level(Logger.LogLevel.DEBUG));
+            .level(FeaturevisorLogLevel.DEBUG));
 
         Map<String, Object> details = new HashMap<>();
         details.put("test", true);
 
-        logger.log(Logger.LogLevel.INFO, "test message", details);
+        logger.log(FeaturevisorLogLevel.INFO, "test message", details);
 
         assertTrue(handlerCalled[0]);
         assertEquals("info", capturedLevel[0]);
@@ -303,9 +303,9 @@ public class LoggerTest {
 
         Logger logger = new Logger(new Logger.CreateLoggerOptions()
             .handler(customHandler)
-            .level(Logger.LogLevel.WARN));
+            .level(FeaturevisorLogLevel.WARN));
 
-        logger.log(Logger.LogLevel.DEBUG, "debug message", null);
+        logger.log(FeaturevisorLogLevel.DEBUG, "debug message", null);
 
         assertFalse(handlerCalled[0]);
     }
@@ -313,7 +313,7 @@ public class LoggerTest {
         @Test
     public void testDefaultLogHandler() {
         // Test that default handler works through the logger
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Test debug level
         logger.debug("debug message");
@@ -370,18 +370,18 @@ public class LoggerTest {
 
         @Test
     public void testLogLevelEnumValues() {
-        assertEquals("DEBUG", Logger.LogLevel.DEBUG.name());
-        assertEquals("INFO", Logger.LogLevel.INFO.name());
-        assertEquals("WARN", Logger.LogLevel.WARN.name());
-        assertEquals("ERROR", Logger.LogLevel.ERROR.name());
-        assertEquals("FATAL", Logger.LogLevel.FATAL.name());
+        assertEquals("DEBUG", FeaturevisorLogLevel.DEBUG.name());
+        assertEquals("INFO", FeaturevisorLogLevel.INFO.name());
+        assertEquals("WARN", FeaturevisorLogLevel.WARN.name());
+        assertEquals("ERROR", FeaturevisorLogLevel.ERROR.name());
+        assertEquals("FATAL", FeaturevisorLogLevel.FATAL.name());
     }
 
     @Test
     public void testCreateLoggerOptionsBuilder() {
         Logger.LogHandler handler = (level, message, details) -> {};
         Logger.CreateLoggerOptions options = new Logger.CreateLoggerOptions()
-            .level(Logger.LogLevel.DEBUG)
+            .level(FeaturevisorLogLevel.DEBUG)
             .handler(handler);
 
         // Test that the builder pattern works correctly
@@ -392,15 +392,15 @@ public class LoggerTest {
     @Test
     public void testLogLevelEnumOrdinal() {
         // Test that log levels are in the correct order
-        assertTrue(Logger.LogLevel.DEBUG.ordinal() < Logger.LogLevel.INFO.ordinal());
-        assertTrue(Logger.LogLevel.INFO.ordinal() < Logger.LogLevel.WARN.ordinal());
-        assertTrue(Logger.LogLevel.WARN.ordinal() < Logger.LogLevel.ERROR.ordinal());
-        assertTrue(Logger.LogLevel.ERROR.ordinal() < Logger.LogLevel.FATAL.ordinal());
+        assertTrue(FeaturevisorLogLevel.DEBUG.ordinal() < FeaturevisorLogLevel.INFO.ordinal());
+        assertTrue(FeaturevisorLogLevel.INFO.ordinal() < FeaturevisorLogLevel.WARN.ordinal());
+        assertTrue(FeaturevisorLogLevel.WARN.ordinal() < FeaturevisorLogLevel.ERROR.ordinal());
+        assertTrue(FeaturevisorLogLevel.ERROR.ordinal() < FeaturevisorLogLevel.FATAL.ordinal());
     }
 
     @Test
     public void testLoggerWithNullMessage() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Should not throw exception with null message
         assertDoesNotThrow(() -> {
@@ -410,7 +410,7 @@ public class LoggerTest {
 
     @Test
     public void testLoggerWithEmptyMessage() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Should handle empty message
         assertDoesNotThrow(() -> {
@@ -423,7 +423,7 @@ public class LoggerTest {
 
     @Test
     public void testLoggerWithNullDetails() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Should handle null details
         assertDoesNotThrow(() -> {
@@ -436,7 +436,7 @@ public class LoggerTest {
 
     @Test
     public void testLoggerWithComplexDetails() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.DEBUG));
+        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
 
         Map<String, Object> complexDetails = new HashMap<>();
         complexDetails.put("string", "value");

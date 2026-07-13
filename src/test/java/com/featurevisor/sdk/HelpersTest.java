@@ -27,8 +27,8 @@ public class HelpersTest {
 
     @Test
     public void testBooleanStrictness() {
-        assertEquals(Boolean.FALSE, Helpers.getValueByType("true", "boolean"));
-        assertEquals(Boolean.FALSE, Helpers.getValueByType(1, "boolean"));
+        assertNull(Helpers.getValueByType("true", "boolean"));
+        assertNull(Helpers.getValueByType(1, "boolean"));
     }
 
     @Test
@@ -51,12 +51,13 @@ public class HelpersTest {
 
     @Test
     public void testIntegerParsing() {
-        assertEquals(Integer.valueOf(1), Helpers.getValueByType("1", "integer"));
+        assertNull(Helpers.getValueByType("1", "integer"));
+        assertNull(Helpers.getValueByType(1.5d, "integer"));
     }
 
     @Test
     public void testDoubleParsing() {
-        assertEquals(1.1d, Helpers.getValueByType("1.1", "double"));
+        assertNull(Helpers.getValueByType("1.1", "double"));
     }
 
     @Test

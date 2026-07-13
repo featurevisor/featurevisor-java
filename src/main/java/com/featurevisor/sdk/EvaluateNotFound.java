@@ -7,7 +7,7 @@ import com.featurevisor.sdk.VariableSchema;
  * Evaluates not found scenarios and returns appropriate evaluation results
  * This class handles the logic for evaluating when features or variables are not found
  */
-public class EvaluateNotFound {
+final class EvaluateNotFound {
 
     /**
      * Result of not found evaluation containing evaluation, feature, and variableSchema

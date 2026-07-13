@@ -6,11 +6,12 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import com.featurevisor.sdk.Featurevisor;
-import com.featurevisor.sdk.Logger;
-import com.featurevisor.sdk.DatafileReader;
+import com.featurevisor.sdk.FeaturevisorLogLevel;
+import com.featurevisor.sdk.Conditions;
 import com.featurevisor.sdk.DatafileContent;
 import com.featurevisor.sdk.Segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.commons.exec.DefaultExecutor;
@@ -19,14 +20,9 @@ import org.apache.commons.exec.ExecuteException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Pattern;
 
-import com.featurevisor.sdk.HooksManager;
+import com.featurevisor.sdk.FeaturevisorModule;
 
 /**
  * Command Line Interface for Featurevisor Java Library
@@ -63,7 +59,7 @@ public class CLI implements Runnable {
     @Option(names = {"--keyPattern"}, description = "Key pattern filter")
     private String keyPattern;
 
-    @Option(names = {"-n"}, description = "Number of iterations")
+    @Option(names = {"-n", "--n"}, description = "Number of iterations")
     private Integer n = 1000;
 
     @Option(names = {"--onlyFailures"}, description = "Show only failures")
@@ -84,16 +80,16 @@ public class CLI implements Runnable {
     @Option(names = {"--inflate"}, description = "Inflate number")
     private Integer inflate = 0;
 
-    @Option(names = {"--with-scopes"}, description = "Test with scoped datafiles")
+    @Option(names = {"--with-scopes"}, description = "Legacy option accepted for compatibility and ignored")
     private Boolean withScopes = false;
 
-    @Option(names = {"--with-tags"}, description = "Test with tagged datafiles")
+    @Option(names = {"--with-tags"}, description = "Legacy option accepted for compatibility and ignored")
     private Boolean withTags = false;
 
     @Option(names = {"--showDatafile"}, description = "Show datafile content for assertion")
     private Boolean showDatafile = false;
 
-    @Option(names = {"--schemaVersion"}, description = "Datafile schema version")
+    @Option(names = {"--schemaVersion", "--schema-version"}, description = "Legacy option accepted for compatibility and ignored")
     private String schemaVersion;
 
     @Option(names = {"--rootDirectoryPath"}, description = "Root directory path")
@@ -104,6 +100,9 @@ public class CLI implements Runnable {
 
     @Option(names = {"--populateUuid"}, description = "Populate UUID for specified keys")
     private List<String> populateUuid = new ArrayList<>();
+
+    @Option(names = {"--target"}, description = "Target datafile; repeat for multiple targets")
+    private List<String> targets = new ArrayList<>();
 
     private String cwd;
     private ObjectMapper objectMapper;
@@ -197,16 +196,26 @@ public class CLI implements Runnable {
         return segmentsByKey;
     }
 
-    private String getEnvironmentKey(String environment) {
+    String getEnvironmentKey(String environment) {
         return environment == null ? "__no_environment__" : environment;
     }
 
-    private String scopedDatafileCacheKey(String environment, String scope) {
-        return getEnvironmentKey(environment) + "-scope-" + scope;
+    String targetDatafileCacheKey(String environment, String target) {
+        return (environment == null ? "false" : environment) + "-target-" + target;
     }
 
-    private String taggedDatafileCacheKey(String environment, String tag) {
-        return getEnvironmentKey(environment) + "-tag-" + tag;
+    String selectDatafileKeyForAssertion(Map<String, Object> assertion, Map<String, DatafileContent> datafileCache) {
+        String assertionEnvironment = assertion.get("environment") instanceof String
+            ? (String) assertion.get("environment")
+            : null;
+        String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
+        String target = assertion.get("target") instanceof String ? (String) assertion.get("target") : null;
+
+        if (target != null && datafileCache.containsKey(targetDatafileCacheKey(assertionEnvironment, target))) {
+            return targetDatafileCacheKey(assertionEnvironment, target);
+        }
+
+        return baseDatafileKey;
     }
 
     private DatafileContent parseDatafileContent(String datafileOutput, String contextForError) throws IOException {
@@ -220,17 +229,14 @@ public class CLI implements Runnable {
     private DatafileContent buildDatafile(
         String featurevisorProjectPath,
         String environment,
-        String tag
+        String target
     ) throws IOException {
         StringBuilder command = new StringBuilder("npx featurevisor build --json");
         if (environment != null) {
             command.append(" --environment=").append(environment);
         }
-        if (tag != null) {
-            command.append(" --tag=").append(tag);
-        }
-        if (schemaVersion != null && !schemaVersion.isBlank()) {
-            command.append(" --schema-version=").append(schemaVersion);
+        if (target != null) {
+            command.append(" --target=").append(target);
         }
         if (inflate != null && inflate > 0) {
             command.append(" --inflate=").append(inflate);
@@ -252,6 +258,21 @@ public class CLI implements Runnable {
         return datafilesByEnvironment;
     }
 
+    private Map<String, DatafileContent> buildTargetDatafiles(
+        String featurevisorProjectPath,
+        List<String> environments,
+        List<String> targets
+    ) throws IOException {
+        Map<String, DatafileContent> datafilesByTarget = new HashMap<>();
+        for (String env : environments) {
+            for (String target : targets) {
+                System.out.println("Building datafile for target: " + target + " environment: " + (env == null ? "default" : env) + "...");
+                datafilesByTarget.put(targetDatafileCacheKey(env, target), buildDatafile(featurevisorProjectPath, env, target));
+            }
+        }
+        return datafilesByTarget;
+    }
+
     private List<String> getEnvironmentList(Map<String, Object> config) {
         Object environmentsValue = config.get("environments");
         if (Boolean.FALSE.equals(environmentsValue)) {
@@ -269,73 +290,42 @@ public class CLI implements Runnable {
         return Collections.singletonList(null);
     }
 
-    private List<String> getTags(Map<String, Object> config) {
-        Object tagsValue = config.get("tags");
-        if (!(tagsValue instanceof List)) {
-            return Collections.emptyList();
-        }
+    private List<String> getTargets(String featurevisorProjectPath) throws IOException {
+        System.out.println("Getting targets...");
+        String targetsOutput = executeCommandInDirectory(featurevisorProjectPath, "npx featurevisor list --targets --json");
+        JsonNode targetsNode = objectMapper.readTree(targetsOutput);
+        List<String> targets = new ArrayList<>();
 
-        @SuppressWarnings("unchecked")
-        List<Object> rawTags = (List<Object>) tagsValue;
-        List<String> tags = new ArrayList<>();
-        for (Object tag : rawTags) {
-            if (tag instanceof String) {
-                tags.add((String) tag);
+        if (targetsNode.isArray()) {
+            for (JsonNode targetNode : targetsNode) {
+                if (targetNode.isTextual()) {
+                    targets.add(targetNode.asText());
+                } else if (targetNode.has("name")) {
+                    targets.add(targetNode.get("name").asText());
+                } else if (targetNode.has("key")) {
+                    targets.add(targetNode.get("key").asText());
+                }
             }
-        }
-        return tags;
-    }
-
-    private Map<String, Map<String, Object>> getScopesByName(Map<String, Object> config) {
-        Object scopesValue = config.get("scopes");
-        if (!(scopesValue instanceof List)) {
-            return Collections.emptyMap();
-        }
-
-        @SuppressWarnings("unchecked")
-        List<Object> scopes = (List<Object>) scopesValue;
-        Map<String, Map<String, Object>> scopesByName = new HashMap<>();
-
-        for (Object scopeObj : scopes) {
-            if (!(scopeObj instanceof Map)) {
-                continue;
-            }
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> scope = (Map<String, Object>) scopeObj;
-            Object name = scope.get("name");
-            if (name instanceof String && !((String) name).isBlank()) {
-                scopesByName.put((String) name, scope);
+        } else if (targetsNode.isObject()) {
+            Iterator<String> fieldNames = targetsNode.fieldNames();
+            while (fieldNames.hasNext()) {
+                targets.add(fieldNames.next());
             }
         }
 
-        return scopesByName;
-    }
-
-    private Path getScopedDatafilePath(String featurevisorProjectPath, Map<String, Object> config, String environment, String scopeName) {
-        String datafilesDirectory = "datafiles";
-        Object configuredDir = config.get("datafilesDirectoryPath");
-        if (configuredDir instanceof String && !((String) configuredDir).isBlank()) {
-            datafilesDirectory = (String) configuredDir;
-        }
-
-        if (environment != null) {
-            return Paths.get(featurevisorProjectPath, datafilesDirectory, environment, "featurevisor-scope-" + scopeName + ".json");
-        }
-
-        return Paths.get(featurevisorProjectPath, datafilesDirectory, "featurevisor-scope-" + scopeName + ".json");
+        return targets;
     }
 
     /**
      * Get logger level based on CLI options
      */
-    private Logger.LogLevel getLoggerLevel() {
+    private FeaturevisorLogLevel getLoggerLevel() {
         if (verbose) {
-            return Logger.LogLevel.DEBUG;
+            return FeaturevisorLogLevel.DEBUG;
         } else if (quiet) {
-            return Logger.LogLevel.ERROR;
+            return FeaturevisorLogLevel.ERROR;
         } else {
-            return Logger.LogLevel.WARN;
+            return FeaturevisorLogLevel.WARN;
         }
     }
 
@@ -365,7 +355,7 @@ public class CLI implements Runnable {
     /**
      * Test a feature
      */
-    private TestResult testFeature(Map<String, Object> assertion, String featureKey, Object f, Logger.LogLevel level) {
+    private TestResult testFeature(Map<String, Object> assertion, String featureKey, Object f, FeaturevisorLogLevel level) {
         @SuppressWarnings("unchecked")
         Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
         @SuppressWarnings("unchecked")
@@ -645,27 +635,17 @@ public class CLI implements Runnable {
     /**
      * Test a segment
      */
-    private TestResult testSegment(Map<String, Object> assertion, Segment segment, Logger.LogLevel level) {
+    private TestResult testSegment(Map<String, Object> assertion, Segment segment, FeaturevisorLogLevel level) {
         @SuppressWarnings("unchecked")
         Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
         Object conditions = segment.getConditions();
-
-        DatafileContent datafile = new DatafileContent();
-        datafile.setSchemaVersion("2");
-        datafile.setRevision("tester");
-        datafile.setFeatures(new HashMap<>());
-        datafile.setSegments(new HashMap<>());
-
-        DatafileReader datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
-            .datafile(datafile)
-            .logger(Logger.createLogger(new Logger.CreateLoggerOptions().level(level))));
 
         boolean hasError = false;
         StringBuilder errors = new StringBuilder();
         long startTime = System.nanoTime();
 
         if (assertion.containsKey("expectedToMatch")) {
-            boolean actual = datafileReader.allConditionsAreMatched(conditions, context);
+            boolean actual = Conditions.allConditionsAreMatched(conditions, context);
             boolean expected = (Boolean) assertion.get("expectedToMatch");
             if (actual != expected) {
                 hasError = true;
@@ -686,48 +666,20 @@ public class CLI implements Runnable {
 
             Map<String, Object> config = getConfig(featurevisorProjectPath);
             List<String> environments = getEnvironmentList(config);
-            List<String> tags = getTags(config);
-            Map<String, Map<String, Object>> scopesByName = getScopesByName(config);
+            List<String> availableTargets = getTargets(featurevisorProjectPath);
+            List<String> selectedTargets = targets.isEmpty()
+                ? availableTargets
+                : new ArrayList<>(new java.util.LinkedHashSet<>(targets));
 
             Map<String, Segment> segmentsByKey = getSegments(featurevisorProjectPath);
             Map<String, DatafileContent> datafileCache = new HashMap<>();
 
             datafileCache.putAll(buildBaseDatafiles(featurevisorProjectPath, environments));
-
-            if (Boolean.TRUE.equals(withTags)) {
-                for (String env : environments) {
-                    for (String tag : tags) {
-                        datafileCache.put(
-                            taggedDatafileCacheKey(env, tag),
-                            buildDatafile(featurevisorProjectPath, env, tag)
-                        );
-                    }
-                }
-            }
-
-            if (Boolean.TRUE.equals(withScopes) && !scopesByName.isEmpty()) {
-                // Ensure scoped datafiles are materialized on disk.
-                executeCommandInDirectory(featurevisorProjectPath, "npx featurevisor build");
-
-                for (String env : environments) {
-                    for (String scopeName : scopesByName.keySet()) {
-                        Path scopedPath = getScopedDatafilePath(featurevisorProjectPath, config, env, scopeName);
-                        if (!Files.exists(scopedPath)) {
-                            continue;
-                        }
-
-                        String scopedDatafileOutput = Files.readString(scopedPath);
-                        datafileCache.put(
-                            scopedDatafileCacheKey(env, scopeName),
-                            parseDatafileContent(scopedDatafileOutput, scopedPath.toString())
-                        );
-                    }
-                }
-            }
+            datafileCache.putAll(buildTargetDatafiles(featurevisorProjectPath, environments, selectedTargets));
 
             System.out.println();
 
-            Logger.LogLevel level = getLoggerLevel();
+            FeaturevisorLogLevel level = getLoggerLevel();
             List<Map<String, Object>> tests = getTests(featurevisorProjectPath);
 
             if (tests.isEmpty()) {
@@ -745,6 +697,16 @@ public class CLI implements Runnable {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> assertions = (List<Map<String, Object>>) test.get("assertions");
 
+                if (test.containsKey("feature") && !targets.isEmpty()) {
+                    assertions = assertions.stream().filter(assertion -> {
+                        Object assertionTarget = assertion.get("target");
+                        return assertionTarget == null || targets.contains(assertionTarget.toString());
+                    }).collect(java.util.stream.Collectors.toList());
+                    if (assertions.isEmpty()) {
+                        continue;
+                    }
+                }
+
 
 
                 StringBuilder results = new StringBuilder();
@@ -759,18 +721,7 @@ public class CLI implements Runnable {
                             ? (String) assertion.get("environment")
                             : null;
                         String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
-                        String selectedDatafileKey = baseDatafileKey;
-
-                        String scope = assertion.get("scope") instanceof String ? (String) assertion.get("scope") : null;
-                        String tag = assertion.get("tag") instanceof String ? (String) assertion.get("tag") : null;
-
-                        if (scope != null && datafileCache.containsKey(scopedDatafileCacheKey(assertionEnvironment, scope))) {
-                            selectedDatafileKey = scopedDatafileCacheKey(assertionEnvironment, scope);
-                        }
-
-                        if (scope == null && tag != null && datafileCache.containsKey(taggedDatafileCacheKey(assertionEnvironment, tag))) {
-                            selectedDatafileKey = taggedDatafileCacheKey(assertionEnvironment, tag);
-                        }
+                        String selectedDatafileKey = selectDatafileKeyForAssertion(assertion, datafileCache);
 
                         DatafileContent selectedDatafile = datafileCache.get(selectedDatafileKey);
                         if (selectedDatafile == null) {
@@ -787,28 +738,17 @@ public class CLI implements Runnable {
                             new TypeReference<Map<String, Object>>() {}
                         );
 
-                        if (scope != null && !Boolean.TRUE.equals(withScopes) && scopesByName.containsKey(scope)) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> currentContext = (Map<String, Object>) effectiveAssertion.getOrDefault("context", new HashMap<>());
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> scopeContext = (Map<String, Object>) scopesByName.get(scope).getOrDefault("context", new HashMap<>());
-
-                            Map<String, Object> mergedContext = new HashMap<>(scopeContext);
-                            mergedContext.putAll(currentContext);
-                            effectiveAssertion.put("context", mergedContext);
-                        }
-
                         if (Boolean.TRUE.equals(showDatafile)) {
                             System.out.println();
                             System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(selectedDatafile));
                             System.out.println();
                         }
 
-                        Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+                        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                             .datafile(selectedDatafile)
                             .logLevel(level));
 
-                        // If "at" parameter is provided, create a new SDK instance with the specific hook
+                        // If "at" parameter is provided, create a new SDK instance with the specific module
                         if (effectiveAssertion.containsKey("at")) {
                             Object atObj = effectiveAssertion.get("at");
                             double atValue;
@@ -819,17 +759,13 @@ public class CLI implements Runnable {
                                 atValue = Double.parseDouble(atObj.toString());
                             }
 
-                            // Create a hook that sets the bucket value to at * 1000
-                            Logger logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(level));
-                            HooksManager hooksManager = new HooksManager(new HooksManager.HooksManagerOptions(logger));
+                            FeaturevisorModule testModule = new FeaturevisorModule("test-module")
+                                .bucketValue((options) -> (int) (atValue * 1000));
 
-                            hooksManager.add(new HooksManager.Hook("at-parameter")
-                                .bucketValue((options) -> (int) (atValue * 1000)));
-
-                            f = Featurevisor.createInstance(new Featurevisor.Options()
+                            f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                                 .datafile(selectedDatafile)
                                 .logLevel(level)
-                                .hooks(hooksManager.getAll()));
+                                .modules(Collections.singletonList(testModule)));
                         }
 
                         testResult = testFeature(effectiveAssertion, (String) test.get("feature"), f, level);
@@ -844,18 +780,18 @@ public class CLI implements Runnable {
                     testDuration += testResult.duration;
 
                     if (testResult.hasError) {
-                        results.append("  ✘ ").append(assertion.get("description")).append(" (").append(String.format("%.2f", testResult.duration)).append("ms)\n");
+                        results.append("  ✘ ").append(assertion.get("description")).append(" (").append(String.format(Locale.ROOT, "%.2f", testResult.duration)).append("ms)\n");
                         results.append(testResult.errors);
                         testHasError = true;
                         failedAssertionsCount++;
                     } else {
-                        results.append("  ✔ ").append(assertion.get("description")).append(" (").append(String.format("%.2f", testResult.duration)).append("ms)\n");
+                        results.append("  ✔ ").append(assertion.get("description")).append(" (").append(String.format(Locale.ROOT, "%.2f", testResult.duration)).append("ms)\n");
                         passedAssertionsCount++;
                     }
                 }
 
                 if (!onlyFailures || (onlyFailures && testHasError)) {
-                    System.out.println("\nTesting: " + testKey + " (" + String.format("%.2f", testDuration) + "ms)");
+                    System.out.println("\nTesting: " + testKey + " (" + String.format(Locale.ROOT, "%.2f", testDuration) + "ms)");
                     System.out.print(results);
                 }
 
@@ -897,19 +833,36 @@ public class CLI implements Runnable {
                 return;
             }
 
+            if (targets.size() > 1) {
+                List<String> requested = new ArrayList<>(new java.util.LinkedHashSet<>(targets));
+                for (String target : requested) {
+                    targets = Collections.singletonList(target);
+                    benchmark();
+                }
+                targets = requested;
+                return;
+            }
+
             Map<String, Object> contextMap = new HashMap<>();
             if (context != null) {
                 contextMap = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
             }
 
-            Logger.LogLevel level = getLoggerLevel();
-            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, null);
+            FeaturevisorLogLevel level = getLoggerLevel();
+            String target = targets.isEmpty() ? null : targets.get(0);
+            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
-            Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+            Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                 .datafile(datafile)
                 .logLevel(level));
 
             Object value = null;
+
+            System.out.println("Benchmark Featurevisor feature");
+            System.out.println("  Feature: " + feature);
+            System.out.println("  Environment: " + environment);
+            if (target != null) System.out.println("  Target: " + target);
+            System.out.println("  Iterations: " + n);
 
             if (variation) {
                 System.out.println("Benchmarking variation for feature '" + feature + "'...");
@@ -922,8 +875,11 @@ public class CLI implements Runnable {
             System.out.println("Against context: " + contextMap);
             System.out.println("Running " + n + " times...");
 
-            long startTime = System.nanoTime();
+            long totalDurationNs = 0L;
+            long minDurationNs = 0L;
+            long maxDurationNs = 0L;
             for (int i = 0; i < n; i++) {
+                long evaluationStartTime = System.nanoTime();
                 if (variation) {
                     value = f.getVariation(feature, contextMap);
                 } else if (variable != null) {
@@ -931,13 +887,24 @@ public class CLI implements Runnable {
                 } else {
                     value = f.isEnabled(feature, contextMap);
                 }
+                long evaluationDurationNs = System.nanoTime() - evaluationStartTime;
+
+                totalDurationNs += evaluationDurationNs;
+                if (i == 0 || evaluationDurationNs < minDurationNs) {
+                    minDurationNs = evaluationDurationNs;
+                }
+                if (evaluationDurationNs > maxDurationNs) {
+                    maxDurationNs = evaluationDurationNs;
+                }
             }
 
-            double duration = (System.nanoTime() - startTime) / 1_000_000.0; // Convert to milliseconds
+            double duration = totalDurationNs / 1_000_000.0; // Convert to milliseconds
 
             System.out.println("Evaluated value: " + value);
-            System.out.println("Total duration: " + String.format("%.3f", duration) + "ms");
-            System.out.println("Average duration: " + String.format("%.3f", duration / n) + "ms");
+            System.out.println("Total duration: " + String.format(Locale.ROOT, "%.3f", duration) + "ms");
+            System.out.println("Minimum duration: " + String.format(Locale.ROOT, "%.6f", minDurationNs / 1_000_000.0) + "ms");
+            System.out.println("Average duration: " + String.format(Locale.ROOT, "%.6f", duration / n) + "ms");
+            System.out.println("Maximum duration: " + String.format(Locale.ROOT, "%.6f", maxDurationNs / 1_000_000.0) + "ms");
 
         } catch (Exception e) {
             System.err.println("Error running benchmark: " + e.getMessage());
@@ -961,18 +928,35 @@ public class CLI implements Runnable {
                 return;
             }
 
+            if (targets.size() > 1) {
+                List<String> requested = new ArrayList<>(new java.util.LinkedHashSet<>(targets));
+                for (String target : requested) {
+                    targets = Collections.singletonList(target);
+                    assessDistribution();
+                }
+                targets = requested;
+                return;
+            }
+
             Map<String, Object> contextMap = new HashMap<>();
             if (context != null) {
                 contextMap = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
             }
 
-            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, null);
+            String target = targets.isEmpty() ? null : targets.get(0);
+            DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
-            Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+            Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                 .datafile(datafile)
                 .logLevel(getLoggerLevel()));
 
             Object value = null;
+
+            System.out.println("Assess Featurevisor distribution");
+            System.out.println("  Feature: " + feature);
+            System.out.println("  Environment: " + environment);
+            if (target != null) System.out.println("  Target: " + target);
+            System.out.println("  Iterations: " + n);
 
             if (variation) {
                 System.out.println("Assessing distribution for feature '" + feature + "'...");
@@ -1012,7 +996,7 @@ public class CLI implements Runnable {
                 Object val = entry.getKey();
                 Integer count = entry.getValue();
                 double percentage = (count.doubleValue() / n) * 100;
-                System.out.println("  - " + val + ": " + count + " (" + String.format("%.2f", percentage) + "%)");
+                System.out.println("  - " + val + ": " + count + " (" + String.format(Locale.ROOT, "%.2f", percentage) + "%)");
             }
 
         } catch (Exception e) {

@@ -63,7 +63,7 @@ public class TypedVariableMethodsTest {
             }
             """;
 
-        Featurevisor sdk = Featurevisor.createInstance(new Featurevisor.Options().datafile(DatafileContent.fromJson(datafileJson)));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(DatafileContent.fromJson(datafileJson)));
         Map<String, Object> context = Map.of("userId", "123");
 
         List<RolloutStep> rollout = sdk.getVariableArray("typed", "rollout", context, RolloutStep.class);

@@ -6,7 +6,7 @@ import java.util.Map;
  * Evaluates sticky features and returns appropriate evaluation results
  * This class handles the logic for evaluating sticky features, variables, and variations
  */
-public class EvaluateSticky {
+final class EvaluateSticky {
 
     /**
      * Evaluates sticky scenarios and returns the appropriate evaluation result

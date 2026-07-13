@@ -11,24 +11,21 @@ import java.util.List;
  * Main evaluation logic for Featurevisor SDK
  * Handles the evaluation of features, variations, and variables
  */
-public class Evaluate {
+final class Evaluate {
 
     /**
-     * Evaluate with hooks
+     * Evaluate with modules
      * @param opts The evaluation options
      * @return The evaluation result
      */
-    public static Evaluation evaluateWithHooks(EvaluateOptions opts) {
+    public static Evaluation evaluateWithModules(EvaluateOptions opts) {
         try {
-            HooksManager hooksManager = opts.getHooksManager();
-            java.util.List<HooksManager.Hook> hooks = hooksManager.getAll();
+            ModulesManager modulesManager = opts.getModulesManager();
 
-            // run before hooks
+            // run before modules
             EvaluateOptions options = opts;
-            for (HooksManager.Hook hook : hooksManager.getAll()) {
-                if (hook.getBefore() != null) {
-                    options = hook.getBefore().apply(options);
-                }
+            if (modulesManager != null) {
+                options = modulesManager.executeBeforeModules(options);
             }
 
             // evaluate
@@ -48,11 +45,9 @@ public class Evaluate {
                 evaluation.variableValue(options.getDefaultVariableValue());
             }
 
-            // run after hooks
-            for (HooksManager.Hook hook : hooks) {
-                if (hook.getAfter() != null) {
-                    evaluation = hook.getAfter().apply(evaluation, options);
-                }
+            // run after modules
+            if (modulesManager != null) {
+                evaluation = modulesManager.executeAfterModules(evaluation, options);
             }
 
             return evaluation;

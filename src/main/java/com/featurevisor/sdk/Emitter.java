@@ -19,7 +19,8 @@ public class Emitter {
     public enum EventName {
         DATAFILE_SET("datafile_set"),
         CONTEXT_SET("context_set"),
-        STICKY_SET("sticky_set");
+        STICKY_SET("sticky_set"),
+        ERROR("error");
 
         private final String value;
 

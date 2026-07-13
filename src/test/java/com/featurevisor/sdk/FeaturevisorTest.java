@@ -30,7 +30,7 @@ public class FeaturevisorTest {
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
@@ -41,13 +41,33 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithNoParameters() {
-        // Test the simplest createInstance() method
-        Featurevisor sdk = Featurevisor.createInstance();
+        // Test the simplest createFeaturevisor() method
+        Featurevisor sdk = Featurevisor.createFeaturevisor();
 
         assertNotNull(sdk);
+        assertEquals("2", sdk.getSchemaVersion());
         // Should have default logger and empty datafile
         assertNotNull(sdk.getRevision());
         assertNull(sdk.getVariation("nonExistentFeature"));
+    }
+
+    @Test
+    public void testLifecycleMutationsReportDiagnostics() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .logLevel(FeaturevisorLogLevel.DEBUG)
+            .onDiagnostic(diagnostics::add));
+
+        DatafileContent datafile = new DatafileContent("2", "1");
+        datafile.setSegments(new HashMap<>());
+        datafile.setFeatures(new HashMap<>());
+        sdk.setDatafile(datafile);
+        sdk.setSticky(Map.of("test", Map.of("enabled", true)), false);
+        sdk.setContext(Map.of("country", "nl"), false);
+
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "datafile_set".equals(diagnostic.getCode())));
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "sticky_set".equals(diagnostic.getCode())));
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "context_set".equals(diagnostic.getCode())));
     }
 
     @Test
@@ -99,8 +119,10 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Test createInstance with DatafileContent
-        Featurevisor sdk = Featurevisor.createInstance(datafile);
+        // Test createFeaturevisor with DatafileContent
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafile(datafile)
+        );
 
         assertNotNull(sdk);
         assertEquals("1.0", sdk.getRevision());
@@ -109,7 +131,7 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithDatafileString() {
-        // Test createInstance with datafile string
+        // Test createFeaturevisor with datafile string
         String datafileJson = """
             {
               "schemaVersion": "2",
@@ -148,8 +170,10 @@ public class FeaturevisorTest {
               "segments": {}
             }""";
 
-        // Test createInstance with datafile string
-        Featurevisor sdk = Featurevisor.createInstance(datafileJson);
+        // Test createFeaturevisor with datafile string
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafileString(datafileJson)
+        );
 
         assertNotNull(sdk);
         assertEquals("2.0", sdk.getRevision());
@@ -158,13 +182,15 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithContext() {
-        // Test createInstance with context
+        // Test createFeaturevisor with context
         Map<String, Object> context = Map.of(
             "userId", "123",
             "country", "us"
         );
 
-        Featurevisor sdk = Featurevisor.createInstance(context);
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().context(context)
+        );
 
         assertNotNull(sdk);
         // Context should be set
@@ -175,8 +201,10 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithLogLevel() {
-        // Test createInstance with log level
-        Featurevisor sdk = Featurevisor.createInstance(Logger.LogLevel.DEBUG);
+        // Test createFeaturevisor with log level
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().logLevel(FeaturevisorLogLevel.DEBUG)
+        );
 
         assertNotNull(sdk);
         // The logger should be set with DEBUG level
@@ -185,31 +213,26 @@ public class FeaturevisorTest {
     }
 
     @Test
-    public void testCreateInstanceWithLogger() {
-        // Test createInstance with custom logger
-        Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
-            .level(Logger.LogLevel.ERROR)
-            .handler((level, message, details) -> {
-                // Custom handler
-            }));
-
-        Featurevisor sdk = Featurevisor.createInstance(customLogger);
-
+    public void testCreateFeaturevisorWithDiagnosticHandler() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .onDiagnostic(diagnostics::add));
         assertNotNull(sdk);
-        // The custom logger should be used
-        assertNotNull(sdk.getRevision());
+        assertEquals("sdk_initialized", diagnostics.get(0).getCode());
     }
 
     @Test
     public void testCreateInstanceWithStickyFeatures() {
-        // Test createInstance with sticky features (isSticky = true)
+        // Test createFeaturevisor with sticky features (isSticky = true)
         Map<String, Object> sticky = new HashMap<>();
         Map<String, Object> testSticky = new HashMap<>();
         testSticky.put("enabled", true);
         testSticky.put("variation", "control");
         sticky.put("test", testSticky);
 
-        Featurevisor sdk = Featurevisor.createInstance(sticky, true);
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().sticky(sticky)
+        );
 
         assertNotNull(sdk);
         // Sticky features should be set
@@ -218,13 +241,15 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithContextAsSticky() {
-        // Test createInstance with context as sticky (isSticky = false)
+        // Test createFeaturevisor with context as sticky (isSticky = false)
         Map<String, Object> context = Map.of(
             "userId", "123",
             "country", "us"
         );
 
-        Featurevisor sdk = Featurevisor.createInstance(context, false);
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().context(context)
+        );
 
         assertNotNull(sdk);
         // Context should be set (not sticky)
@@ -235,8 +260,8 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithNullOptions() {
-        // Test createInstance with null options (should use defaults)
-        Featurevisor sdk = Featurevisor.createInstance((Featurevisor.Options) null);
+        // Test createFeaturevisor with null options (should use defaults)
+        Featurevisor sdk = Featurevisor.createFeaturevisor((Featurevisor.FeaturevisorOptions) null);
 
         assertNotNull(sdk);
         assertNotNull(sdk.getRevision());
@@ -244,11 +269,13 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithInvalidDatafileString() {
-        // Test createInstance with invalid datafile string
+        // Test createFeaturevisor with invalid datafile string
         String invalidJson = "{ invalid json }";
 
         // Should not throw exception, but should log error
-        Featurevisor sdk = Featurevisor.createInstance(invalidJson);
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafileString(invalidJson)
+        );
 
         assertNotNull(sdk);
         // Should have default empty datafile
@@ -257,7 +284,7 @@ public class FeaturevisorTest {
 
     @Test
     public void testCreateInstanceWithOptionsBuilder() {
-        // Test createInstance with Options builder pattern
+        // Test createFeaturevisor with Options builder pattern
         String datafileJson = """
             {
               "schemaVersion": "2",
@@ -305,15 +332,12 @@ public class FeaturevisorTest {
         }
 
         Map<String, Object> context = Map.of("userId", "123");
-        Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.INFO));
-
         // Test with Options builder
-        Featurevisor.Options options = new Featurevisor.Options()
+        Featurevisor.FeaturevisorOptions options = new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .context(context)
-            .logger(customLogger);
+            .context(context);
 
-        Featurevisor sdk = Featurevisor.createInstance(options);
+        Featurevisor sdk = Featurevisor.createFeaturevisor(options);
 
         assertNotNull(sdk);
         assertEquals("3.0", sdk.getRevision());
@@ -375,19 +399,19 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to capture bucket key
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketKey(options -> {
+        // Create module to capture bucket key
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketKey(options -> {
             capturedBucketKey[0] = options.getBucketKey();
             return options.getBucketKey();
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         String featureKey = "test";
         Map<String, Object> context = Map.of(
@@ -450,19 +474,19 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to capture bucket key
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketKey(options -> {
+        // Create module to capture bucket key
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketKey(options -> {
             capturedBucketKey[0] = options.getBucketKey();
             return options.getBucketKey();
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         String featureKey = "test";
         Map<String, Object> context = Map.of(
@@ -527,19 +551,19 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to capture bucket key
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketKey(options -> {
+        // Create module to capture bucket key
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketKey(options -> {
             capturedBucketKey[0] = options.getBucketKey();
             return options.getBucketKey();
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         // Test with both userId and deviceId
         Map<String, Object> context1 = new HashMap<>();
@@ -559,7 +583,7 @@ public class FeaturevisorTest {
     }
 
     @Test
-    public void testInterceptContextBeforeHook() {
+    public void testInterceptContextBeforeModule() {
         final boolean[] intercepted = {false};
         final String[] interceptedFeatureKey = {""};
         final String[] interceptedVariableKey = {""};
@@ -611,30 +635,29 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to intercept before
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBefore(options -> {
+        // Create module to intercept before
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBefore(options -> {
             intercepted[0] = true;
             interceptedFeatureKey[0] = options.getFeatureKey();
             interceptedVariableKey[0] = options.getVariableKey();
             return options;
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
         );
 
         Object variation = sdk.getVariation("test", context);
-        System.out.println("DEBUG: testInterceptContextBeforeHook variation = " + variation);
 
-        // The hook should be called, but the variation might be null if the feature doesn't exist
+        // The module should be called, but the variation might be null if the feature doesn't exist
         assertTrue(intercepted[0]);
         assertEquals("test", interceptedFeatureKey[0]);
         assertEquals(null, interceptedVariableKey[0]);
@@ -643,7 +666,7 @@ public class FeaturevisorTest {
     }
 
     @Test
-    public void testInterceptValueAfterHook() {
+    public void testInterceptValueAfterModule() {
         final boolean[] intercepted = {false};
         final String[] interceptedFeatureKey = {""};
         final String[] interceptedVariableKey = {""};
@@ -695,9 +718,9 @@ public class FeaturevisorTest {
             return;
         }
 
-        // Create hook to intercept after and manipulate value
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setAfter((evaluation, options) -> {
+        // Create module to intercept after and manipulate value
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setAfter((evaluation, options) -> {
             intercepted[0] = true;
             interceptedFeatureKey[0] = options.getFeatureKey();
             interceptedVariableKey[0] = options.getVariableKey();
@@ -705,25 +728,24 @@ public class FeaturevisorTest {
             return evaluation;
         });
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
         );
 
         Object variation = sdk.getVariation("test", context);
-        System.out.println("DEBUG: testInterceptValueAfterHook variation = " + variation);
 
-        // The hook should be called and the value should be intercepted
+        // The module should be called and the value should be intercepted
         assertTrue(intercepted[0]);
         assertEquals("test", interceptedFeatureKey[0]);
         assertEquals(null, interceptedVariableKey[0]);
-        // The variation should be "control_intercepted" based on the after hook
+        // The variation should be "control_intercepted" based on the after module
         assertEquals("control_intercepted", variation);
     }
 
@@ -788,7 +810,7 @@ public class FeaturevisorTest {
 
         sticky.put("test", testSticky);
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().sticky(sticky));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().sticky(sticky));
 
         // initially control
         Map<String, Object> context = Map.of(
@@ -808,6 +830,175 @@ public class FeaturevisorTest {
         // unsetting sticky features will make it treatment
         sdk.setSticky(new HashMap<>(), true);
         assertEquals("treatment", sdk.getVariation("test", context));
+    }
+
+    @Test
+    public void testSetDatafileMergesByDefaultAndReplacesWhenRequested() throws Exception {
+        DatafileContent firstDatafile = DatafileContent.fromJson("""
+            {
+              "schemaVersion": "2",
+              "revision": "first",
+              "features": {
+                "first": {
+                  "key": "first",
+                  "bucketBy": "userId",
+                  "traffic": []
+                }
+              },
+              "segments": {}
+            }""");
+
+        DatafileContent secondDatafile = DatafileContent.fromJson("""
+            {
+              "schemaVersion": "2",
+              "revision": "second",
+              "featurevisorVersion": "3.0.0",
+              "features": {
+                "second": {
+                  "key": "second",
+                  "bucketBy": "userId",
+                  "traffic": []
+                }
+              },
+              "segments": {}
+            }""");
+
+        Featurevisor sdk = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafile(firstDatafile)
+        );
+
+        sdk.setDatafile(secondDatafile);
+
+        assertNotNull(sdk.getFeature("first"));
+        assertNotNull(sdk.getFeature("second"));
+        assertEquals("second", sdk.getRevision());
+
+        sdk.setDatafile(secondDatafile, true);
+
+        assertNull(sdk.getFeature("first"));
+        assertNotNull(sdk.getFeature("second"));
+    }
+
+    @Test
+    public void testSetDatafileEventIncludesReplaced() throws Exception {
+        DatafileContent datafile = DatafileContent.fromJson("""
+            {
+              "schemaVersion": "2",
+              "revision": "test",
+              "features": {},
+              "segments": {}
+            }""");
+
+        Featurevisor sdk = Featurevisor.createFeaturevisor();
+        final Object[] replaced = {null};
+        sdk.on(Emitter.EventName.DATAFILE_SET, details -> replaced[0] = details.get("replaced"));
+
+        sdk.setDatafile(datafile, true);
+
+        assertEquals(true, replaced[0]);
+    }
+
+    @Test
+    public void testDuplicateModuleReportsDiagnostic() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .onDiagnostic(diagnostics::add)
+            .modules(List.of(new FeaturevisorModule("duplicate"))));
+
+        Runnable unsubscribe = sdk.addModule(new FeaturevisorModule("duplicate"));
+
+        assertNull(unsubscribe);
+        assertTrue(diagnostics.stream().anyMatch(diagnostic ->
+            "duplicate_module".equals(diagnostic.getCode()) &&
+            "duplicate".equals(diagnostic.getModuleName()) &&
+            FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel())
+        ));
+    }
+
+    @Test
+    public void testDiagnosticHandlerFailureIsIsolated() {
+        assertDoesNotThrow(() -> {
+            Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+                .onDiagnostic(diagnostic -> {
+                    throw new RuntimeException("handler failed");
+                }));
+
+            sdk.isEnabled("missing", Map.of());
+            sdk.close();
+        });
+    }
+
+    @Test
+    public void testModuleCloseErrorReportsDiagnosticAndErrorEvent() {
+        List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
+        List<Emitter.EventDetails> errorEvents = new ArrayList<>();
+
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .onDiagnostic(diagnostics::add)
+            .modules(List.of(new FeaturevisorModule("closer")
+                .close(() -> {
+                    throw new RuntimeException("close failed");
+                }))));
+
+        sdk.on(Emitter.EventName.ERROR, errorEvents::add);
+        sdk.close();
+
+        assertTrue(diagnostics.stream().anyMatch(diagnostic ->
+            "module_close_error".equals(diagnostic.getCode()) &&
+            "closer".equals(diagnostic.getModuleName()) &&
+            FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel()) &&
+            diagnostic.getOriginalError() instanceof RuntimeException &&
+            ((RuntimeException) diagnostic.getOriginalError()).getMessage().contains("close failed")
+        ));
+        assertTrue(errorEvents.stream().anyMatch(details ->
+            details.get("diagnostic") instanceof FeaturevisorDiagnostic &&
+            "module_close_error".equals(((FeaturevisorDiagnostic) details.get("diagnostic")).getCode()) &&
+            "closer".equals(((FeaturevisorDiagnostic) details.get("diagnostic")).getModuleName())
+        ));
+    }
+
+    @Test
+    public void testModuleDiagnosticSubscriptionsAndCleanup() {
+        List<FeaturevisorDiagnostic> received = new ArrayList<>();
+        final FeaturevisorModuleApi[] apiRef = {null};
+
+        FeaturevisorModule observer = new FeaturevisorModule("observer")
+            .setup(api -> api.onDiagnostic(received::add));
+        FeaturevisorModule reporter = new FeaturevisorModule("reporter")
+            .setup(api -> apiRef[0] = api);
+
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .modules(List.of(observer, reporter)));
+
+        received.clear();
+
+        apiRef[0].reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(FeaturevisorLogLevel.WARN)
+            .code("from_reporter")
+            .message("from reporter"));
+
+        assertEquals(1, received.size());
+        assertEquals("from_reporter", received.get(0).getCode());
+
+        sdk.removeModule("observer");
+        apiRef[0].reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(FeaturevisorLogLevel.WARN)
+            .code("after_remove")
+            .message("after remove"));
+
+        assertEquals(1, received.size());
+    }
+
+    @Test
+    public void testCloseClosesModules() {
+        final boolean[] closed = {false};
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .modules(List.of(new FeaturevisorModule("close-test")
+                .close(() -> closed[0] = true))));
+
+        sdk.close();
+
+        assertTrue(closed[0]);
     }
 
     @Test
@@ -855,7 +1046,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         // should be disabled because required is disabled
         assertFalse(sdk.isEnabled("myKey"));
@@ -903,7 +1094,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk2 = new Featurevisor(new Featurevisor.Options().datafile(datafileEnabled));
+        Featurevisor sdk2 = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafileEnabled));
         assertTrue(sdk2.isEnabled("myKey"));
     }
 
@@ -974,7 +1165,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         assertFalse(sdk.isEnabled("myKey"));
 
@@ -1043,7 +1234,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk2 = new Featurevisor(new Featurevisor.Options().datafile(datafileDesired));
+        Featurevisor sdk2 = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafileDesired));
         assertTrue(sdk2.isEnabled("myKey"));
     }
 
@@ -1128,16 +1319,13 @@ public class FeaturevisorTest {
 
         final int[] deprecatedCount = {0};
 
-        Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
-            .handler((level, message, details) -> {
-                if (level == Logger.LogLevel.WARN && message.contains("is deprecated")) {
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .datafile(datafile)
+            .onDiagnostic(diagnostic -> {
+                if ("deprecated_feature".equals(diagnostic.getCode())) {
                     deprecatedCount[0] += 1;
                 }
             }));
-
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
-            .datafile(datafile)
-            .logger(customLogger));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1212,7 +1400,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1291,7 +1479,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1353,7 +1541,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         // Test with German user (should be enabled)
         Map<String, Object> context1 = new HashMap<>();
@@ -1450,7 +1638,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1481,12 +1669,12 @@ public class FeaturevisorTest {
     public void testCheckIfEnabledForMutuallyExclusiveFeatures() {
         final int[] bucketValue = {10000};
 
-        // Create hook to control bucket value
-        HooksManager.Hook hook = new HooksManager.Hook("unit-test");
-        hook.setBucketValue(options -> bucketValue[0]);
+        // Create module to control bucket value
+        FeaturevisorModule module = new FeaturevisorModule("unit-test");
+        module.setBucketValue(options -> bucketValue[0]);
 
-        List<HooksManager.Hook> hooks = new ArrayList<>();
-        hooks.add(hook);
+        List<FeaturevisorModule> modules = new ArrayList<>();
+        modules.add(module);
 
         // Create datafile content using JSON string for better readability
         String datafileJson = """
@@ -1521,9 +1709,9 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options()
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
-            .hooks(hooks));
+            .modules(modules));
 
         // Test with no context (should be disabled)
         assertFalse(sdk.isEnabled("test"));
@@ -1715,7 +1903,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Map<String, Object> context = Map.of(
             "userId", "123"
@@ -1834,7 +2022,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         Map<String, Object> defaultContext = Map.of(
             "userId", "123"
@@ -1901,7 +2089,7 @@ public class FeaturevisorTest {
             return;
         }
 
-        Featurevisor sdk = new Featurevisor(new Featurevisor.Options().datafile(datafile));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(datafile));
 
         // Test with no context (should be disabled)
         assertFalse(sdk.isEnabled("test"));

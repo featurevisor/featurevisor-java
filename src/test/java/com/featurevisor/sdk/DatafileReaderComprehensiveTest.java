@@ -233,6 +233,28 @@ public class DatafileReaderComprehensiveTest {
     }
 
     @Test
+    void testNotSegmentsNegateImplicitAnd() {
+        Map<String, Object> segments = Map.of("not", Arrays.asList("mobileUsers", "netherlands"));
+
+        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+            Map.of("country", "nl", "deviceType", "mobile")));
+        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+            Map.of("country", "nl", "deviceType", "desktop")));
+    }
+
+    @Test
+    void testNotSegmentsWithNestedOrMeanNoneMatchAndEmptyNotIsFalse() {
+        Map<String, Object> segments = Map.of(
+            "not",
+            List.of(Map.of("or", Arrays.asList("mobileUsers", "desktopUsers")))
+        );
+
+        assertFalse(datafileReader.allSegmentsAreMatched(segments, Map.of("deviceType", "mobile")));
+        assertTrue(datafileReader.allSegmentsAreMatched(segments, Map.of("deviceType", "tv")));
+        assertFalse(datafileReader.allSegmentsAreMatched(Map.of("not", List.of()), Map.of()));
+    }
+
+    @Test
     void testConditionsWithWildcard() {
         // Test "*" conditions - should match everything
         assertTrue(datafileReader.allConditionsAreMatched("*", new HashMap<>()));

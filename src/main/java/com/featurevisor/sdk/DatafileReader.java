@@ -21,15 +21,7 @@ import java.util.regex.PatternSyntaxException;
  * DatafileReader for Featurevisor SDK
  * Handles reading and parsing datafile content
  */
-public class DatafileReader {
-
-    /**
-     * Functional interface for getting regex patterns
-     */
-    @FunctionalInterface
-    public interface GetRegex {
-        Pattern getRegex(String regexString, String regexFlags);
-    }
+class DatafileReader {
 
     /**
      * Options for creating a DatafileReader
@@ -78,6 +70,7 @@ public class DatafileReader {
 
     private String schemaVersion;
     private String revision;
+    private String featurevisorVersion;
     private Map<String, Segment> segments;
     private Map<String, Feature> features;
     private Logger logger;
@@ -91,8 +84,15 @@ public class DatafileReader {
 
         this.schemaVersion = datafile.getSchemaVersion();
         this.revision = datafile.getRevision();
+        this.featurevisorVersion = datafile.getFeaturevisorVersion();
         this.segments = datafile.getSegments();
         this.features = datafile.getFeatures();
+        if (this.segments == null) {
+            this.segments = new HashMap<>();
+        }
+        if (this.features == null) {
+            this.features = new HashMap<>();
+        }
         this.regexCache = new HashMap<>();
     }
 
@@ -108,6 +108,7 @@ public class DatafileReader {
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion(this.schemaVersion);
         datafile.setRevision(this.revision);
+        datafile.setFeaturevisorVersion(this.featurevisorVersion);
         datafile.setSegments(this.segments);
         datafile.setFeatures(this.features);
         return datafile;
@@ -190,7 +191,7 @@ public class DatafileReader {
             return false;
         }
 
-        GetRegex getRegex = (regexString, regexFlags) -> this.getRegex(regexString, regexFlags);
+        Conditions.GetRegex getRegex = (regexString, regexFlags) -> this.getRegex(regexString, regexFlags);
 
         // Handle Condition object
         if (conditions instanceof Condition) {
@@ -262,8 +263,6 @@ public class DatafileReader {
             // Handle NOT conditions
             if (conditionsMap.containsKey("not") && conditionsMap.get("not") instanceof List) {
                 List<Object> notConditions = (List<Object>) conditionsMap.get("not");
-                // NOT conditions are true if ALL conditions are false
-                // This matches the TypeScript implementation: conditions.not.every(() => allConditionsAreMatched({and: conditions.not}, context) === false)
                 Map<String, Object> andCondition = new HashMap<>();
                 andCondition.put("and", notConditions);
                 return !allConditionsAreMatched(andCondition, context);
@@ -328,8 +327,7 @@ public class DatafileReader {
             if (groupSegmentsMap.containsKey("not") && groupSegmentsMap.get("not") instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Object> notSegments = (List<Object>) groupSegmentsMap.get("not");
-                // This matches the TypeScript implementation: groupSegments.not.every((groupSegment) => allSegmentsAreMatched(groupSegment, context) === false)
-                return notSegments.stream().allMatch(s -> !allSegmentsAreMatched(s, context));
+                return !notSegments.stream().allMatch(s -> allSegmentsAreMatched(s, context));
             }
         }
 

@@ -1,5 +1,10 @@
 package com.featurevisor.sdk;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import com.featurevisor.sdk.Allocation;
 import com.featurevisor.sdk.Bucket;
 import com.featurevisor.sdk.Condition;
@@ -23,11 +28,19 @@ import java.util.ArrayList;
 
 public class DatafileReaderTest {
 
+    @Test
+    public void testSharedV3ConformanceFixture() throws Exception {
+        JsonNode fixture = new ObjectMapper().readTree(Files.readString(Path.of("conformance/sdk-v3.json")));
+        assertEquals(1, fixture.get("version").asInt());
+        assertEquals("control", fixture.get("bucketing").get("allocationExpectations").get("50000").asText());
+        assertEquals("treatment", fixture.get("bucketing").get("allocationExpectations").get("50001").asText());
+    }
+
     private Logger logger;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
@@ -402,6 +415,10 @@ public class DatafileReaderTest {
         Allocation matchedAllocation2 = reader.getMatchedAllocation(matchedTraffic, 75000);
         assertNotNull(matchedAllocation2);
         assertEquals("treatment", matchedAllocation2.getVariation());
+
+        assertEquals("control", reader.getMatchedAllocation(matchedTraffic, 50000).getVariation());
+        assertEquals("treatment", reader.getMatchedAllocation(matchedTraffic, 50001).getVariation());
+        assertEquals("treatment", reader.getMatchedAllocation(matchedTraffic, 100000).getVariation());
 
         Allocation unmatchedAllocation = reader.getMatchedAllocation(matchedTraffic, 150000);
         assertNull(unmatchedAllocation);

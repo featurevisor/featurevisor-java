@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class ConditionsTest {
 
@@ -19,7 +20,7 @@ public class ConditionsTest {
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
 
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2.0");
@@ -849,6 +850,32 @@ public class ConditionsTest {
         context.put("browser_type", "chrome");
         context.put("browser_version", "2.0");
         assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+    }
+
+    @Test
+    public void testNotConditionNestedOrMeansNoneMatchAndEmptyNotIsFalse() {
+        Map<String, Object> chromeCondition = new HashMap<>();
+        chromeCondition.put("attribute", "browser_type");
+        chromeCondition.put("operator", "equals");
+        chromeCondition.put("value", "chrome");
+
+        Map<String, Object> firefoxCondition = new HashMap<>();
+        firefoxCondition.put("attribute", "browser_type");
+        firefoxCondition.put("operator", "equals");
+        firefoxCondition.put("value", "firefox");
+
+        Map<String, Object> orCondition = new HashMap<>();
+        orCondition.put("or", Arrays.asList(chromeCondition, firefoxCondition));
+
+        Map<String, Object> notCondition = new HashMap<>();
+        notCondition.put("not", List.of(orCondition));
+
+        assertFalse(datafileReader.allConditionsAreMatched(List.of(notCondition), Map.of("browser_type", "chrome")));
+        assertTrue(datafileReader.allConditionsAreMatched(List.of(notCondition), Map.of("browser_type", "edge")));
+
+        Map<String, Object> emptyNotCondition = new HashMap<>();
+        emptyNotCondition.put("not", List.of());
+        assertFalse(datafileReader.allConditionsAreMatched(List.of(emptyNotCondition), Map.of()));
     }
 
     @Test

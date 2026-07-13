@@ -23,7 +23,7 @@ public class EvaluateForcedTest {
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
 
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2.0");

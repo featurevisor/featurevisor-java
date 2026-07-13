@@ -1,12 +1,13 @@
 # Featurevisor Java SDK <!-- omit in toc -->
 
-This is a port of Featurevisor [Javascript SDK](https://featurevisor.com/docs/sdks/javascript/) v2.x to Java, providing a way to evaluate feature flags, variations, and variables in your Java applications.
+This is a port of Featurevisor [Javascript SDK](https://featurevisor.com/docs/sdks/javascript/) v3.x to Java, providing a way to evaluate feature flags, variations, and variables in your Java applications.
 
-This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 projects and above.
+This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles continue to carry `schemaVersion: "2"`.
 
 ## Table of contents <!-- omit in toc -->
 
 - [Installation](#installation)
+- [Public API](#public-api)
   - [Repository](#repository)
   - [Dependency](#dependency)
   - [Authentication](#authentication)
@@ -26,20 +27,23 @@ This SDK is compatible with [Featurevisor](https://featurevisor.com/) v2.0 proje
   - [Initialize with sticky](#initialize-with-sticky)
   - [Set sticky afterwards](#set-sticky-afterwards)
 - [Setting datafile](#setting-datafile)
+  - [Merging by default](#merging-by-default)
+  - [Replacing](#replacing)
+  - [Loading datafiles on demand](#loading-datafiles-on-demand)
   - [Updating datafile](#updating-datafile)
   - [Interval-based update](#interval-based-update)
-- [Logging](#logging)
+- [Diagnostics](#diagnostics)
   - [Levels](#levels)
-  - [Customizing levels](#customizing-levels)
   - [Handler](#handler)
 - [Events](#events)
   - [`datafile_set`](#datafile_set)
   - [`context_set`](#context_set)
   - [`sticky_set`](#sticky_set)
+  - [`error`](#error)
 - [Evaluation details](#evaluation-details)
-- [Hooks](#hooks)
-  - [Defining a hook](#defining-a-hook)
-  - [Registering hooks](#registering-hooks)
+- [Modules](#modules)
+  - [Defining a module](#defining-a-module)
+  - [Registering modules](#registering-modules)
 - [Child instance](#child-instance)
 - [Close](#close)
 - [CLI usage](#cli-usage)
@@ -81,7 +85,7 @@ Add Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>0.1.0/version>
+        <version>0.1.0</version>
     </dependency>
 </dependencies>
 ```
@@ -114,6 +118,20 @@ You can generate a new GitHub token with `read:packages` scope here: [https://gi
 
 See example application here: [https://github.com/featurevisor/featurevisor-example-java](https://github.com/featurevisor/featurevisor-example-java)
 
+## Public API
+
+The main runtime API is `Featurevisor.createFeaturevisor()`:
+
+```java
+import com.featurevisor.sdk.FeaturevisorLogLevel;
+
+Featurevisor f = Featurevisor.createFeaturevisor(
+    new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
+);
+```
+
+Most applications only need `Featurevisor.createFeaturevisor`, the `Featurevisor` instance type, and `Featurevisor.FeaturevisorOptions`. Public extension and observability types include `FeaturevisorModule`, `FeaturevisorDiagnostic`, and the datafile model types.
+
 ## Initialization
 
 The SDK can be initialized by passing [datafile](https://featurevisor.com/docs/building-datafiles/) content directly:
@@ -126,13 +144,15 @@ String datafileUrl = "https://cdn.yoursite.com/datafile.json";
 String datafileContent = "..." // load your datafile content
 
 // Create SDK instance
-Featurevisor f = Featurevisor.createInstance(datafileContent);
+Featurevisor f = Featurevisor.createFeaturevisor(
+    new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
+);
 ```
 
-or by constructing a `Featurevisor.Options` object:
+or by constructing a `Featurevisor.FeaturevisorOptions` object:
 
 ```java
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafileContent)
 );
 ```
@@ -175,7 +195,7 @@ Map<String, Object> initialContext = new HashMap<>();
 initialContext.put("deviceId", "123");
 initialContext.put("country", "nl");
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafileContent)
     .context(initialContext));
 ```
@@ -308,6 +328,8 @@ f.<MyCustomClass>getVariableJSON(featureKey, variableKey, context);
 f.getVariableJSONNode(featureKey, variableKey, context);
 ```
 
+Type specific methods do not coerce values. `getVariableInteger()` returns `null` for the string `"1"`, and boolean getters return `null` for non-boolean values.
+
 For strongly typed decoding, additional overloads are available:
 
 ```java
@@ -392,6 +414,8 @@ This is handy especially when you want to pass all evaluations from a backend ap
 
 For the lifecycle of the SDK instance in your application, you can set some features with sticky values, meaning that they will not be evaluated against the fetched [datafile](https://featurevisor.com/docs/building-datafiles/):
 
+Sticky values belong to an SDK or child instance. Evaluation options do not accept sticky overrides; use `new Featurevisor.SpawnOptions().sticky(...)` when a child needs its own sticky state.
+
 ### Initialize with sticky
 
 ```java
@@ -411,7 +435,7 @@ Map<String, Object> anotherFeatureSticky = new HashMap<>();
 anotherFeatureSticky.put("enabled", false);
 stickyFeatures.put("anotherFeatureKey", anotherFeatureSticky);
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafile)
     .sticky(stickyFeatures));
 ```
@@ -437,6 +461,44 @@ You may also initialize the SDK without passing `datafile`, and set it later on:
 f.setDatafile(datafileContent);
 ```
 
+### Merging by default
+
+By default, `setDatafile(datafile)` merges the incoming datafile with the SDK's stored datafile. Incoming top-level metadata is used, and incoming segments/features override existing segments/features with the same keys.
+
+This means you can call `setDatafile` more than once with different datafiles, and the SDK instance accumulates their features and segments together. This is what makes [loading datafiles on demand](#loading-datafiles-on-demand) possible.
+
+### Replacing
+
+To replace the stored datafile entirely, pass `true`:
+
+```java
+f.setDatafile(datafileContent, true);
+```
+
+### Loading datafiles on demand
+
+Because merging is the default, a single SDK instance can start with a small datafile and load more datafiles later as your application needs them, instead of downloading every feature upfront.
+
+This pairs well with [targets](https://featurevisor.com/docs/targets/), where each target produces a smaller datafile for a specific part of your application:
+
+```java
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions());
+
+void loadDatafile(String target) throws Exception {
+    String url = "https://cdn.yoursite.com/production/featurevisor-" + target + ".json";
+    String json = fetchJson(url); // use your HTTP client of choice
+    DatafileContent datafile = DatafileContent.fromJson(json);
+
+    // merges into whatever was loaded before
+    f.setDatafile(datafile);
+}
+
+loadDatafile("products");
+
+// later, when the user reaches checkout
+loadDatafile("checkout");
+```
+
 ### Updating datafile
 
 You can set the datafile as many times as you want in your application, which will result in emitting a [`datafile_set`](#datafile_set) event that you can listen and react to accordingly.
@@ -460,76 +522,45 @@ scheduler.scheduleAtFixedRate(() -> {
     String newDatafileContent = // ... fetch from your CDN
     DatafileContent newDatafile = DatafileContent.fromJson(newDatafileContent);
 
-    // Update the SDK
+    // Merge into the SDK's existing datafile
     f.setDatafile(newDatafile);
 }, 0, 5, TimeUnit.MINUTES);
 ```
 
-## Logging
+## Diagnostics
 
-By default, Featurevisor SDKs will print out logs to the console for `info` level and above.
+By default, Featurevisor reports diagnostics to the console for `info` level and above with a `[Featurevisor]` prefix.
 
 ### Levels
 
-These are all the available log levels:
+Available diagnostic levels are `FATAL`, `ERROR`, `WARN`, `INFO`, and `DEBUG`.
 
-- `error`
-- `warn`
-- `info`
-- `debug`
-
-### Customizing levels
-
-If you choose `debug` level to make the logs more verbose, you can set it at the time of SDK initialization.
-
-Setting `debug` level will print out all logs, including `info`, `warn`, and `error` levels.
+Set the level during initialization or update it afterwards:
 
 ```java
-import com.featurevisor.sdk.Logger;
+Featurevisor f = Featurevisor.createFeaturevisor(
+    new Featurevisor.FeaturevisorOptions().logLevel(FeaturevisorLogLevel.DEBUG)
+);
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
-    .logLevel(Logger.LogLevel.DEBUG));
-```
-
-You can also set log level from SDK instance afterwards:
-
-```java
-f.setLogLevel(Logger.LogLevel.DEBUG);
+f.setLogLevel(FeaturevisorLogLevel.INFO);
 ```
 
 ### Handler
 
-You can also pass your own log handler, if you do not wish to print the logs to the console:
+Use `onDiagnostic` to send structured diagnostics to your observability system:
 
 ```java
-// Create a custom logger with a custom handler
-Logger customLogger = Logger.createLogger(new Logger.CreateLoggerOptions()
-    .level(Logger.LogLevel.INFO)
-    .handler((level, message, details) -> {
-        // do something with the log
-        System.out.println("[" + level + "] " + message);
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+    .logLevel(FeaturevisorLogLevel.INFO)
+    .onDiagnostic(diagnostic -> {
+        System.out.println(diagnostic.getLevel() + ": " + diagnostic.getCode());
     }));
-
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
-    .logger(customLogger));
 ```
 
-Alternatively, you can create a custom logger directly:
+Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance. Evaluation metadata belongs in `details`.
 
-```java
-Logger customLogger = new Logger(Logger.LogLevel.INFO, (level, message, details) -> {
-    // do something with the log
-    System.out.println("[" + level + "] " + message);
-});
+Diagnostic handlers are isolated from SDK behavior. An exception in a handler does not stop other handlers or evaluations.
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
-    .datafile(datafile)
-    .logger(customLogger));
-```
-
-Further log levels like `info` and `debug` will help you understand how the feature variations and variables are evaluated in the runtime against given context.
 
 ## Events
 
@@ -589,6 +620,17 @@ Runnable unsubscribe = f.on("sticky_set", (event) -> {
 });
 ```
 
+### `error`
+
+```java
+Emitter.UnsubscribeFunction unsubscribe = f.on(Emitter.EventName.ERROR, (event) -> {
+    FeaturevisorDiagnostic diagnostic = (FeaturevisorDiagnostic) event.get("diagnostic");
+    System.err.println(diagnostic.getMessage());
+});
+```
+
+The `error` event is emitted for diagnostics whose level is `ERROR`.
+
 ## Evaluation details
 
 Besides logging with debug level enabled, you can also get more details about how the feature variations and variables are evaluated in the runtime against given context:
@@ -621,87 +663,87 @@ And optionally these properties depending on whether you are evaluating a featur
 - `variableValue`: the variable value
 - `variableSchema`: the variable schema
 
-## Hooks
+## Modules
 
-Hooks allow you to intercept the evaluation process and customize it further as per your needs.
+Modules allow you to intercept the evaluation process and customize it further as per your needs.
 
-### Defining a hook
+### Defining a module
 
-A hook is a simple object with a unique required `name` and optional functions:
+A module is a `FeaturevisorModule` with a unique `name` and optional lifecycle functions:
+
+If `setup` throws, the module is not registered. Featurevisor removes subscriptions created during setup, reports `module_setup_error`, and calls `close` when present.
 
 ```java
-Map<String, Object> myCustomHook = new HashMap<>();
-myCustomHook.put("name", "my-custom-hook");
+FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
+    .setup(api -> {
+        System.out.println("Current revision: " + api.getRevision());
+    })
 
-// before evaluation
-myCustomHook.put("before", (options) -> {
-    String type = (String) options.get("type"); // "feature" | "variation" | "variable"
-    String featureKey = (String) options.get("featureKey");
-    String variableKey = (String) options.get("variableKey"); // if type is "variable"
-    @SuppressWarnings("unchecked")
-    Map<String, Object> context = (Map<String, Object>) options.get("context");
+    // before evaluation
+    .before(options -> {
+        Map<String, Object> context = new HashMap<>(options.getContext());
+        context.put("someAdditionalAttribute", "value");
+        return options.copy().context(context);
+    })
 
-    // update context before evaluation
-    context.put("someAdditionalAttribute", "value");
-    options.put("context", context);
+    // configure bucket key
+    .bucketKey(options -> {
+        String bucketKey = options.getBucketKey();
+        return bucketKey;
+    })
 
-    return options;
-});
+    // configure bucket value (between 0 and 100,000)
+    .bucketValue(options -> {
+        int bucketValue = options.getBucketValue();
+        return bucketValue;
+    })
 
-// after evaluation
-myCustomHook.put("after", (evaluation, options) -> {
-    String reason = (String) evaluation.get("reason"); // "error" | "feature_not_found" | "variable_not_found" | ...
+    // after evaluation
+    .after((evaluation, options) -> evaluation)
 
-    if ("error".equals(reason)) {
-        // log error
-        return;
-    }
-});
-
-// configure bucket key
-myCustomHook.put("bucketKey", (options) -> {
-    String featureKey = (String) options.get("featureKey");
-    @SuppressWarnings("unchecked")
-    Map<String, Object> context = (Map<String, Object>) options.get("context");
-    String bucketBy = (String) options.get("bucketBy");
-    String bucketKey = (String) options.get("bucketKey"); // default bucket key
-
-    // return custom bucket key
-    return bucketKey;
-});
-
-// configure bucket value (between 0 and 100,000)
-myCustomHook.put("bucketValue", (options) -> {
-    String featureKey = (String) options.get("featureKey");
-    @SuppressWarnings("unchecked")
-    Map<String, Object> context = (Map<String, Object>) options.get("context");
-    String bucketKey = (String) options.get("bucketKey");
-    Integer bucketValue = (Integer) options.get("bucketValue"); // default bucket value
-
-    // return custom bucket value
-    return bucketValue;
-});
+    // called by f.close()
+    .close(() -> {
+        // clean up resources
+    });
 ```
 
-### Registering hooks
+### Registering modules
 
-You can register hooks at the time of SDK initialization:
+You can register modules at the time of SDK initialization:
 
 ```java
-List<Map<String, Object>> hooks = new ArrayList<>();
-hooks.add(myCustomHook);
+List<FeaturevisorModule> modules = new ArrayList<>();
+modules.add(myCustomModule);
 
-Featurevisor f = Featurevisor.createInstance(new Featurevisor.Options()
+Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafile)
-    .hooks(hooks));
+    .modules(modules));
 ```
 
 Or after initialization:
 
 ```java
-Runnable removeHook = f.addHook(myCustomHook);
+Runnable removeModule = f.addModule(myCustomModule);
 
-// removeHook.run();
+// removeModule.run();
+// or:
+f.removeModule("my-custom-module");
+```
+
+Modules receive an API during `setup` and can subscribe to diagnostics or report their own:
+
+```java
+FeaturevisorModule module = new FeaturevisorModule("diagnostic-module")
+    .setup(api -> {
+        Runnable unsubscribe = api.onDiagnostic(diagnostic -> {
+            // observe diagnostics from the SDK and other modules
+        });
+
+        api.reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(FeaturevisorLogLevel.WARN)
+            .code("custom_module_warning")
+            .message("Something notable happened"));
+    });
 ```
 
 ## Child instance
@@ -758,6 +800,8 @@ f.close();
 
 This package also provides a CLI tool for running your Featurevisor project's test specs and benchmarking against this Java SDK:
 
+All three commands accept repeatable `--target=<target>` options. `test` builds only the selected Target datafiles and runs untargeted assertions plus assertions for those targets. `benchmark` and `assess-distribution` run independently against every selected Target datafile. Without `--target`, existing project-wide behavior is preserved. Project definitions, test specs, Target discovery, and datafile generation continue to come from the Node.js CLI.
+
 ### Test
 
 Learn more about testing [here](https://featurevisor.com/docs/testing/).
@@ -769,15 +813,10 @@ $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --
 Additional options that are available:
 
 ```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1 --with-tags --with-scopes --showDatafile --schemaVersion=2 --inflate=1"
+$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1 --showDatafile --inflate=1"
 ```
 
-Scoped and tagged test behavior mirrors the JavaScript tester:
-
-- `--with-tags`: builds and tests assertions against tagged datafiles.
-- `--with-scopes`: builds scoped datafiles and tests scoped assertions against those scoped files.
-- without `--with-scopes`: scoped assertions still run by merging scope context into assertion context (fallback behavior).
-- if both `scope` and `tag` are present in an assertion, scope datafile takes precedence.
+The test runner builds base datafiles and Target datafiles, then uses a Target datafile when an assertion contains `target`.
 
 ### Benchmark
 

@@ -458,13 +458,7 @@ public class ChildInstance {
             options = new Featurevisor.OverrideOptions();
         }
 
-        if (this.sticky != null) {
-            Map<String, Object> mergedSticky = new HashMap<>(this.sticky);
-            if (options.getSticky() != null) {
-                mergedSticky.putAll(options.getSticky());
-            }
-            options.sticky(mergedSticky);
-        }
+        options.setInternalSticky(this.sticky);
 
         return options;
     }

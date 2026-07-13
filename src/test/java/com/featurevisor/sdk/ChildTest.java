@@ -31,7 +31,7 @@ public class ChildTest {
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(Logger.LogLevel.WARN));
+        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
@@ -249,7 +249,7 @@ public class ChildTest {
         Map<String, Object> parentContext = new HashMap<>();
         parentContext.put("appVersion", "1.0.0");
 
-        Featurevisor parentInstance = new Featurevisor(new Featurevisor.Options()
+        Featurevisor parentInstance = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .datafile(datafile)
             .context(parentContext));
 

@@ -16,7 +16,7 @@ public class EvaluateOptions {
     // Dependencies
     private Map<String, Object> context;
     private Logger logger;
-    private HooksManager hooksManager;
+    private ModulesManager modulesManager;
     private DatafileReader datafileReader;
 
     // Override options
@@ -44,9 +44,9 @@ public class EvaluateOptions {
     public String getFeatureKey() { return featureKey; }
     public String getVariableKey() { return variableKey; }
     public Map<String, Object> getContext() { return context; }
-    public Logger getLogger() { return logger; }
-    public HooksManager getHooksManager() { return hooksManager; }
-    public DatafileReader getDatafileReader() { return datafileReader; }
+    Logger getLogger() { return logger; }
+    ModulesManager getModulesManager() { return modulesManager; }
+    DatafileReader getDatafileReader() { return datafileReader; }
     public Map<String, Object> getSticky() { return sticky; }
     public String getDefaultVariationValue() { return defaultVariationValue; }
     public Object getDefaultVariableValue() { return defaultVariableValue; }
@@ -57,9 +57,9 @@ public class EvaluateOptions {
     public void setFeatureKey(String featureKey) { this.featureKey = featureKey; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
     public void setContext(Map<String, Object> context) { this.context = context; }
-    public void setLogger(Logger logger) { this.logger = logger; }
-    public void setHooksManager(HooksManager hooksManager) { this.hooksManager = hooksManager; }
-    public void setDatafileReader(DatafileReader datafileReader) { this.datafileReader = datafileReader; }
+    void setLogger(Logger logger) { this.logger = logger; }
+    void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
+    void setDatafileReader(DatafileReader datafileReader) { this.datafileReader = datafileReader; }
     public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
     public void setDefaultVariableValue(Object defaultVariableValue) { this.defaultVariableValue = defaultVariableValue; }
@@ -86,17 +86,17 @@ public class EvaluateOptions {
         return this;
     }
 
-    public EvaluateOptions logger(Logger logger) {
+    EvaluateOptions logger(Logger logger) {
         this.logger = logger;
         return this;
     }
 
-    public EvaluateOptions hooksManager(HooksManager hooksManager) {
-        this.hooksManager = hooksManager;
+    EvaluateOptions modulesManager(ModulesManager modulesManager) {
+        this.modulesManager = modulesManager;
         return this;
     }
 
-    public EvaluateOptions datafileReader(DatafileReader datafileReader) {
+    EvaluateOptions datafileReader(DatafileReader datafileReader) {
         this.datafileReader = datafileReader;
         return this;
     }
@@ -132,7 +132,7 @@ public class EvaluateOptions {
         copy.variableKey = this.variableKey;
         copy.context = this.context;
         copy.logger = this.logger;
-        copy.hooksManager = this.hooksManager;
+        copy.modulesManager = this.modulesManager;
         copy.datafileReader = this.datafileReader;
         copy.sticky = this.sticky;
         copy.defaultVariationValue = this.defaultVariationValue;
@@ -160,7 +160,7 @@ public class EvaluateOptions {
                 ", variableKey='" + variableKey + '\'' +
                 ", context=" + context +
                 ", logger=" + logger +
-                ", hooksManager=" + hooksManager +
+                ", modulesManager=" + modulesManager +
                 ", datafileReader=" + datafileReader +
                 ", sticky=" + sticky +
                 ", defaultVariationValue=" + defaultVariationValue +
