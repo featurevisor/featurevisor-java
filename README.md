@@ -46,6 +46,7 @@ This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles
   - [Registering modules](#registering-modules)
 - [Child instance](#child-instance)
 - [Close](#close)
+- [OpenFeature](#openfeature)
 - [CLI usage](#cli-usage)
   - [Test](#test)
   - [Benchmark](#benchmark)
@@ -833,6 +834,50 @@ Learn more about assessing distribution [here](https://featurevisor.com/docs/cli
 ```bash
 $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="assess-distribution --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --environment=production --feature=foo --variation --context='{\"country\": \"nl\"}' --populateUuid=userId --populateUuid=deviceId --n=1000"
 ```
+
+## OpenFeature
+
+Add the official OpenFeature SDK next to Featurevisor:
+
+```xml
+<dependency>
+  <groupId>dev.openfeature</groupId>
+  <artifactId>sdk</artifactId>
+  <version>1.20.2</version>
+</dependency>
+```
+
+```java
+import com.featurevisor.openfeature.FeaturevisorOpenFeatureProvider;
+import com.featurevisor.sdk.Featurevisor;
+import dev.openfeature.sdk.ImmutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+
+var provider = new FeaturevisorOpenFeatureProvider(
+    new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
+);
+
+var api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait(provider);
+
+var client = api.getClient();
+boolean enabled = client.getBooleanValue("checkout", false, new ImmutableContext("user-123"));
+```
+
+Use `checkout` for a flag, `checkout:variation` for its variation, and `checkout:title` for its `title` variable. Boolean variables use the boolean resolver. Lists, structures, and JSON variables use the object resolver.
+
+OpenFeature's targeting key maps to `userId` by default. `targetingKeyField`, `keySeparator`, and `variationKey` on `FeaturevisorOpenFeatureProvider.Options` can customize the mapping.
+
+You can also reuse an existing Featurevisor instance:
+
+```java
+Featurevisor featurevisor = Featurevisor.createFeaturevisor(featurevisorOptions);
+var provider = new FeaturevisorOpenFeatureProvider(featurevisor);
+```
+
+The caller owns an instance passed this way. Provider shutdown does not close it. Call `featurevisor.close()` when every consumer is finished with it. When the provider creates the instance from options, the provider owns and closes it. If both are configured, the existing instance takes precedence.
+
+See the [OpenFeature provider guide](https://featurevisor.com/docs/sdks/openfeature/) for resolution reasons, errors, metadata, tracking, lifecycle, and providers for other languages.
 
 <!-- FEATUREVISOR_DOCS_END -->
 
