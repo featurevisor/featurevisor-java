@@ -5,49 +5,45 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required for flatten-maven-plugin to work with Git tags
+      - name: Check out repository
+        uses: actions/checkout@v6
 
-      - name: Set up JDK 24 and Maven
-        uses: actions/setup-java@v4
+      - name: Set up Java and Maven publishing
+        uses: actions/setup-java@v5
         with:
           java-version: "24"
-          distribution: "temurin"
-          cache: "maven"
+          distribution: temurin
+          cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
 
       - name: Extract version from Git tag
         id: version
+        shell: bash
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing Featurevisor Java $version"
 
-      - name: Update version in pom.xml
-        run: |
-          # Cross-platform sed command that works on both Linux and macOS
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS (BSD sed)
-            sed -i '' "/<artifactId>featurevisor-java<\/artifactId>/,/<version>/ s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
-          else
-            # Linux (GNU sed)
-            sed -i "/<artifactId>featurevisor-java<\/artifactId>/,/<version>/ s/<version>.*<\/version>/<version>${{ steps.version.outputs.version }}<\/version>/" pom.xml
-          fi
-
-          cat pom.xml | grep '<version>'
-
-      - name: Build and Publish
+      - name: Build, test, and publish all artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mvn clean deploy -DskipTests
+        run: >-
+          mvn --batch-mode
+          -Drevision=${{ steps.version.outputs.version }}
+          clean deploy

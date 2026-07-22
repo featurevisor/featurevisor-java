@@ -79,7 +79,7 @@ For finding GitHub Package (public package):
 
 ### Dependency
 
-Add Featurevisor Java SDK as a dependency with your desired version:
+Add the Featurevisor Java SDK as a dependency with your desired version:
 
 ```xml
 <dependencies>
@@ -837,15 +837,21 @@ $ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="assess-
 
 ## OpenFeature
 
-Add the official OpenFeature SDK next to Featurevisor:
+The OpenFeature provider is published as a separate artifact. Applications that use only `com.featurevisor:featurevisor-java` receive no provider classes or OpenFeature dependency.
+
+Add the provider with the same version as the Featurevisor Java SDK:
 
 ```xml
 <dependency>
-  <groupId>dev.openfeature</groupId>
-  <artifactId>sdk</artifactId>
-  <version>1.20.2</version>
+  <groupId>com.featurevisor</groupId>
+  <artifactId>featurevisor-openfeature</artifactId>
+  <version>FEATUREVISOR_VERSION</version>
 </dependency>
 ```
+
+The provider artifact depends on the matching Featurevisor Java SDK and the compatible official OpenFeature SDK, so no additional dependency is required.
+
+When upgrading from an earlier release, replace the direct `dev.openfeature:sdk` dependency with `com.featurevisor:featurevisor-openfeature`. The provider's Java package and public API are unchanged.
 
 ```java
 import com.featurevisor.openfeature.FeaturevisorOpenFeatureProvider;
@@ -897,11 +903,22 @@ $ mvn install
 $ mvn test
 ```
 
+The repository is a Maven reactor with two published libraries:
+
+- `com.featurevisor:featurevisor-java`
+- `com.featurevisor:featurevisor-openfeature`
+
+To verify their published JAR and POM boundaries locally:
+
+```bash
+$ make verify-artifacts
+```
+
 ### Releasing
 
 - Manually create a new release on [GitHub](https://github.com/featurevisor/featurevisor-java/releases)
 - Tag it with a prefix of `v`, like `v1.0.0`
-- GitHub Actions is set up to automatically publish the package to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java)
+- GitHub Actions publishes the parent POM, Java SDK, and OpenFeature provider to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java)
 
 ## License
 
