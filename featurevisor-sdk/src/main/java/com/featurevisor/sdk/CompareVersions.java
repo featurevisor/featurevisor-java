@@ -20,7 +20,7 @@ public class CompareVersions {
      * Compare two semantic version strings
      * @param v1 First version string
      * @param v2 Second version string
-     * @return -1 if v1 < v2, 0 if equal, 1 if v1 > v2
+     * @return -1 if v1 is less than v2, 0 if equal, 1 if v1 is greater than v2
      */
     public static int compareVersions(String v1, String v2) {
         // validate input and split into segments

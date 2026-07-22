@@ -1,4 +1,4 @@
-.PHONY: install build test test-example-1 setup-monorepo update-monorepo setup-golang-sdk update-golang-sdk setup-references update-references
+.PHONY: install build test verify-artifacts test-example-1 setup-monorepo update-monorepo setup-golang-sdk update-golang-sdk setup-references update-references
 
 install:
 	mvn install
@@ -9,9 +9,13 @@ build:
 test:
 	mvn test
 
+verify-artifacts:
+	mvn package
+	bash scripts/verify-artifacts.sh
+
 test-example-1:
 	mvn test
-	mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=../featurevisor/examples/example-1 --onlyFailures"
+	mvn -pl featurevisor-sdk exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=../featurevisor/examples/example-1 --onlyFailures"
 
 ##
 # Monorepo

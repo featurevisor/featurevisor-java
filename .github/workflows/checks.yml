@@ -2,50 +2,55 @@ name: Checks
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  checks:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        java-version: [24]
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v6
 
-      - name: Set up JDK ${{ matrix.java-version }}
-        uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v5
         with:
-          java-version: ${{ matrix.java-version }}
-          distribution: "temurin"
-          cache: "maven"
+          java-version: "24"
+          distribution: temurin
+          cache: maven
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
+      - name: Build and test Maven reactor
+        run: mvn --batch-mode clean verify
+
+      - name: Verify published artifact boundaries
+        run: bash scripts/verify-artifacts.sh
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          node-version-file: .nvmrc
 
-      - name: Build with Maven
-        run: mvn clean compile package -DskipTests
-
-      - name: Test
-        run: mvn test
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Setup Featurevisor example-1 project
+      - name: Set up Featurevisor example-1 project
         run: |
           mkdir example-1
-          (cd example-1 && npx @featurevisor/cli@2.x init --example=1)
-          (cd example-1 && npm install)
-          (cd example-1 && npx featurevisor test)
+          cd example-1
+          npx --yes @featurevisor/cli@3 init --example=1
+          npm install
+          npx featurevisor build
+          npx featurevisor test --onlyFailures
 
       - name: Run Featurevisor project tests against Java SDK
-        run: mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=example-1"
+        run: >-
+          mvn --batch-mode -pl featurevisor-sdk exec:java
+          -Dexec.mainClass=com.featurevisor.cli.CLI
+          -Dexec.args="test --projectDirectoryPath=example-1 --onlyFailures"

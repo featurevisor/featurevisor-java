@@ -2,8 +2,7 @@ package com.featurevisor.sdk;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.InputStream;
 
 import com.featurevisor.sdk.Allocation;
 import com.featurevisor.sdk.Bucket;
@@ -30,10 +29,13 @@ public class DatafileReaderTest {
 
     @Test
     public void testSharedV3ConformanceFixture() throws Exception {
-        JsonNode fixture = new ObjectMapper().readTree(Files.readString(Path.of("conformance/sdk-v3.json")));
-        assertEquals(1, fixture.get("version").asInt());
-        assertEquals("control", fixture.get("bucketing").get("allocationExpectations").get("50000").asText());
-        assertEquals("treatment", fixture.get("bucketing").get("allocationExpectations").get("50001").asText());
+        try (InputStream fixtureStream = getClass().getResourceAsStream("/conformance/sdk-v3.json")) {
+            assertNotNull(fixtureStream);
+            JsonNode fixture = new ObjectMapper().readTree(fixtureStream);
+            assertEquals(1, fixture.get("version").asInt());
+            assertEquals("control", fixture.get("bucketing").get("allocationExpectations").get("50000").asText());
+            assertEquals("treatment", fixture.get("bucketing").get("allocationExpectations").get("50001").asText());
+        }
     }
 
     private Logger logger;

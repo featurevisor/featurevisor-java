@@ -9,7 +9,7 @@ public class ContextUtils {
 
     /**
      * Get a value from a context object using a dot-separated path
-     * @param context The context object (Map<String, Object>)
+     * @param context The context object
      * @param path The dot-separated path to the value
      * @return The value at the path, or null if not found
      */
