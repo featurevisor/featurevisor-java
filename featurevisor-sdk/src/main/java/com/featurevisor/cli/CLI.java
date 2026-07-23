@@ -33,7 +33,7 @@ import com.featurevisor.sdk.FeaturevisorModule;
 @Command(
     name = "featurevisor",
     mixinStandardHelpOptions = true,
-    version = "1.0.0",
+    version = "3.0.0",
     description = "Featurevisor Java Library CLI - Test runner, benchmark, and distribution assessment"
 )
 public class CLI implements Runnable {
@@ -317,9 +317,9 @@ public class CLI implements Runnable {
     }
 
     /**
-     * Get logger level based on CLI options
+     * Get diagnostics level based on CLI options
      */
-    private FeaturevisorLogLevel getLoggerLevel() {
+    private FeaturevisorLogLevel getDiagnosticsLevel() {
         if (verbose) {
             return FeaturevisorLogLevel.DEBUG;
         } else if (quiet) {
@@ -569,8 +569,7 @@ public class CLI implements Runnable {
         if (f instanceof Featurevisor) {
             return ((Featurevisor) f).evaluateFlag(featureKey, context);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
-            // ChildInstance doesn't have evaluateFlag, so we'll skip this test for child instances
-            return null;
+            return ((com.featurevisor.sdk.ChildInstance) f).evaluateFlag(featureKey, context);
         }
         return null;
     }
@@ -579,8 +578,7 @@ public class CLI implements Runnable {
         if (f instanceof Featurevisor) {
             return ((Featurevisor) f).evaluateVariation(featureKey, context, options);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
-            // ChildInstance doesn't have evaluateVariation, so we'll skip this test for child instances
-            return null;
+            return ((com.featurevisor.sdk.ChildInstance) f).evaluateVariation(featureKey, context, options);
         }
         return null;
     }
@@ -589,8 +587,7 @@ public class CLI implements Runnable {
         if (f instanceof Featurevisor) {
             return ((Featurevisor) f).evaluateVariable(featureKey, variableKey, context, options);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
-            // ChildInstance doesn't have evaluateVariable, so we'll skip this test for child instances
-            return null;
+            return ((com.featurevisor.sdk.ChildInstance) f).evaluateVariable(featureKey, variableKey, context, options);
         }
         return null;
     }
@@ -679,7 +676,7 @@ public class CLI implements Runnable {
 
             System.out.println();
 
-            FeaturevisorLogLevel level = getLoggerLevel();
+            FeaturevisorLogLevel level = getDiagnosticsLevel();
             List<Map<String, Object>> tests = getTests(featurevisorProjectPath);
 
             if (tests.isEmpty()) {
@@ -848,7 +845,7 @@ public class CLI implements Runnable {
                 contextMap = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
             }
 
-            FeaturevisorLogLevel level = getLoggerLevel();
+            FeaturevisorLogLevel level = getDiagnosticsLevel();
             String target = targets.isEmpty() ? null : targets.get(0);
             DatafileContent datafile = buildDatafile(rootDirectoryPath, environment, target);
 
@@ -948,7 +945,7 @@ public class CLI implements Runnable {
 
             Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
                 .datafile(datafile)
-                .logLevel(getLoggerLevel()));
+                .logLevel(getDiagnosticsLevel()));
 
             Object value = null;
 

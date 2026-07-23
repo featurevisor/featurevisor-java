@@ -198,8 +198,8 @@ public class ModulesManagerTest {
 
         Map<String, Object> context = new HashMap<>();
         Bucket bucketBy = new Bucket("userId");
-        ModulesManager.ConfigureBucketKeyOptions options =
-            new ModulesManager.ConfigureBucketKeyOptions("test-feature", context, bucketBy, "original-key");
+        ConfigureBucketKeyOptions options =
+            new ConfigureBucketKeyOptions("test-feature", context, bucketBy, "original-key");
 
         assertEquals("modified:original-key", modulesManager.executeBucketKeyModules(options));
     }
@@ -210,8 +210,8 @@ public class ModulesManagerTest {
             .bucketValue(options -> options.getBucketValue() + 10));
 
         Map<String, Object> context = new HashMap<>();
-        ModulesManager.ConfigureBucketValueOptions options =
-            new ModulesManager.ConfigureBucketValueOptions("test-feature", "bucket-key", context, 50);
+        ConfigureBucketValueOptions options =
+            new ConfigureBucketValueOptions("test-feature", "bucket-key", context, 50);
 
         assertEquals(60, modulesManager.executeBucketValueModules(options));
     }

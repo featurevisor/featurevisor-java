@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
 import com.featurevisor.sdk.EvaluatedFeatures;
 
 /**
@@ -16,11 +17,12 @@ public class ChildInstance {
     private Map<String, Object> context;
     private Map<String, Object> sticky;
     private Emitter emitter;
+    private final List<FeaturevisorUnsubscribe> parentUnsubscribers = new ArrayList<>();
 
     /**
      * Constructor
      */
-    public ChildInstance(Featurevisor parent, Map<String, Object> context, Map<String, Object> sticky) {
+    ChildInstance(Featurevisor parent, Map<String, Object> context, Map<String, Object> sticky) {
         this.parent = parent;
         this.context = context != null ? new HashMap<>(context) : new HashMap<>();
         this.sticky = sticky;
@@ -30,18 +32,34 @@ public class ChildInstance {
     /**
      * Subscribe to event
      */
-    public Emitter.UnsubscribeFunction on(Emitter.EventName eventName, Emitter.EventCallback callback) {
-        if (Emitter.EventName.CONTEXT_SET.equals(eventName) || Emitter.EventName.STICKY_SET.equals(eventName)) {
+    public FeaturevisorUnsubscribe on(FeaturevisorEventName eventName, FeaturevisorEventHandler callback) {
+        if (FeaturevisorEventName.CONTEXT_SET.equals(eventName) || FeaturevisorEventName.STICKY_SET.equals(eventName)) {
             return this.emitter.on(eventName, callback);
         }
 
-        return this.parent.on(eventName, callback);
+        FeaturevisorUnsubscribe parentUnsubscribe = this.parent.on(eventName, callback);
+        final boolean[] active = {true};
+        final FeaturevisorUnsubscribe[] holder = new FeaturevisorUnsubscribe[1];
+        holder[0] = () -> {
+            if (!active[0]) {
+                return;
+            }
+            active[0] = false;
+            parentUnsubscribe.unsubscribe();
+            this.parentUnsubscribers.remove(holder[0]);
+        };
+        this.parentUnsubscribers.add(holder[0]);
+        return holder[0];
     }
 
     /**
      * Close instance
      */
     public void close() {
+        for (FeaturevisorUnsubscribe unsubscribe : new ArrayList<>(this.parentUnsubscribers)) {
+            unsubscribe.unsubscribe();
+        }
+        this.parentUnsubscribers.clear();
         this.emitter.clearAll();
     }
 
@@ -56,11 +74,11 @@ public class ChildInstance {
             this.context.putAll(context);
         }
 
-        Emitter.EventDetails eventDetails = new Emitter.EventDetails();
+        FeaturevisorEventDetails eventDetails = new FeaturevisorEventDetails();
         eventDetails.put("context", this.context);
         eventDetails.put("replaced", replace);
 
-        this.emitter.trigger(Emitter.EventName.CONTEXT_SET, eventDetails);
+        this.emitter.trigger(FeaturevisorEventName.CONTEXT_SET, eventDetails);
     }
 
     public void setContext(Map<String, Object> context) {
@@ -75,7 +93,7 @@ public class ChildInstance {
     }
 
     public Map<String, Object> getContext() {
-        return new HashMap<>(this.context);
+        return this.parent.getContext(new HashMap<>(this.context));
     }
 
     /**
@@ -92,10 +110,10 @@ public class ChildInstance {
             this.sticky.putAll(sticky);
         }
 
-        Emitter.EventDetails params = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails params = Events.getParamsForStickySetEvent(
             previousStickyFeatures, this.sticky, replace);
 
-        this.emitter.trigger(Emitter.EventName.STICKY_SET, params);
+        this.emitter.trigger(FeaturevisorEventName.STICKY_SET, params);
     }
 
     public void setSticky(Map<String, Object> sticky) {
@@ -105,6 +123,22 @@ public class ChildInstance {
     /**
      * Flag
      */
+    public Evaluation evaluateFlag(String featureKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
+        return this.parent.evaluateFlag(
+            featureKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options)
+        );
+    }
+
+    public Evaluation evaluateFlag(String featureKey, Map<String, Object> context) {
+        return evaluateFlag(featureKey, context, null);
+    }
+
+    public Evaluation evaluateFlag(String featureKey) {
+        return evaluateFlag(featureKey, null, null);
+    }
+
     public boolean isEnabled(String featureKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
         return this.parent.isEnabled(
             featureKey,
@@ -124,6 +158,22 @@ public class ChildInstance {
     /**
      * Variation
      */
+    public Evaluation evaluateVariation(String featureKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
+        return this.parent.evaluateVariation(
+            featureKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options)
+        );
+    }
+
+    public Evaluation evaluateVariation(String featureKey, Map<String, Object> context) {
+        return evaluateVariation(featureKey, context, null);
+    }
+
+    public Evaluation evaluateVariation(String featureKey) {
+        return evaluateVariation(featureKey, null, null);
+    }
+
     public String getVariation(String featureKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
         return this.parent.getVariation(
             featureKey,
@@ -143,6 +193,23 @@ public class ChildInstance {
     /**
      * Variable
      */
+    public Evaluation evaluateVariable(String featureKey, String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
+        return this.parent.evaluateVariable(
+            featureKey,
+            variableKey,
+            mergeContexts(this.context, context),
+            mergeOverrideOptions(options)
+        );
+    }
+
+    public Evaluation evaluateVariable(String featureKey, String variableKey, Map<String, Object> context) {
+        return evaluateVariable(featureKey, variableKey, context, null);
+    }
+
+    public Evaluation evaluateVariable(String featureKey, String variableKey) {
+        return evaluateVariable(featureKey, variableKey, null, null);
+    }
+
     public Object getVariable(String featureKey, String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
         return this.parent.getVariable(
             featureKey,

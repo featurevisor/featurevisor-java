@@ -13,13 +13,13 @@ import java.util.HashMap;
 
 public class EvaluateDisabledTest {
 
-    private Logger logger;
-    private DatafileReader datafileReader;
+    private DiagnosticReporter diagnostics;
+    private InstanceEvaluationDataProvider evaluationData;
     private Feature feature;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
 
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2.0");
@@ -27,9 +27,9 @@ public class EvaluateDisabledTest {
         datafile.setSegments(new HashMap<>());
         datafile.setFeatures(new HashMap<>());
 
-        datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        evaluationData = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Create a test feature
         feature = new Feature("test-feature");
@@ -56,8 +56,8 @@ public class EvaluateDisabledTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         Evaluation flag = new Evaluation()
             .type(Evaluation.TYPE_FLAG)
@@ -74,8 +74,8 @@ public class EvaluateDisabledTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         Evaluation flag = new Evaluation()
             .type(Evaluation.TYPE_FLAG)
@@ -101,17 +101,17 @@ public class EvaluateDisabledTest {
         features.put("test-feature", testFeature);
         newDatafile.setFeatures(features);
 
-        // Create a new DatafileReader with the updated datafile
-        DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        // Create a new InstanceEvaluationDataProvider with the updated datafile
+        InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(newDatafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Should return disabled variation evaluation
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .datafileReader(newDatafileReader)
-            .logger(logger);
+            .evaluationData(newInstanceEvaluationDataProvider)
+            .diagnostics(diagnostics);
 
         Evaluation flag = new Evaluation()
             .type(Evaluation.TYPE_FLAG)
@@ -155,18 +155,18 @@ public class EvaluateDisabledTest {
         features.put("test-feature", testFeature);
         newDatafile.setFeatures(features);
 
-        // Create a new DatafileReader with the updated datafile
-        DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        // Create a new InstanceEvaluationDataProvider with the updated datafile
+        InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(newDatafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Should return variable disabled evaluation with disabledValue
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .datafileReader(newDatafileReader)
-            .logger(logger);
+            .evaluationData(newInstanceEvaluationDataProvider)
+            .diagnostics(diagnostics);
 
         Evaluation flag = new Evaluation()
             .type(Evaluation.TYPE_FLAG)
@@ -212,17 +212,17 @@ public class EvaluateDisabledTest {
         features.put("test-feature", testFeature);
         newDatafile.setFeatures(features);
 
-        // Create a new DatafileReader with the updated datafile
-        DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        // Create a new InstanceEvaluationDataProvider with the updated datafile
+        InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(newDatafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .datafileReader(newDatafileReader)
-            .logger(logger);
+            .evaluationData(newInstanceEvaluationDataProvider)
+            .diagnostics(diagnostics);
 
         Evaluation flag = new Evaluation()
             .type(Evaluation.TYPE_FLAG)
@@ -267,17 +267,17 @@ public class EvaluateDisabledTest {
         features.put("test-feature", testFeature);
         newDatafile.setFeatures(features);
 
-        // Create a new DatafileReader with the updated datafile
-        DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        // Create a new InstanceEvaluationDataProvider with the updated datafile
+        InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(newDatafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .datafileReader(newDatafileReader)
-            .logger(logger);
+            .evaluationData(newInstanceEvaluationDataProvider)
+            .diagnostics(diagnostics);
 
         Evaluation flag = new Evaluation()
             .type(Evaluation.TYPE_FLAG)
@@ -299,8 +299,8 @@ public class EvaluateDisabledTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         Evaluation result = EvaluateDisabled.evaluateDisabled(options, null);
         assertNull(result);

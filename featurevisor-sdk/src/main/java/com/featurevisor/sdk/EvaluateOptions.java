@@ -15,15 +15,15 @@ public class EvaluateOptions {
 
     // Dependencies
     private Map<String, Object> context;
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
     private ModulesManager modulesManager;
-    private DatafileReader datafileReader;
+    private InstanceEvaluationDataProvider evaluationData;
 
     // Override options
     private Map<String, Object> sticky;
     private String defaultVariationValue;
     private Object defaultVariableValue;
-    private Evaluation flagEvaluation;
+    private boolean defaultVariableValueSet;
 
     // Constructors
     public EvaluateOptions() {}
@@ -44,26 +44,28 @@ public class EvaluateOptions {
     public String getFeatureKey() { return featureKey; }
     public String getVariableKey() { return variableKey; }
     public Map<String, Object> getContext() { return context; }
-    Logger getLogger() { return logger; }
+    DiagnosticReporter getDiagnostics() { return diagnostics; }
     ModulesManager getModulesManager() { return modulesManager; }
-    DatafileReader getDatafileReader() { return datafileReader; }
+    InstanceEvaluationDataProvider getInstanceEvaluationDataProvider() { return evaluationData; }
     public Map<String, Object> getSticky() { return sticky; }
     public String getDefaultVariationValue() { return defaultVariationValue; }
     public Object getDefaultVariableValue() { return defaultVariableValue; }
-    public Evaluation getFlagEvaluation() { return flagEvaluation; }
+    public boolean hasDefaultVariableValue() { return defaultVariableValueSet; }
 
     // Setters
     public void setType(String type) { this.type = type; }
     public void setFeatureKey(String featureKey) { this.featureKey = featureKey; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
     public void setContext(Map<String, Object> context) { this.context = context; }
-    void setLogger(Logger logger) { this.logger = logger; }
+    void setDiagnostics(DiagnosticReporter diagnostics) { this.diagnostics = diagnostics; }
     void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
-    void setDatafileReader(DatafileReader datafileReader) { this.datafileReader = datafileReader; }
+    void setInstanceEvaluationDataProvider(InstanceEvaluationDataProvider evaluationData) { this.evaluationData = evaluationData; }
     public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
-    public void setDefaultVariableValue(Object defaultVariableValue) { this.defaultVariableValue = defaultVariableValue; }
-    public void setFlagEvaluation(Evaluation flagEvaluation) { this.flagEvaluation = flagEvaluation; }
+    public void setDefaultVariableValue(Object defaultVariableValue) {
+        this.defaultVariableValue = defaultVariableValue;
+        this.defaultVariableValueSet = true;
+    }
 
     // Builder pattern methods
     public EvaluateOptions type(String type) {
@@ -86,8 +88,8 @@ public class EvaluateOptions {
         return this;
     }
 
-    EvaluateOptions logger(Logger logger) {
-        this.logger = logger;
+    EvaluateOptions diagnostics(DiagnosticReporter diagnostics) {
+        this.diagnostics = diagnostics;
         return this;
     }
 
@@ -96,8 +98,8 @@ public class EvaluateOptions {
         return this;
     }
 
-    EvaluateOptions datafileReader(DatafileReader datafileReader) {
-        this.datafileReader = datafileReader;
+    EvaluateOptions evaluationData(InstanceEvaluationDataProvider evaluationData) {
+        this.evaluationData = evaluationData;
         return this;
     }
 
@@ -113,11 +115,13 @@ public class EvaluateOptions {
 
     public EvaluateOptions defaultVariableValue(Object defaultVariableValue) {
         this.defaultVariableValue = defaultVariableValue;
+        this.defaultVariableValueSet = true;
         return this;
     }
 
-    public EvaluateOptions flagEvaluation(Evaluation flagEvaluation) {
-        this.flagEvaluation = flagEvaluation;
+    EvaluateOptions defaultVariableValue(Object defaultVariableValue, boolean isSet) {
+        this.defaultVariableValue = defaultVariableValue;
+        this.defaultVariableValueSet = isSet;
         return this;
     }
 
@@ -131,13 +135,13 @@ public class EvaluateOptions {
         copy.featureKey = this.featureKey;
         copy.variableKey = this.variableKey;
         copy.context = this.context;
-        copy.logger = this.logger;
+        copy.diagnostics = this.diagnostics;
         copy.modulesManager = this.modulesManager;
-        copy.datafileReader = this.datafileReader;
+        copy.evaluationData = this.evaluationData;
         copy.sticky = this.sticky;
         copy.defaultVariationValue = this.defaultVariationValue;
         copy.defaultVariableValue = this.defaultVariableValue;
-        copy.flagEvaluation = this.flagEvaluation;
+        copy.defaultVariableValueSet = this.defaultVariableValueSet;
         return copy;
     }
 
@@ -159,13 +163,12 @@ public class EvaluateOptions {
                 ", featureKey='" + featureKey + '\'' +
                 ", variableKey='" + variableKey + '\'' +
                 ", context=" + context +
-                ", logger=" + logger +
+                ", diagnostics=" + diagnostics +
                 ", modulesManager=" + modulesManager +
-                ", datafileReader=" + datafileReader +
+                ", evaluationData=" + evaluationData +
                 ", sticky=" + sticky +
                 ", defaultVariationValue=" + defaultVariationValue +
                 ", defaultVariableValue=" + defaultVariableValue +
-                ", flagEvaluation=" + flagEvaluation +
                 '}';
     }
 }

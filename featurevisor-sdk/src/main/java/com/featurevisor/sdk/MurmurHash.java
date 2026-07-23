@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
  * MurmurHash v3 implementation for Featurevisor SDK
  * Based on the TypeScript implementation from: https://github.com/perezd/node-murmurhash
  */
-public class MurmurHash {
+final class MurmurHash {
 
     /**
      * MurmurHash v3 implementation

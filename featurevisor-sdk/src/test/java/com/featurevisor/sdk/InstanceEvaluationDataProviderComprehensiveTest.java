@@ -8,14 +8,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.*;
 
-public class DatafileReaderComprehensiveTest {
+public class InstanceEvaluationDataProviderComprehensiveTest {
 
-    private DatafileReader datafileReader;
-    private Logger logger;
+    private InstanceEvaluationDataProvider evaluationData;
+    private DiagnosticReporter diagnostics;
 
     @BeforeEach
     void setUp() {
-        logger = new Logger();
+        diagnostics = new DiagnosticReporter();
 
         // Create a comprehensive datafile content similar to the TypeScript tests
         Map<String, Object> datafileContent = new HashMap<>();
@@ -103,17 +103,17 @@ public class DatafileReaderComprehensiveTest {
         datafile.setSegments(segmentMap);
         datafile.setFeatures(new HashMap<>());
 
-        datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        evaluationData = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
     }
 
     @Test
     void testMatchEveryone() {
         // Test "*" segments - should match everyone
-        assertTrue(datafileReader.allSegmentsAreMatched("*", new HashMap<>()));
-        assertTrue(datafileReader.allSegmentsAreMatched("*", Map.of("foo", "foo")));
-        assertTrue(datafileReader.allSegmentsAreMatched("*", Map.of("bar", "bar")));
+        assertTrue(evaluationData.allSegmentsAreMatched("*", new HashMap<>()));
+        assertTrue(evaluationData.allSegmentsAreMatched("*", Map.of("foo", "foo")));
+        assertTrue(evaluationData.allSegmentsAreMatched("*", Map.of("bar", "bar")));
     }
 
     @Test
@@ -122,14 +122,14 @@ public class DatafileReaderComprehensiveTest {
         List<String> segments = Arrays.asList("mobileUsers", "netherlands");
 
         // Should match
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile", "browser", "chrome")));
 
         // Should not match
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, new HashMap<>()));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, new HashMap<>()));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "mobile")));
     }
 
@@ -140,14 +140,14 @@ public class DatafileReaderComprehensiveTest {
         segments.put("and", Arrays.asList("mobileUsers", "netherlands"));
 
         // Should match
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile", "browser", "chrome")));
 
         // Should not match
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, new HashMap<>()));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, new HashMap<>()));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "mobile")));
     }
 
@@ -158,20 +158,20 @@ public class DatafileReaderComprehensiveTest {
             Map.of("or", Arrays.asList("mobileUsers", "desktopUsers")));
 
         // Should match
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile", "browser", "chrome")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "desktop")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "desktop", "browser", "chrome")));
 
         // Should not match
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, new HashMap<>()));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, new HashMap<>()));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "mobile")));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "desktop")));
     }
 
@@ -183,14 +183,14 @@ public class DatafileReaderComprehensiveTest {
         );
 
         // Should match
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "mobile")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "mobile", "browser", "chrome")));
 
         // Should not match
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, new HashMap<>()));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, new HashMap<>()));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile")));
     }
 
@@ -202,14 +202,14 @@ public class DatafileReaderComprehensiveTest {
         );
 
         // Should match
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "desktop")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "de", "deviceType", "desktop", "browser", "chrome")));
 
         // Should not match
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, new HashMap<>()));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, new HashMap<>()));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "desktop")));
     }
 
@@ -221,24 +221,24 @@ public class DatafileReaderComprehensiveTest {
         );
 
         // Should match
-        assertTrue(datafileReader.allSegmentsAreMatched(segments, new HashMap<>()));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments, Map.of("version", "5.6")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments, Map.of("version", 5.6)));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments, Map.of("version", "5.7")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments, Map.of("version", 5.7)));
+        assertTrue(evaluationData.allSegmentsAreMatched(segments, new HashMap<>()));
+        assertTrue(evaluationData.allSegmentsAreMatched(segments, Map.of("version", "5.6")));
+        assertTrue(evaluationData.allSegmentsAreMatched(segments, Map.of("version", 5.6)));
+        assertTrue(evaluationData.allSegmentsAreMatched(segments, Map.of("version", "5.7")));
+        assertTrue(evaluationData.allSegmentsAreMatched(segments, Map.of("version", 5.7)));
 
         // Should not match
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, Map.of("version", "5.5")));
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, Map.of("version", 5.5)));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, Map.of("version", "5.5")));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, Map.of("version", 5.5)));
     }
 
     @Test
     void testNotSegmentsNegateImplicitAnd() {
         Map<String, Object> segments = Map.of("not", Arrays.asList("mobileUsers", "netherlands"));
 
-        assertFalse(datafileReader.allSegmentsAreMatched(segments,
+        assertFalse(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "mobile")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments,
+        assertTrue(evaluationData.allSegmentsAreMatched(segments,
             Map.of("country", "nl", "deviceType", "desktop")));
     }
 
@@ -249,19 +249,19 @@ public class DatafileReaderComprehensiveTest {
             List.of(Map.of("or", Arrays.asList("mobileUsers", "desktopUsers")))
         );
 
-        assertFalse(datafileReader.allSegmentsAreMatched(segments, Map.of("deviceType", "mobile")));
-        assertTrue(datafileReader.allSegmentsAreMatched(segments, Map.of("deviceType", "tv")));
-        assertFalse(datafileReader.allSegmentsAreMatched(Map.of("not", List.of()), Map.of()));
+        assertFalse(evaluationData.allSegmentsAreMatched(segments, Map.of("deviceType", "mobile")));
+        assertTrue(evaluationData.allSegmentsAreMatched(segments, Map.of("deviceType", "tv")));
+        assertFalse(evaluationData.allSegmentsAreMatched(Map.of("not", List.of()), Map.of()));
     }
 
     @Test
     void testConditionsWithWildcard() {
         // Test "*" conditions - should match everything
-        assertTrue(datafileReader.allConditionsAreMatched("*", new HashMap<>()));
-        assertTrue(datafileReader.allConditionsAreMatched("*", Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched("*", new HashMap<>()));
+        assertTrue(evaluationData.allConditionsAreMatched("*", Map.of("browser_type", "chrome")));
 
         // Test non-wildcard string conditions - should not match
-        assertFalse(datafileReader.allConditionsAreMatched("blah", Map.of("browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched("blah", Map.of("browser_type", "chrome")));
     }
 
     @Test
@@ -270,10 +270,10 @@ public class DatafileReaderComprehensiveTest {
         Map<String, Object> condition = Map.of("attribute", "browser_type", "operator", "equals", "value", "chrome");
 
         // Should match
-        assertTrue(datafileReader.allConditionsAreMatched(condition, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(condition, Map.of("browser_type", "chrome")));
 
         // Should not match
-        assertFalse(datafileReader.allConditionsAreMatched(condition, Map.of("browser_type", "firefox")));
+        assertFalse(evaluationData.allConditionsAreMatched(condition, Map.of("browser_type", "firefox")));
     }
 
     @Test
@@ -282,14 +282,14 @@ public class DatafileReaderComprehensiveTest {
         Map<String, Object> condition = Map.of("attribute", "browser.type", "operator", "equals", "value", "chrome");
 
         // Should match
-        assertTrue(datafileReader.allConditionsAreMatched(condition,
+        assertTrue(evaluationData.allConditionsAreMatched(condition,
             Map.of("browser", Map.of("type", "chrome"))));
 
         // Should not match
-        assertFalse(datafileReader.allConditionsAreMatched(condition,
+        assertFalse(evaluationData.allConditionsAreMatched(condition,
             Map.of("browser", Map.of("type", "firefox"))));
-        assertFalse(datafileReader.allConditionsAreMatched(condition,
+        assertFalse(evaluationData.allConditionsAreMatched(condition,
             Map.of("browser", Map.of("blah", "firefox"))));
-        assertFalse(datafileReader.allConditionsAreMatched(condition, Map.of("browser", "firefox")));
+        assertFalse(evaluationData.allConditionsAreMatched(condition, Map.of("browser", "firefox")));
     }
 }

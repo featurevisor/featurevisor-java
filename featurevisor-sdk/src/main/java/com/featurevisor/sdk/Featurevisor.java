@@ -23,13 +23,13 @@ public class Featurevisor {
 
     // from options
     private Map<String, Object> context = new HashMap<>();
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
     private Map<String, Object> sticky;
     private FeaturevisorDiagnosticHandler onDiagnostic;
     private boolean closed = false;
 
     // internally created
-    private DatafileReader datafileReader;
+    private InstanceEvaluationDataProvider evaluationData;
     private ModulesManager modulesManager;
     private Emitter emitter;
     private final List<ModuleDiagnosticSubscription> moduleDiagnosticSubscriptions = new ArrayList<>();
@@ -148,7 +148,7 @@ public class Featurevisor {
         private Map<String, Object> sticky;
         private String defaultVariationValue;
         private Object defaultVariableValue;
-        private Evaluation flagEvaluation;
+        private boolean defaultVariableValueSet;
 
         public OverrideOptions() {}
 
@@ -156,13 +156,15 @@ public class Featurevisor {
         Map<String, Object> getInternalSticky() { return sticky; }
         public String getDefaultVariationValue() { return defaultVariationValue; }
         public Object getDefaultVariableValue() { return defaultVariableValue; }
-        public Evaluation getFlagEvaluation() { return flagEvaluation; }
+        public boolean hasDefaultVariableValue() { return defaultVariableValueSet; }
 
         // Setters
         void setInternalSticky(Map<String, Object> sticky) { this.sticky = sticky; }
         public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
-        public void setDefaultVariableValue(Object defaultVariableValue) { this.defaultVariableValue = defaultVariableValue; }
-        public void setFlagEvaluation(Evaluation flagEvaluation) { this.flagEvaluation = flagEvaluation; }
+        public void setDefaultVariableValue(Object defaultVariableValue) {
+            this.defaultVariableValue = defaultVariableValue;
+            this.defaultVariableValueSet = true;
+        }
 
         // Builder pattern methods
         public OverrideOptions defaultVariationValue(String defaultVariationValue) {
@@ -172,11 +174,7 @@ public class Featurevisor {
 
         public OverrideOptions defaultVariableValue(Object defaultVariableValue) {
             this.defaultVariableValue = defaultVariableValue;
-            return this;
-        }
-
-        public OverrideOptions flagEvaluation(Evaluation flagEvaluation) {
-            this.flagEvaluation = flagEvaluation;
+            this.defaultVariableValueSet = true;
             return this;
         }
     }
@@ -202,19 +200,34 @@ public class Featurevisor {
             this.context = new HashMap<>(options.getContext());
         }
 
-        this.logger = Logger.createLogger(new Logger.CreateLoggerOptions()
+        this.diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions()
             .level(options.getLogLevel() != null ? options.getLogLevel() : FeaturevisorLogLevel.INFO)
             .handler((level, message, details) -> {
-                Map<String, Object> normalizedDetails = details != null ? details : new HashMap<>();
+                Map<String, Object> normalizedDetails = details != null ? new HashMap<>(details) : new HashMap<>();
+                Object evaluationValue = normalizedDetails.get("evaluation");
+                if (evaluationValue instanceof Evaluation) {
+                    Evaluation evaluation = (Evaluation) evaluationValue;
+                    normalizedDetails = new HashMap<>();
+                    normalizedDetails.put("featureKey", evaluation.getFeatureKey());
+                    normalizedDetails.put("variableKey", evaluation.getVariableKey());
+                    normalizedDetails.put("reason", evaluation.getReason());
+                    normalizedDetails.put("evaluation", evaluation);
+                }
                 Object reason = normalizedDetails.get("reason");
-                String code = reason != null ? reason.toString() : message;
+                Object explicitCode = normalizedDetails.remove("code");
+                Object originalError = normalizedDetails.remove("originalError");
+                String code = explicitCode != null ? explicitCode.toString() : (reason != null ? reason.toString() : message);
                 if ("feature is deprecated".equals(message)) code = "deprecated_feature";
                 if ("variable is deprecated".equals(message)) code = "deprecated_variable";
                 if ("feature not found".equals(message)) code = "feature_not_found";
                 if ("variable schema not found".equals(message)) code = "variable_not_found";
                 if ("no variations".equals(message)) code = "no_variations";
                 if ("invalid bucketBy".equals(message)) code = "invalid_bucket_by";
-                reportDiagnostic(new FeaturevisorDiagnostic(level, code, message).details(normalizedDetails), null);
+                if ("Error parsing conditions".equals(message)) code = "conditions_parse_error";
+                if ("error during evaluation".equals(message)) code = "evaluation_error";
+                reportDiagnostic(new FeaturevisorDiagnostic(level, code, message)
+                    .details(normalizedDetails)
+                    .originalError(originalError), null);
             }));
 
         this.emitter = new Emitter();
@@ -222,9 +235,9 @@ public class Featurevisor {
         this.onDiagnostic = options.getOnDiagnostic();
 
         // datafile
-        this.datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        this.evaluationData = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(emptyDatafile)
-            .logger(this.logger));
+            .diagnostics(this.diagnostics));
 
         this.modulesManager = new ModulesManager(new ModulesManager.ModulesManagerOptions()
             .modules(options.getModules() != null ? options.getModules() : new ArrayList<>())
@@ -248,7 +261,7 @@ public class Featurevisor {
      * Set log level
      */
     public void setLogLevel(FeaturevisorLogLevel level) {
-        this.logger.setLevel(level);
+        this.diagnostics.setLevel(level);
     }
 
     private FeaturevisorModuleApi createModuleApi(FeaturevisorModule module) {
@@ -359,19 +372,19 @@ public class Featurevisor {
         }
 
         if (onDiagnostic != null) {
-            if (shouldReport(diagnostic.getLevel(), this.logger.getLevel())) {
+            if (shouldReport(diagnostic.getLevel(), this.diagnostics.getLevel())) {
                 try {
                     onDiagnostic.handle(diagnostic);
                 } catch (Throwable error) {
                     System.err.println("[Featurevisor] Diagnostic handler failed: " + error);
                 }
             }
-        } else if (shouldReport(diagnostic.getLevel(), this.logger.getLevel())) {
-            Logger.writeToConsole(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));
+        } else if (shouldReport(diagnostic.getLevel(), this.diagnostics.getLevel())) {
+            DiagnosticReporter.writeToConsole(diagnostic.getLevel(), diagnostic.getMessage(), diagnosticDetails(diagnostic));
         }
 
         if (FeaturevisorLogLevel.ERROR.equals(diagnostic.getLevel())) {
-            this.emitter.trigger(Emitter.EventName.ERROR, new Emitter.EventDetails(Map.of("diagnostic", diagnostic)));
+            this.emitter.trigger(FeaturevisorEventName.ERROR, new FeaturevisorEventDetails(Map.of("diagnostic", diagnostic)));
         }
     }
 
@@ -394,22 +407,22 @@ public class Featurevisor {
                 datafile.getSegments() == null || datafile.getFeatures() == null) {
                 throw new IllegalArgumentException("Invalid datafile");
             }
-            DatafileContent nextDatafile = replace ? datafile : mergeDatafiles(this.datafileReader.getDatafile(), datafile);
-            DatafileReader newDatafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+            DatafileContent nextDatafile = replace ? datafile : mergeDatafiles(this.evaluationData.getDatafile(), datafile);
+            InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
                 .datafile(nextDatafile)
-                .logger(this.logger));
+                .diagnostics(this.diagnostics));
 
-            Emitter.EventDetails details = Events.getParamsForDatafileSetEvent(
-                this.datafileReader.getDatafile(), newDatafileReader.getDatafile(), replace);
+            FeaturevisorEventDetails details = Events.getParamsForDatafileSetEvent(
+                this.evaluationData.getDatafile(), newInstanceEvaluationDataProvider.getDatafile(), replace);
 
-            this.datafileReader = newDatafileReader;
+            this.evaluationData = newInstanceEvaluationDataProvider;
 
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(FeaturevisorLogLevel.INFO)
                 .code("datafile_set")
                 .message("Datafile set")
                 .details(details), null);
-            this.emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
+            this.emitter.trigger(FeaturevisorEventName.DATAFILE_SET, details);
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(FeaturevisorLogLevel.ERROR)
@@ -476,6 +489,10 @@ public class Featurevisor {
     /**
      * Set sticky features
      */
+    public void setSticky(Map<String, Object> sticky) {
+        setSticky(sticky, false);
+    }
+
     public void setSticky(Map<String, Object> sticky, boolean replace) {
         Map<String, Object> previousStickyFeatures = this.sticky != null ?
             new HashMap<>(this.sticky) : new HashMap<>();
@@ -487,7 +504,7 @@ public class Featurevisor {
             this.sticky.putAll(sticky);
         }
 
-        Emitter.EventDetails params = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails params = Events.getParamsForStickySetEvent(
             previousStickyFeatures, this.sticky, replace);
 
         reportDiagnostic(new FeaturevisorDiagnostic()
@@ -495,41 +512,41 @@ public class Featurevisor {
             .code("sticky_set")
             .message("Sticky features set")
             .details(params), null);
-        this.emitter.trigger(Emitter.EventName.STICKY_SET, params);
+        this.emitter.trigger(FeaturevisorEventName.STICKY_SET, params);
     }
 
     /**
      * Get revision
      */
     public String getRevision() {
-        return this.datafileReader.getRevision();
+        return this.evaluationData.getRevision();
     }
 
     public String getSchemaVersion() {
-        return this.datafileReader.getSchemaVersion();
+        return this.evaluationData.getSchemaVersion();
     }
 
     public Segment getSegment(String segmentKey) {
-        return this.datafileReader.getSegment(segmentKey);
+        return this.evaluationData.getSegment(segmentKey);
     }
 
     public List<String> getFeatureKeys() {
-        return this.datafileReader.getFeatureKeys();
+        return this.evaluationData.getFeatureKeys();
     }
 
     public List<String> getVariableKeys(String featureKey) {
-        return this.datafileReader.getVariableKeys(featureKey);
+        return this.evaluationData.getVariableKeys(featureKey);
     }
 
     public boolean hasVariations(String featureKey) {
-        return this.datafileReader.hasVariations(featureKey);
+        return this.evaluationData.hasVariations(featureKey);
     }
 
     /**
      * Get feature
      */
     public Feature getFeature(String featureKey) {
-        return this.datafileReader.getFeature(featureKey);
+        return this.evaluationData.getFeature(featureKey);
     }
 
     /**
@@ -546,7 +563,7 @@ public class Featurevisor {
     /**
      * Subscribe to event
      */
-    public Emitter.UnsubscribeFunction on(Emitter.EventName eventName, Emitter.EventCallback callback) {
+    public FeaturevisorUnsubscribe on(FeaturevisorEventName eventName, FeaturevisorEventHandler callback) {
         return this.emitter.on(eventName, callback);
     }
 
@@ -563,6 +580,10 @@ public class Featurevisor {
     /**
      * Context
      */
+    public void setContext(Map<String, Object> context) {
+        setContext(context, false);
+    }
+
     public void setContext(Map<String, Object> context, boolean replace) {
         if (replace) {
             this.context = new HashMap<>(context);
@@ -571,11 +592,11 @@ public class Featurevisor {
             this.context.putAll(context);
         }
 
-        Emitter.EventDetails eventDetails = new Emitter.EventDetails();
+        FeaturevisorEventDetails eventDetails = new FeaturevisorEventDetails();
         eventDetails.put("context", this.context);
         eventDetails.put("replaced", replace);
 
-        this.emitter.trigger(Emitter.EventName.CONTEXT_SET, eventDetails);
+        this.emitter.trigger(FeaturevisorEventName.CONTEXT_SET, eventDetails);
         reportDiagnostic(new FeaturevisorDiagnostic()
             .level(FeaturevisorLogLevel.DEBUG)
             .code("context_set")
@@ -633,13 +654,12 @@ public class Featurevisor {
 
         return new EvaluateOptions()
             .context(getContext(context))
-            .logger(this.logger)
+            .diagnostics(this.diagnostics)
             .modulesManager(this.modulesManager)
-            .datafileReader(this.datafileReader)
+            .evaluationData(this.evaluationData)
             .sticky(mergedSticky)
             .defaultVariationValue(options.getDefaultVariationValue())
-            .defaultVariableValue(options.getDefaultVariableValue())
-            .flagEvaluation(options.getFlagEvaluation());
+            .defaultVariableValue(options.getDefaultVariableValue(), options.hasDefaultVariableValue());
     }
 
     public Evaluation evaluateFlag(String featureKey, Map<String, Object> context, OverrideOptions options) {
@@ -663,7 +683,7 @@ public class Featurevisor {
             Evaluation evaluation = evaluateFlag(featureKey, context, options);
             return Boolean.TRUE.equals(evaluation.getEnabled());
         } catch (Exception e) {
-            this.logger.error("isEnabled", Map.of("featureKey", featureKey, "error", e.getMessage()));
+            this.diagnostics.error("isEnabled", Map.of("featureKey", featureKey, "error", e.getMessage()));
             return false;
         }
     }
@@ -709,7 +729,7 @@ public class Featurevisor {
 
             return null;
         } catch (Exception e) {
-            this.logger.error("getVariation", Map.of("featureKey", featureKey, "error", e.getMessage()));
+            this.diagnostics.error("getVariation", Map.of("featureKey", featureKey, "error", e.getMessage()));
             return null;
         }
     }
@@ -765,7 +785,7 @@ public class Featurevisor {
 
             return null;
         } catch (Exception e) {
-            this.logger.error("getVariable", Map.of("featureKey", featureKey, "variableKey", variableKey, "error", e.getMessage()));
+            this.diagnostics.error("getVariable", Map.of("featureKey", featureKey, "variableKey", variableKey, "error", e.getMessage()));
             return null;
         }
     }
@@ -1044,7 +1064,7 @@ public class Featurevisor {
 
         Map<String, EvaluatedFeature> result = new HashMap<>();
 
-        List<String> keys = featureKeys.isEmpty() ? this.datafileReader.getFeatureKeys() : featureKeys;
+        List<String> keys = featureKeys.isEmpty() ? this.evaluationData.getFeatureKeys() : featureKeys;
         for (String featureKey : keys) {
             // isEnabled
             Evaluation flagEvaluation = evaluateFlag(featureKey, context, options);
@@ -1053,13 +1073,14 @@ public class Featurevisor {
             evaluatedFeature.setEnabled(Boolean.TRUE.equals(flagEvaluation.getEnabled()));
 
             OverrideOptions opts = new OverrideOptions()
-                .defaultVariationValue(options.getDefaultVariationValue())
-                .defaultVariableValue(options.getDefaultVariableValue())
-                .flagEvaluation(flagEvaluation);
+                .defaultVariationValue(options.getDefaultVariationValue());
+            if (options.hasDefaultVariableValue()) {
+                opts.defaultVariableValue(options.getDefaultVariableValue());
+            }
             opts.setInternalSticky(options.getInternalSticky());
 
             // variation
-            if (this.datafileReader.hasVariations(featureKey)) {
+            if (this.evaluationData.hasVariations(featureKey)) {
                 Object variation = getVariation(featureKey, context, opts);
                 if (variation != null) {
                     evaluatedFeature.setVariation(variation.toString());
@@ -1067,7 +1088,7 @@ public class Featurevisor {
             }
 
             // variables
-            List<String> variableKeys = this.datafileReader.getVariableKeys(featureKey);
+            List<String> variableKeys = this.evaluationData.getVariableKeys(featureKey);
             if (!variableKeys.isEmpty()) {
                 Map<String, Object> variables = new HashMap<>();
 

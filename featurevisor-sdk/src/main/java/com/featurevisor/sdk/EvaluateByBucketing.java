@@ -68,20 +68,20 @@ final class EvaluateByBucketing {
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
         Map<String, Object> context = options.getContext();
-        Logger logger = options.getLogger();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
         ModulesManager modulesManager = options.getModulesManager();
-        DatafileReader datafileReader = options.getDatafileReader();
+        InstanceEvaluationDataProvider evaluationData = options.getInstanceEvaluationDataProvider();
 
         // Get bucket key
         String bucketKey = Bucketer.getBucketKey(new Bucketer.GetBucketKeyOptions()
             .featureKey(featureKey)
             .bucketBy(feature.getBucketBy())
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Apply bucket key modules
         if (modulesManager != null) {
-            bucketKey = modulesManager.executeBucketKeyModules(new ModulesManager.ConfigureBucketKeyOptions(
+            bucketKey = modulesManager.executeBucketKeyModules(new ConfigureBucketKeyOptions(
                 featureKey, context, feature.getBucketBy(), bucketKey));
         }
 
@@ -90,7 +90,7 @@ final class EvaluateByBucketing {
 
         // Apply bucket value modules
         if (modulesManager != null) {
-            bucketValue = modulesManager.executeBucketValueModules(new ModulesManager.ConfigureBucketValueOptions(
+            bucketValue = modulesManager.executeBucketValueModules(new ConfigureBucketValueOptions(
                 featureKey, bucketKey, context, bucketValue));
         }
 
@@ -99,12 +99,12 @@ final class EvaluateByBucketing {
         Allocation matchedAllocation = null;
 
         if (!Evaluation.TYPE_FLAG.equals(type)) {
-            matchedTraffic = datafileReader.getMatchedTraffic(feature.getTraffic(), context);
+            matchedTraffic = evaluationData.getMatchedTraffic(feature.getTraffic(), context);
             if (matchedTraffic != null) {
-                matchedAllocation = datafileReader.getMatchedAllocation(matchedTraffic, bucketValue);
+                matchedAllocation = evaluationData.getMatchedAllocation(matchedTraffic, bucketValue);
             }
         } else {
-            matchedTraffic = datafileReader.getMatchedTraffic(feature.getTraffic(), context);
+            matchedTraffic = evaluationData.getMatchedTraffic(feature.getTraffic(), context);
         }
 
 
@@ -130,7 +130,7 @@ final class EvaluateByBucketing {
                 details.put("featureKey", featureKey);
                 details.put("bucketKey", bucketKey);
                 details.put("bucketValue", bucketValue);
-                logger.debug("matched rule with 0 percentage", details);
+                diagnostics.debug("matched rule with 0 percentage", details);
 
                 result.setEvaluation(evaluation);
                 return result;
@@ -163,7 +163,7 @@ final class EvaluateByBucketing {
                         details.put("featureKey", featureKey);
                         details.put("bucketKey", bucketKey);
                         details.put("bucketValue", bucketValue);
-                        logger.debug("matched", details);
+                        diagnostics.debug("matched", details);
 
                         result.setEvaluation(evaluation);
                         return result;
@@ -180,7 +180,7 @@ final class EvaluateByBucketing {
                     details.put("featureKey", featureKey);
                     details.put("bucketKey", bucketKey);
                     details.put("bucketValue", bucketValue);
-                    logger.debug("not matched", details);
+                    diagnostics.debug("not matched", details);
 
                     result.setEvaluation(evaluation);
                     return result;
@@ -200,7 +200,7 @@ final class EvaluateByBucketing {
                     details.put("featureKey", featureKey);
                     details.put("bucketKey", bucketKey);
                     details.put("bucketValue", bucketValue);
-                    logger.debug("override from rule", details);
+                    diagnostics.debug("override from rule", details);
 
                     result.setEvaluation(evaluation);
                     return result;
@@ -220,7 +220,7 @@ final class EvaluateByBucketing {
                     details.put("featureKey", featureKey);
                     details.put("bucketKey", bucketKey);
                     details.put("bucketValue", bucketValue);
-                    logger.debug("matched traffic", details);
+                    diagnostics.debug("matched traffic", details);
 
                     result.setEvaluation(evaluation);
                     return result;
@@ -252,7 +252,7 @@ final class EvaluateByBucketing {
                         details.put("featureKey", featureKey);
                         details.put("bucketKey", bucketKey);
                         details.put("bucketValue", bucketValue);
-                        logger.debug("override from rule", details);
+                        diagnostics.debug("override from rule", details);
 
                         result.setEvaluation(evaluation);
                         return result;
@@ -282,7 +282,7 @@ final class EvaluateByBucketing {
                         details.put("featureKey", featureKey);
                         details.put("bucketKey", bucketKey);
                         details.put("bucketValue", bucketValue);
-                        logger.debug("regular allocation", details);
+                        diagnostics.debug("regular allocation", details);
 
                         result.setEvaluation(evaluation);
                         return result;
@@ -312,10 +312,10 @@ final class EvaluateByBucketing {
                                 }
                             }
 
-                            matches = datafileReader.allConditionsAreMatched(conditions, context);
+                            matches = evaluationData.allConditionsAreMatched(conditions, context);
                         } else if (override.getSegments() != null) {
-                            Object parsedSegments = datafileReader.parseSegmentsIfStringified(override.getSegments());
-                            matches = datafileReader.allSegmentsAreMatched(parsedSegments, context);
+                            Object parsedSegments = evaluationData.parseSegmentsIfStringified(override.getSegments());
+                            matches = evaluationData.allSegmentsAreMatched(parsedSegments, context);
                         }
 
                         if (matches) {
@@ -334,7 +334,7 @@ final class EvaluateByBucketing {
                             details.put("variableKey", variableKey);
                             details.put("bucketKey", bucketKey);
                             details.put("bucketValue", bucketValue);
-                            logger.debug("variable override from rule", details);
+                            diagnostics.debug("variable override from rule", details);
 
                             result.setEvaluation(evaluation);
                             return result;
@@ -360,7 +360,7 @@ final class EvaluateByBucketing {
                     details.put("variableKey", variableKey);
                     details.put("bucketKey", bucketKey);
                     details.put("bucketValue", bucketValue);
-                    logger.debug("variable override from rule", details);
+                    diagnostics.debug("variable override from rule", details);
 
                     result.setEvaluation(evaluation);
                     return result;
@@ -407,12 +407,12 @@ final class EvaluateByBucketing {
                                         conditions = override.getConditions();
                                     }
                                 }
-                                matches = datafileReader.allConditionsAreMatched(conditions, context);
+                                matches = evaluationData.allConditionsAreMatched(conditions, context);
                             }
                             // Check segments
                             else if (override.getSegments() != null) {
-                                Object parsedSegments = datafileReader.parseSegmentsIfStringified(override.getSegments());
-                                matches = datafileReader.allSegmentsAreMatched(parsedSegments, context);
+                                Object parsedSegments = evaluationData.parseSegmentsIfStringified(override.getSegments());
+                                matches = evaluationData.allSegmentsAreMatched(parsedSegments, context);
                             }
 
                             if (matches) {
@@ -431,7 +431,7 @@ final class EvaluateByBucketing {
                                 details.put("variableKey", variableKey);
                                 details.put("bucketKey", bucketKey);
                                 details.put("bucketValue", bucketValue);
-                                logger.debug("variable override", details);
+                                diagnostics.debug("variable override", details);
 
                                 result.setEvaluation(evaluation);
                                 return result;
@@ -457,7 +457,7 @@ final class EvaluateByBucketing {
                         details.put("variableKey", variableKey);
                         details.put("bucketKey", bucketKey);
                         details.put("bucketValue", bucketValue);
-                        logger.debug("variable from variation", details);
+                        diagnostics.debug("variable from variation", details);
 
                         result.setEvaluation(evaluation);
                         return result;
@@ -482,7 +482,7 @@ final class EvaluateByBucketing {
                     details.put("variableKey", variableKey);
                     details.put("bucketKey", bucketKey);
                     details.put("bucketValue", bucketValue);
-                    logger.debug("variable default value", details);
+                    diagnostics.debug("variable default value", details);
 
                     result.setEvaluation(evaluation);
                     return result;
@@ -502,7 +502,7 @@ final class EvaluateByBucketing {
                 details.put("variableKey", variableKey);
                 details.put("bucketKey", bucketKey);
                 details.put("bucketValue", bucketValue);
-                logger.debug("variable not found", details);
+                diagnostics.debug("variable not found", details);
 
                 result.setEvaluation(evaluation);
                 return result;
@@ -520,7 +520,7 @@ final class EvaluateByBucketing {
         details.put("featureKey", featureKey);
         details.put("bucketKey", bucketKey);
         details.put("bucketValue", bucketValue);
-        logger.debug("no matched variation", details);
+        diagnostics.debug("no matched variation", details);
 
         result.setEvaluation(evaluation);
         return result;

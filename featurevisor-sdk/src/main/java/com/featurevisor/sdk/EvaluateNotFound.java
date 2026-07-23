@@ -2,6 +2,7 @@ package com.featurevisor.sdk;
 
 import com.featurevisor.sdk.Feature;
 import com.featurevisor.sdk.VariableSchema;
+import java.util.Map;
 
 /**
  * Evaluates not found scenarios and returns appropriate evaluation results
@@ -37,19 +38,19 @@ final class EvaluateNotFound {
     /**
      * Evaluates not found scenarios and returns the appropriate evaluation result
      *
-     * @param options The evaluation options containing type, featureKey, variableKey, logger, and datafileReader
+     * @param options The evaluation options containing type, featureKey, variableKey, diagnostics, and evaluationData
      * @return EvaluateNotFoundResult containing evaluation, feature, and variableSchema
      */
     public static EvaluateNotFoundResult evaluateNotFound(EvaluateOptions options) {
         String type = options.getType();
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
-        Logger logger = options.getLogger();
-        DatafileReader datafileReader = options.getDatafileReader();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
+        InstanceEvaluationDataProvider evaluationData = options.getInstanceEvaluationDataProvider();
 
         EvaluateNotFoundResult result = new EvaluateNotFoundResult();
 
-        Feature feature = datafileReader.getFeature(featureKey);
+        Feature feature = evaluationData.getFeature(featureKey);
 
         // feature: not found
         if (feature == null) {
@@ -60,7 +61,7 @@ final class EvaluateNotFound {
 
             result.setEvaluation(evaluation);
 
-            logger.warn("feature not found", null);
+            diagnostics.warn("feature not found", Map.of("evaluation", evaluation));
 
             return result;
         }
@@ -69,7 +70,7 @@ final class EvaluateNotFound {
 
         // feature: deprecated
         if (Evaluation.TYPE_FLAG.equals(type) && Boolean.TRUE.equals(feature.getDeprecated())) {
-            logger.warn("feature is deprecated", null);
+            diagnostics.warn("feature is deprecated", null);
         }
 
         // variableSchema
@@ -90,7 +91,7 @@ final class EvaluateNotFound {
 
                 result.setEvaluation(evaluation);
 
-                logger.warn("variable schema not found", null);
+                diagnostics.warn("variable schema not found", Map.of("evaluation", evaluation));
 
                 return result;
             }
@@ -98,7 +99,7 @@ final class EvaluateNotFound {
             result.setVariableSchema(variableSchema);
 
             if (Boolean.TRUE.equals(variableSchema.getDeprecated())) {
-                logger.warn("variable is deprecated", null);
+                diagnostics.warn("variable is deprecated", null);
             }
         }
 
@@ -112,7 +113,7 @@ final class EvaluateNotFound {
 
             result.setEvaluation(evaluation);
 
-            logger.warn("no variations", null);
+            diagnostics.warn("no variations", Map.of("evaluation", evaluation));
 
             return result;
         }

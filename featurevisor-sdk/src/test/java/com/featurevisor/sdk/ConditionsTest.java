@@ -15,12 +15,12 @@ import java.util.Arrays;
 
 public class ConditionsTest {
 
-    private Logger logger;
-    private DatafileReader datafileReader;
+    private DiagnosticReporter diagnostics;
+    private InstanceEvaluationDataProvider evaluationData;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
 
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2.0");
@@ -28,26 +28,69 @@ public class ConditionsTest {
         datafile.setSegments(new HashMap<>());
         datafile.setFeatures(new HashMap<>());
 
-        datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        evaluationData = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
     }
 
     @Test
     public void testConditionsIsFunction() {
         // Test that the method exists and can be called
-        assertTrue(datafileReader.allConditionsAreMatched("*", new HashMap<>()));
+        assertTrue(evaluationData.allConditionsAreMatched("*", new HashMap<>()));
     }
 
     @Test
     public void testMatchAllViaWildcard() {
         // match
         String conditions = "*";
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
 
         // not match
         String conditions2 = "blah";
-        assertFalse(datafileReader.allConditionsAreMatched(conditions2, Map.of("browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions2, Map.of("browser_type", "chrome")));
+    }
+
+    @Test
+    public void testJavaScriptPrimitiveAndPresenceSemantics() {
+        Condition equalsNumber = new Condition();
+        equalsNumber.setAttribute("value");
+        equalsNumber.setOperator(Operator.EQUALS);
+        equalsNumber.setValue(1);
+
+        assertFalse(evaluationData.allConditionsAreMatched(equalsNumber, Map.of("value", "1")));
+        assertFalse(evaluationData.allConditionsAreMatched(equalsNumber, Map.of("value", true)));
+        assertTrue(evaluationData.allConditionsAreMatched(equalsNumber, Map.of("value", 1.0)));
+        assertTrue(evaluationData.allConditionsAreMatched(
+            condition("missing", Operator.NOT_EQUALS, "value"), Map.of()));
+        assertTrue(evaluationData.allConditionsAreMatched(
+            condition("missing", Operator.NOT_EQUALS, null), Map.of()));
+
+        Map<String, Object> explicitNull = new HashMap<>();
+        explicitNull.put("value", null);
+        assertTrue(evaluationData.allConditionsAreMatched(condition("value", Operator.EXISTS, null), explicitNull));
+        assertFalse(evaluationData.allConditionsAreMatched(condition("value", Operator.NOT_EXISTS, null), explicitNull));
+        assertFalse(evaluationData.allConditionsAreMatched(condition("missing", Operator.IN, Arrays.asList((Object) null)), Map.of()));
+    }
+
+    @Test
+    public void testIncludesAllPrimitivesAndRegexSearchSemantics() {
+        Map<String, Object> context = new HashMap<>();
+        context.put("values", Arrays.asList(1, true, null));
+        context.put("text", "prefix-value-suffix");
+
+        assertTrue(evaluationData.allConditionsAreMatched(condition("values", Operator.INCLUDES, 1.0), context));
+        assertTrue(evaluationData.allConditionsAreMatched(condition("values", Operator.INCLUDES, true), context));
+        assertTrue(evaluationData.allConditionsAreMatched(condition("values", Operator.INCLUDES, null), context));
+        assertTrue(evaluationData.allConditionsAreMatched(condition("text", Operator.MATCHES, "value"), context));
+        assertFalse(evaluationData.allConditionsAreMatched(condition("text", Operator.NOT_INCLUDES, "value"), context));
+    }
+
+    private Condition condition(String attribute, Operator operator, Object value) {
+        Condition condition = new Condition();
+        condition.setAttribute(attribute);
+        condition.setOperator(operator);
+        condition.setValue(value);
+        return condition;
     }
 
     @Test
@@ -60,10 +103,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
     }
 
     @Test
@@ -80,19 +123,19 @@ public class ConditionsTest {
         Map<String, Object> browser = new HashMap<>();
         browser.put("type", "chrome");
         context.put("browser", browser);
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
 
         // not match
         browser.put("type", "firefox");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
 
         browser.put("blah", "firefox");
         browser.remove("type");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
 
         context.clear();
         context.put("browser", "firefox");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -105,10 +148,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
     }
 
     @Test
@@ -120,10 +163,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("not_browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("not_browser_type", "chrome")));
     }
 
     @Test
@@ -139,21 +182,21 @@ public class ConditionsTest {
         Map<String, Object> browser = new HashMap<>();
         browser.put("name", "chrome");
         context.put("browser", browser);
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
 
         // not match
         context.clear();
         context.put("browser", "chrome");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
 
         browser.clear();
         browser.put("version", "1.2.3");
         context.put("browser", browser);
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
 
         context.clear();
         context.put("version", "1.2.3");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -165,11 +208,11 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("not_name", "Hello World")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("not_name", "Hello Universe")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("not_name", "Hello World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("not_name", "Hello Universe")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
     }
 
     @Test
@@ -185,17 +228,17 @@ public class ConditionsTest {
         Map<String, Object> browser = new HashMap<>();
         browser.put("not_name", "Hello World");
         context.put("browser", browser);
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
 
         context.clear();
         context.put("not_name", "Hello Universe");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
 
         // not match
         browser.clear();
         browser.put("name", "Chrome");
         context.put("browser", browser);
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -208,11 +251,11 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi Universe")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi Universe")));
     }
 
     @Test
@@ -228,12 +271,12 @@ public class ConditionsTest {
         List<String> permissions = new ArrayList<>();
         permissions.add("read");
         permissions.add("write");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
 
         // not match
         permissions.clear();
         permissions.add("read");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
     }
 
     @Test
@@ -249,11 +292,11 @@ public class ConditionsTest {
         List<String> permissions = new ArrayList<>();
         permissions.add("read");
         permissions.add("admin");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
 
         // not match
         permissions.add("write");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("permissions", permissions)));
     }
 
     @Test
@@ -266,11 +309,11 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Yo! Hello!")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Yo! Hello!")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
     }
 
     @Test
@@ -283,11 +326,11 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Yo! Hello!")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Yo! Hello!")));
     }
 
     @Test
@@ -300,14 +343,14 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Helloooooo")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Helloooooo")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hell123")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "123")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", 123)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hell123")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "123")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", 123)));
     }
 
     @Test
@@ -321,14 +364,14 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Helloooooo")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Helloooooo")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hell123")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "123")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", 123)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello World")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hell123")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "123")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", 123)));
     }
 
     @Test
@@ -341,12 +384,12 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "123")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "123")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hellooooooo")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hellooooooo")));
     }
 
     @Test
@@ -360,12 +403,12 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "123")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hi World")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "123")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("name", "Hellooooooo")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hello")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("name", "Hellooooooo")));
     }
 
     @Test
@@ -381,12 +424,12 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "edge")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "safari")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "edge")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "safari")));
     }
 
     @Test
@@ -402,12 +445,12 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "edge")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "safari")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "edge")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "safari")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
     }
 
     @Test
@@ -420,10 +463,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 19)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 19)));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 17)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 17)));
     }
 
     @Test
@@ -436,12 +479,12 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 18)));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 19)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 18)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 19)));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 17)));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 16)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 17)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 16)));
     }
 
     @Test
@@ -454,10 +497,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 17)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 17)));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 19)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 19)));
     }
 
     @Test
@@ -470,12 +513,12 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 17)));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 18)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 17)));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 18)));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 19)));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("age", 20)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 19)));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("age", 20)));
     }
 
     @Test
@@ -488,10 +531,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
     }
 
     @Test
@@ -504,10 +547,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
     }
 
     @Test
@@ -520,10 +563,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "0.9.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "0.9.0")));
     }
 
     @Test
@@ -536,11 +579,11 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "2.0.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "0.9.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "0.9.0")));
     }
 
     @Test
@@ -553,10 +596,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "0.9.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "0.9.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "1.1.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "1.1.0")));
     }
 
     @Test
@@ -569,10 +612,25 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "1.0.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("version", "1.1.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("version", "1.1.0")));
+    }
+
+    @Test
+    public void testSemverPrereleaseAndBuildMetadata() {
+        Condition prerelease = new Condition();
+        prerelease.setAttribute("version");
+        prerelease.setOperator(Operator.SEMVER_LESS_THAN);
+        prerelease.setValue("1.2.3");
+        assertTrue(evaluationData.allConditionsAreMatched(prerelease, Map.of("version", "1.2.3-beta.1")));
+
+        Condition build = new Condition();
+        build.setAttribute("version");
+        build.setOperator(Operator.SEMVER_EQUALS);
+        build.setValue("1.2.3+build.9");
+        assertTrue(evaluationData.allConditionsAreMatched(build, Map.of("version", "1.2.3+build.5")));
     }
 
     @Test
@@ -585,10 +643,17 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("date", "2023-05-12T00:00:00Z")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-12T00:00:00Z")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("date", "2023-05-14T00:00:00Z")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-14T00:00:00Z")));
+
+        // equivalent offset instant is not before
+        condition.setValue("2023-05-13T17:23:59+01:00");
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-13T16:23:59Z")));
+
+        // strings without an explicit timezone are not portable
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-12T00:00:00")));
     }
 
     @Test
@@ -601,10 +666,10 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("date", "2023-05-14T00:00:00Z")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-14T00:00:00Z")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("date", "2023-05-12T00:00:00Z")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-12T00:00:00Z")));
     }
 
     @Test
@@ -617,7 +682,7 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions.get(0), Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions.get(0), Map.of("browser_type", "chrome")));
     }
 
     @Test
@@ -630,7 +695,7 @@ public class ConditionsTest {
         conditions.add(condition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
     }
 
     @Test
@@ -638,8 +703,8 @@ public class ConditionsTest {
         List<Condition> conditions = new ArrayList<>();
 
         // Empty conditions should match everything
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
     }
 
     @Test
@@ -655,7 +720,7 @@ public class ConditionsTest {
         Map<String, Object> context = new HashMap<>();
         context.put("browser_type", "chrome");
         context.put("browser_version", "1.0");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -679,7 +744,7 @@ public class ConditionsTest {
         context.put("browser_type", "chrome");
         context.put("browser_version", "1.0");
         context.put("foo", "bar");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -699,10 +764,10 @@ public class ConditionsTest {
         conditions.add(andCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
     }
 
     @Test
@@ -731,12 +796,12 @@ public class ConditionsTest {
         Map<String, Object> context = new HashMap<>();
         context.put("browser_type", "chrome");
         context.put("browser_version", "1.0");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
 
         // not match
         context.clear();
         context.put("browser_type", "chrome");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -756,7 +821,7 @@ public class ConditionsTest {
         conditions.add(orCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
     }
 
     @Test
@@ -782,10 +847,10 @@ public class ConditionsTest {
         conditions.add(orCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_version", "1.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_version", "1.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
     }
 
     @Test
@@ -805,10 +870,10 @@ public class ConditionsTest {
         conditions.add(notCondition);
 
         // match (not chrome)
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox")));
 
         // not match (is chrome)
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
     }
 
     @Test
@@ -837,19 +902,19 @@ public class ConditionsTest {
         Map<String, Object> context = new HashMap<>();
         context.put("browser_type", "firefox");
         context.put("browser_version", "2.0");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
 
         // not match (both conditions match)
         context.clear();
         context.put("browser_type", "chrome");
         context.put("browser_version", "1.0");
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, context));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, context));
 
         // match (only one condition matches)
         context.clear();
         context.put("browser_type", "chrome");
         context.put("browser_version", "2.0");
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, context));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, context));
     }
 
     @Test
@@ -870,12 +935,12 @@ public class ConditionsTest {
         Map<String, Object> notCondition = new HashMap<>();
         notCondition.put("not", List.of(orCondition));
 
-        assertFalse(datafileReader.allConditionsAreMatched(List.of(notCondition), Map.of("browser_type", "chrome")));
-        assertTrue(datafileReader.allConditionsAreMatched(List.of(notCondition), Map.of("browser_type", "edge")));
+        assertFalse(evaluationData.allConditionsAreMatched(List.of(notCondition), Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(List.of(notCondition), Map.of("browser_type", "edge")));
 
         Map<String, Object> emptyNotCondition = new HashMap<>();
         emptyNotCondition.put("not", List.of());
-        assertFalse(datafileReader.allConditionsAreMatched(List.of(emptyNotCondition), Map.of()));
+        assertFalse(evaluationData.allConditionsAreMatched(List.of(emptyNotCondition), Map.of()));
     }
 
     @Test
@@ -912,12 +977,12 @@ public class ConditionsTest {
         conditions.add(andCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "1.0")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "2.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "1.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "2.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "3.0")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_version", "2.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "3.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_version", "2.0")));
     }
 
     @Test
@@ -960,12 +1025,12 @@ public class ConditionsTest {
         conditions.add(andCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_type", "chrome", "browser_version", "1.0")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_type", "chrome", "browser_version", "2.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_type", "chrome", "browser_version", "1.0")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_type", "chrome", "browser_version", "2.0")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "3.0")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("country", "us", "browser_version", "2.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome", "browser_version", "3.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("country", "us", "browser_version", "2.0")));
     }
 
     @Test
@@ -1002,12 +1067,12 @@ public class ConditionsTest {
         conditions.add(orCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_version", "1.0", "country", "nl")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_version", "1.0", "country", "nl")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox", "browser_version", "1.0")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_version", "1.0", "country", "us")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "firefox", "browser_version", "1.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_version", "1.0", "country", "us")));
     }
 
     @Test
@@ -1050,11 +1115,11 @@ public class ConditionsTest {
         conditions.add(orCondition);
 
         // match
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_type", "chrome")));
-        assertTrue(datafileReader.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_version", "1.0", "device_type", "mobile")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_type", "chrome")));
+        assertTrue(evaluationData.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_version", "1.0", "device_type", "mobile")));
 
         // not match
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
-        assertFalse(datafileReader.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_version", "1.0")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("browser_type", "chrome")));
+        assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("country", "nl", "browser_version", "1.0")));
     }
 }

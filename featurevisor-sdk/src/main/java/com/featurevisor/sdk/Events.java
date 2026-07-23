@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  * Event parameter utilities for Featurevisor SDK
  * Provides methods to generate event details for various SDK events
  */
-public class Events {
+final class Events {
 
     /**
      * Get parameters for sticky set event
@@ -21,7 +21,7 @@ public class Events {
      * @param replace Whether the sticky features were replaced
      * @return Event details for sticky set event
      */
-    public static Emitter.EventDetails getParamsForStickySetEvent(
+    public static FeaturevisorEventDetails getParamsForStickySetEvent(
             Map<String, Object> previousStickyFeatures,
             Map<String, Object> newStickyFeatures,
             boolean replace) {
@@ -45,7 +45,7 @@ public class Events {
                 .distinct()
                 .collect(Collectors.toList());
 
-        Emitter.EventDetails details = new Emitter.EventDetails();
+        FeaturevisorEventDetails details = new FeaturevisorEventDetails();
         details.put("features", uniqueFeaturesAffected);
         details.put("replaced", replace);
 
@@ -58,7 +58,7 @@ public class Events {
      * @param newDatafileContent New datafile content
      * @return Event details for datafile set event
      */
-    public static Emitter.EventDetails getParamsForDatafileSetEvent(
+    public static FeaturevisorEventDetails getParamsForDatafileSetEvent(
             DatafileContent previousDatafileContent,
             DatafileContent newDatafileContent,
             boolean replace) {
@@ -127,7 +127,7 @@ public class Events {
                 .distinct()
                 .collect(Collectors.toList());
 
-        Emitter.EventDetails details = new Emitter.EventDetails();
+        FeaturevisorEventDetails details = new FeaturevisorEventDetails();
         details.put("revision", newRevision);
         details.put("previousRevision", previousRevision);
         details.put("revisionChanged", !(previousRevision == null ? newRevision == null : previousRevision.equals(newRevision)));

@@ -12,11 +12,11 @@ import java.util.Arrays;
 
 public class BucketerTest {
 
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
@@ -76,7 +76,7 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("123.test-feature", bucketKey);
     }
@@ -92,9 +92,43 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("test-feature", bucketKey);
+    }
+
+    @Test
+    public void testJavaScriptStringificationKeepsExplicitNullAndCollections() {
+        Map<String, Object> context = new HashMap<>();
+        context.put("empty", null);
+        context.put("enabled", false);
+        context.put("values", Arrays.asList(1, true, null));
+        context.put("object", Map.of("id", 1));
+
+        String bucketKey = Bucketer.getBucketKey(new Bucketer.GetBucketKeyOptions()
+            .featureKey("feature")
+            .bucketBy(new Bucket(Arrays.asList("empty", "enabled", "values", "object"), true))
+            .context(context)
+            .diagnostics(diagnostics));
+
+        assertEquals(".false.1,true,.[object Object].feature", bucketKey);
+    }
+
+    @Test
+    public void testJavaScriptStringificationNormalizesWholeDoublesAndNegativeZero() {
+        Map<String, Object> context = new HashMap<>();
+        context.put("whole", 1.0);
+        context.put("negativeZero", -0.0);
+        context.put("small", 1e-6);
+        context.put("large", 1e21);
+
+        String bucketKey = Bucketer.getBucketKey(new Bucketer.GetBucketKeyOptions()
+            .featureKey("feature")
+            .bucketBy(new Bucket(Arrays.asList("whole", "negativeZero", "small", "large"), true))
+            .context(context)
+            .diagnostics(diagnostics));
+
+        assertEquals("1.0.0.000001.1e+21.feature", bucketKey);
     }
 
     @Test
@@ -111,7 +145,7 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("123.234.test-feature", bucketKey);
     }
@@ -129,7 +163,7 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("123.test-feature", bucketKey);
     }
@@ -151,7 +185,7 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("123.234.test-feature", bucketKey);
     }
@@ -172,7 +206,7 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("234.test-feature", bucketKey);
     }
@@ -192,7 +226,7 @@ public class BucketerTest {
             .featureKey(featureKey)
             .bucketBy(bucketBy)
             .context(context)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         assertEquals("deviceIdHere.test-feature", bucketKey);
     }
@@ -208,7 +242,7 @@ public class BucketerTest {
                 .featureKey(featureKey)
                 .bucketBy(bucketBy)
                 .context(context)
-                .logger(logger));
+                .diagnostics(diagnostics));
         });
     }
 }

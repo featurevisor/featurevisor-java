@@ -14,26 +14,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  java:
+    name: Java ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - java: "11"
+            goal: "-Dmaven.test.skip=true clean package"
+          - java: "25"
+            goal: "clean verify"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test Maven reactor
+        run: mvn --batch-mode ${{ matrix.goal }}
+
+      - name: Verify published artifact boundaries
+        run: bash scripts/verify-artifacts.sh
+
+  example:
+    name: Featurevisor example-1
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          java-version: "24"
+          java-version: "25"
           distribution: temurin
           cache: maven
 
-      - name: Build and test Maven reactor
-        run: mvn --batch-mode clean verify
-
-      - name: Verify published artifact boundaries
-        run: bash scripts/verify-artifacts.sh
+      - name: Build SDK
+        run: mvn --batch-mode clean install
 
       - name: Set up Node.js
         uses: actions/setup-node@v7

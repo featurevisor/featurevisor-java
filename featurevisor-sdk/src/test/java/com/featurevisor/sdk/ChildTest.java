@@ -23,15 +23,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ChildTest {
 
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
@@ -284,10 +285,13 @@ public class ChildTest {
         // Test feature evaluation
         assertTrue(childInstance.isEnabled("test"));
         assertEquals("control", childInstance.getVariation("test"));
+        assertEquals(true, childInstance.evaluateFlag("test").getEnabled());
+        assertEquals("control", childInstance.evaluateVariation("test").getVariation().getValue());
 
         // Test variable retrieval
         assertEquals("black", childInstance.getVariable("test", "color"));
         assertEquals("black", childInstance.getVariableString("test", "color"));
+        assertEquals("black", childInstance.evaluateVariable("test", "color").getVariableValue());
 
         assertEquals(false, childInstance.getVariable("test", "showSidebar"));
         assertEquals(false, childInstance.getVariableBoolean("test", "showSidebar"));
@@ -322,6 +326,7 @@ public class ChildTest {
         stickyFeature.put("enabled", true);
         childInstance.setSticky(Map.of("newFeature", stickyFeature), false);
         assertTrue(childInstance.isEnabled("newFeature"));
+        assertEquals("sticky", childInstance.evaluateFlag("newFeature").getReason());
 
         // Test getAllEvaluations
         com.featurevisor.sdk.EvaluatedFeatures allEvaluations = childInstance.getAllEvaluations();
@@ -331,5 +336,42 @@ public class ChildTest {
 
         // Test close
         childInstance.close();
+    }
+
+    @Test
+    public void testCloseRemovesDelegatedParentSubscriptions() {
+        Featurevisor parent = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().logLevel(FeaturevisorLogLevel.FATAL)
+        );
+        ChildInstance child = parent.spawn();
+        AtomicInteger calls = new AtomicInteger();
+        child.on(FeaturevisorEventName.DATAFILE_SET, details -> calls.incrementAndGet());
+
+        child.close();
+        child.close();
+        DatafileContent datafile = new DatafileContent();
+        datafile.setSchemaVersion("2");
+        datafile.setRevision("after-close");
+        datafile.setSegments(new HashMap<>());
+        datafile.setFeatures(new HashMap<>());
+        parent.setDatafile(datafile, true);
+
+        assertEquals(0, calls.get());
+    }
+
+    @Test
+    public void testContextMatchesJavaScriptSnapshotBehavior() {
+        Featurevisor parent = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions()
+                .context(new HashMap<>(Map.of("country", "nl", "plan", "free")))
+                .logLevel(FeaturevisorLogLevel.FATAL)
+        );
+        ChildInstance child = parent.spawn(new HashMap<>(Map.of("country", "de")));
+        parent.setContext(new HashMap<>(Map.of("plan", "pro", "locale", "de-DE")), false);
+
+        assertEquals(
+            Map.of("country", "de", "plan", "free", "locale", "de-DE"),
+            child.getContext()
+        );
     }
 }

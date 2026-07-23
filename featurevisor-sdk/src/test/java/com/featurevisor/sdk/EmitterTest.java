@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class EmitterTest {
 
     private Emitter emitter;
-    private List<Emitter.EventDetails> handledDetails;
+    private List<FeaturevisorEventDetails> handledDetails;
 
     @BeforeEach
     public void setUp() {
@@ -18,46 +18,46 @@ public class EmitterTest {
         handledDetails = new ArrayList<>();
     }
 
-    private void handleDetails(Emitter.EventDetails details) {
+    private void handleDetails(FeaturevisorEventDetails details) {
         handledDetails.add(details);
     }
 
     @Test
     public void testAddListenerForEvent() {
         // Add a listener for datafile_set event
-        Emitter.UnsubscribeFunction unsubscribe = emitter.on(Emitter.EventName.DATAFILE_SET, this::handleDetails);
+        FeaturevisorUnsubscribe unsubscribe = emitter.on(FeaturevisorEventName.DATAFILE_SET, this::handleDetails);
 
         // Verify the listener was added
-        assertTrue(emitter.getListeners().containsKey(Emitter.EventName.DATAFILE_SET));
-        assertTrue(emitter.getListeners().get(Emitter.EventName.DATAFILE_SET).size() > 0);
+        assertTrue(emitter.getListeners().containsKey(FeaturevisorEventName.DATAFILE_SET));
+        assertTrue(emitter.getListeners().get(FeaturevisorEventName.DATAFILE_SET).size() > 0);
 
         // Verify other events don't have listeners
-        assertFalse(emitter.getListeners().containsKey(Emitter.EventName.CONTEXT_SET));
-        assertFalse(emitter.getListeners().containsKey(Emitter.EventName.STICKY_SET));
+        assertFalse(emitter.getListeners().containsKey(FeaturevisorEventName.CONTEXT_SET));
+        assertFalse(emitter.getListeners().containsKey(FeaturevisorEventName.STICKY_SET));
 
         // Verify there's exactly one listener
-        assertEquals(1, emitter.getListeners().get(Emitter.EventName.DATAFILE_SET).size());
+        assertEquals(1, emitter.getListeners().get(FeaturevisorEventName.DATAFILE_SET).size());
 
         // Trigger the subscribed event
-        Emitter.EventDetails details1 = new Emitter.EventDetails();
+        FeaturevisorEventDetails details1 = new FeaturevisorEventDetails();
         details1.put("key", "value");
-        emitter.trigger(Emitter.EventName.DATAFILE_SET, details1);
+        emitter.trigger(FeaturevisorEventName.DATAFILE_SET, details1);
 
         // Verify the callback was called
         assertEquals(1, handledDetails.size());
         assertEquals("value", handledDetails.get(0).get("key"));
 
         // Trigger an unsubscribed event
-        Emitter.EventDetails details2 = new Emitter.EventDetails();
+        FeaturevisorEventDetails details2 = new FeaturevisorEventDetails();
         details2.put("key", "value2");
-        emitter.trigger(Emitter.EventName.STICKY_SET, details2);
+        emitter.trigger(FeaturevisorEventName.STICKY_SET, details2);
 
         // Verify the callback was not called for the unsubscribed event
         assertEquals(1, handledDetails.size());
 
         // Unsubscribe
         unsubscribe.unsubscribe();
-        assertEquals(0, emitter.getListeners().get(Emitter.EventName.DATAFILE_SET).size());
+        assertEquals(0, emitter.getListeners().get(FeaturevisorEventName.DATAFILE_SET).size());
 
         // Clear all
         emitter.clearAll();
@@ -66,19 +66,19 @@ public class EmitterTest {
 
     @Test
     public void testMultipleListeners() {
-        List<Emitter.EventDetails> secondHandler = new ArrayList<>();
+        List<FeaturevisorEventDetails> secondHandler = new ArrayList<>();
 
         // Add two listeners for the same event
-        Emitter.UnsubscribeFunction unsubscribe1 = emitter.on(Emitter.EventName.CONTEXT_SET, this::handleDetails);
-        Emitter.UnsubscribeFunction unsubscribe2 = emitter.on(Emitter.EventName.CONTEXT_SET, secondHandler::add);
+        FeaturevisorUnsubscribe unsubscribe1 = emitter.on(FeaturevisorEventName.CONTEXT_SET, this::handleDetails);
+        FeaturevisorUnsubscribe unsubscribe2 = emitter.on(FeaturevisorEventName.CONTEXT_SET, secondHandler::add);
 
         // Verify both listeners were added
-        assertEquals(2, emitter.getListeners().get(Emitter.EventName.CONTEXT_SET).size());
+        assertEquals(2, emitter.getListeners().get(FeaturevisorEventName.CONTEXT_SET).size());
 
         // Trigger the event
-        Emitter.EventDetails details = new Emitter.EventDetails();
+        FeaturevisorEventDetails details = new FeaturevisorEventDetails();
         details.put("test", "multiple");
-        emitter.trigger(Emitter.EventName.CONTEXT_SET, details);
+        emitter.trigger(FeaturevisorEventName.CONTEXT_SET, details);
 
         // Verify both callbacks were called
         assertEquals(1, handledDetails.size());
@@ -88,12 +88,12 @@ public class EmitterTest {
 
         // Unsubscribe one listener
         unsubscribe1.unsubscribe();
-        assertEquals(1, emitter.getListeners().get(Emitter.EventName.CONTEXT_SET).size());
+        assertEquals(1, emitter.getListeners().get(FeaturevisorEventName.CONTEXT_SET).size());
 
         // Trigger again
-        Emitter.EventDetails details2 = new Emitter.EventDetails();
+        FeaturevisorEventDetails details2 = new FeaturevisorEventDetails();
         details2.put("test", "single");
-        emitter.trigger(Emitter.EventName.CONTEXT_SET, details2);
+        emitter.trigger(FeaturevisorEventName.CONTEXT_SET, details2);
 
         // Verify only the remaining callback was called
         assertEquals(1, handledDetails.size()); // Should still be 1
@@ -108,16 +108,16 @@ public class EmitterTest {
     @Test
     public void testTriggerUsesListenerSnapshot() {
         List<String> calls = new ArrayList<>();
-        final Emitter.UnsubscribeFunction[] unsubscribeSecond = new Emitter.UnsubscribeFunction[1];
+        final FeaturevisorUnsubscribe[] unsubscribeSecond = new FeaturevisorUnsubscribe[1];
 
-        emitter.on(Emitter.EventName.STICKY_SET, details -> {
+        emitter.on(FeaturevisorEventName.STICKY_SET, details -> {
             calls.add("first");
             unsubscribeSecond[0].unsubscribe();
         });
-        unsubscribeSecond[0] = emitter.on(Emitter.EventName.STICKY_SET, details -> calls.add("second"));
+        unsubscribeSecond[0] = emitter.on(FeaturevisorEventName.STICKY_SET, details -> calls.add("second"));
 
-        emitter.trigger(Emitter.EventName.STICKY_SET);
-        emitter.trigger(Emitter.EventName.STICKY_SET);
+        emitter.trigger(FeaturevisorEventName.STICKY_SET);
+        emitter.trigger(FeaturevisorEventName.STICKY_SET);
 
         assertEquals(List.of("first", "second", "first"), calls);
     }
@@ -125,10 +125,10 @@ public class EmitterTest {
     @Test
     public void testTriggerWithoutDetails() {
         // Add a listener
-        emitter.on(Emitter.EventName.STICKY_SET, this::handleDetails);
+        emitter.on(FeaturevisorEventName.STICKY_SET, this::handleDetails);
 
         // Trigger without details
-        emitter.trigger(Emitter.EventName.STICKY_SET);
+        emitter.trigger(FeaturevisorEventName.STICKY_SET);
 
         // Verify the callback was called with empty details
         assertEquals(1, handledDetails.size());
@@ -138,12 +138,12 @@ public class EmitterTest {
     @Test
     public void testTriggerNonExistentEvent() {
         // Try to trigger an event with no listeners
-        Emitter.EventDetails details = new Emitter.EventDetails();
+        FeaturevisorEventDetails details = new FeaturevisorEventDetails();
         details.put("key", "value");
 
         // This should not throw an exception
         assertDoesNotThrow(() -> {
-            emitter.trigger(Emitter.EventName.DATAFILE_SET, details);
+            emitter.trigger(FeaturevisorEventName.DATAFILE_SET, details);
         });
 
         // Verify no callbacks were called
@@ -153,11 +153,11 @@ public class EmitterTest {
     @Test
     public void testUnsubscribeMultipleTimes() {
         // Add a listener
-        Emitter.UnsubscribeFunction unsubscribe = emitter.on(Emitter.EventName.CONTEXT_SET, this::handleDetails);
+        FeaturevisorUnsubscribe unsubscribe = emitter.on(FeaturevisorEventName.CONTEXT_SET, this::handleDetails);
 
         // Unsubscribe once
         unsubscribe.unsubscribe();
-        assertEquals(0, emitter.getListeners().get(Emitter.EventName.CONTEXT_SET).size());
+        assertEquals(0, emitter.getListeners().get(FeaturevisorEventName.CONTEXT_SET).size());
 
         // Try to unsubscribe again (should be safe)
         assertDoesNotThrow(() -> {
@@ -165,31 +165,31 @@ public class EmitterTest {
         });
 
         // Verify still no listeners
-        assertEquals(0, emitter.getListeners().get(Emitter.EventName.CONTEXT_SET).size());
+        assertEquals(0, emitter.getListeners().get(FeaturevisorEventName.CONTEXT_SET).size());
     }
 
     @Test
     public void testEventNameEnum() {
         // Test enum values
-        assertEquals("datafile_set", Emitter.EventName.DATAFILE_SET.getValue());
-        assertEquals("context_set", Emitter.EventName.CONTEXT_SET.getValue());
-        assertEquals("sticky_set", Emitter.EventName.STICKY_SET.getValue());
+        assertEquals("datafile_set", FeaturevisorEventName.DATAFILE_SET.getValue());
+        assertEquals("context_set", FeaturevisorEventName.CONTEXT_SET.getValue());
+        assertEquals("sticky_set", FeaturevisorEventName.STICKY_SET.getValue());
 
         // Test fromString method
-        assertEquals(Emitter.EventName.DATAFILE_SET, Emitter.EventName.fromString("datafile_set"));
-        assertEquals(Emitter.EventName.CONTEXT_SET, Emitter.EventName.fromString("context_set"));
-        assertEquals(Emitter.EventName.STICKY_SET, Emitter.EventName.fromString("sticky_set"));
+        assertEquals(FeaturevisorEventName.DATAFILE_SET, FeaturevisorEventName.fromString("datafile_set"));
+        assertEquals(FeaturevisorEventName.CONTEXT_SET, FeaturevisorEventName.fromString("context_set"));
+        assertEquals(FeaturevisorEventName.STICKY_SET, FeaturevisorEventName.fromString("sticky_set"));
 
         // Test invalid event name
         assertThrows(IllegalArgumentException.class, () -> {
-            Emitter.EventName.fromString("invalid_event");
+            FeaturevisorEventName.fromString("invalid_event");
         });
     }
 
     @Test
     public void testEventDetails() {
         // Test EventDetails constructor
-        Emitter.EventDetails details = new Emitter.EventDetails();
+        FeaturevisorEventDetails details = new FeaturevisorEventDetails();
         details.put("string", "value");
         details.put("number", 42);
         details.put("boolean", true);
@@ -199,10 +199,10 @@ public class EmitterTest {
         assertEquals(true, details.get("boolean"));
 
         // Test EventDetails with map constructor
-        Emitter.EventDetails original = new Emitter.EventDetails();
+        FeaturevisorEventDetails original = new FeaturevisorEventDetails();
         original.put("key", "value");
 
-        Emitter.EventDetails copy = new Emitter.EventDetails(original);
+        FeaturevisorEventDetails copy = new FeaturevisorEventDetails(original);
         assertEquals("value", copy.get("key"));
 
         // Verify it's a copy, not a reference

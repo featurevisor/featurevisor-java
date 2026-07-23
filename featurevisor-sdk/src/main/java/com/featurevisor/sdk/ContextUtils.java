@@ -5,7 +5,7 @@ import java.util.Map;
 /**
  * Utility class for working with context objects
  */
-public class ContextUtils {
+final class ContextUtils {
 
     /**
      * Get a value from a context object using a dot-separated path

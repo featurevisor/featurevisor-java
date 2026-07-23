@@ -4,10 +4,11 @@ import com.featurevisor.sdk.Condition;
 import com.featurevisor.sdk.Operator;
 import java.util.Map;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.Date;
-import java.text.SimpleDateFormat;
-import java.text.ParseException;
+import java.util.regex.Pattern;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 
 /**
  * Conditions utility for Featurevisor SDK
@@ -18,7 +19,7 @@ public class Conditions {
      * Functional interface for getting regex patterns.
      */
     @FunctionalInterface
-    public interface GetRegex {
+    interface GetRegex {
         Pattern getRegex(String regexString, String regexFlags);
     }
 
@@ -58,7 +59,7 @@ public class Conditions {
      * @param getRegex Function to get regex patterns
      * @return True if the condition is matched
      */
-    public static boolean conditionIsMatched(
+    static boolean conditionIsMatched(
             Condition condition,
             Map<String, Object> context,
             GetRegex getRegex) {
@@ -134,11 +135,11 @@ public class Conditions {
 
         switch (operator) {
             case EQUALS:
-                return equals(contextValue, value);
+                return pathExists(context, attribute) && equals(contextValue, value);
             case NOT_EQUALS:
-                return !equals(contextValue, value);
+                return !pathExists(context, attribute) || !equals(contextValue, value);
             case IN:
-                return in(contextValue, value);
+                return pathExists(context, attribute) && in(contextValue, value);
             case NOT_IN:
                 // Match PHP implementation: check if value is array and context value is string/numeric/null
                 if (value instanceof List &&
@@ -150,7 +151,7 @@ public class Conditions {
             case CONTAINS:
                 return contains(contextValue, value);
             case NOT_CONTAINS:
-                return !contains(contextValue, value);
+                return contextValue instanceof String && value instanceof String && !contains(contextValue, value);
             case STARTS_WITH:
                 return startsWith(contextValue, value);
             case ENDS_WITH:
@@ -170,15 +171,15 @@ public class Conditions {
             case MATCHES:
                 return matches(contextValue, value, regexFlags, getRegex);
             case NOT_MATCHES:
-                return !matches(contextValue, value, regexFlags, getRegex);
+                return contextValue instanceof String && value instanceof String && !matches(contextValue, value, regexFlags, getRegex);
             case INCLUDES:
                 return includes(contextValue, value);
             case NOT_INCLUDES:
-                return !includes(contextValue, value);
+                return contextValue instanceof List && isPrimitive(value) && !includes(contextValue, value);
             case SEMVER_EQUALS:
                 return semverEquals(contextValue, value);
             case SEMVER_NOT_EQUALS:
-                return !semverEquals(contextValue, value);
+                return contextValue instanceof String && value instanceof String && !semverEquals(contextValue, value);
             case SEMVER_GREATER_THAN:
                 return semverGreaterThan(contextValue, value);
             case SEMVER_GREATER_THAN_OR_EQUALS:
@@ -208,9 +209,9 @@ public class Conditions {
         datafile.setFeatures(new java.util.HashMap<>());
         datafile.setSegments(new java.util.HashMap<>());
 
-        return new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        return new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .logger(Logger.createLogger(new Logger.CreateLoggerOptions())))
+            .diagnostics(DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions())))
             .allConditionsAreMatched(conditions, context);
     }
 
@@ -221,7 +222,18 @@ public class Conditions {
         if (contextValue == null || conditionValue == null) {
             return false;
         }
-        return contextValue.equals(conditionValue);
+        if (contextValue instanceof Number && conditionValue instanceof Number) {
+            double left = ((Number) contextValue).doubleValue();
+            double right = ((Number) conditionValue).doubleValue();
+            return !Double.isNaN(left) && !Double.isNaN(right) && left == right;
+        }
+        if (contextValue instanceof String && conditionValue instanceof String) {
+            return contextValue.equals(conditionValue);
+        }
+        if (contextValue instanceof Boolean && conditionValue instanceof Boolean) {
+            return contextValue.equals(conditionValue);
+        }
+        return false;
     }
 
     private static boolean in(Object contextValue, Object conditionValue) {
@@ -233,14 +245,14 @@ public class Conditions {
         if (contextValue == null) {
             @SuppressWarnings("unchecked")
             List<Object> values = (List<Object>) conditionValue;
-            return values.contains(null);
+            return values.stream().anyMatch(item -> equals(item, null));
         }
 
         // Handle string, numeric, or null context values
         if (contextValue instanceof String || contextValue instanceof Number || contextValue == null) {
             @SuppressWarnings("unchecked")
             List<Object> values = (List<Object>) conditionValue;
-            return values.contains(contextValue);
+            return values.stream().anyMatch(item -> equals(item, contextValue));
         }
 
         return false;
@@ -305,16 +317,20 @@ public class Conditions {
             return false;
         }
 
-        return regex.matcher((String) contextValue).matches();
+        return regex.matcher((String) contextValue).find();
     }
 
     private static boolean includes(Object contextValue, Object conditionValue) {
-        if (!(contextValue instanceof List) || !(conditionValue instanceof String)) {
+        if (!(contextValue instanceof List) || !isPrimitive(conditionValue)) {
             return false;
         }
         @SuppressWarnings("unchecked")
         List<Object> list = (List<Object>) contextValue;
-        return list.contains(conditionValue);
+        return list.stream().anyMatch(item -> equals(item, conditionValue));
+    }
+
+    private static boolean isPrimitive(Object value) {
+        return value == null || value instanceof String || value instanceof Number || value instanceof Boolean;
     }
 
     private static boolean semverEquals(Object contextValue, Object conditionValue) {
@@ -353,51 +369,39 @@ public class Conditions {
     }
 
     private static boolean before(Object contextValue, Object conditionValue) {
-        Date contextDate = parseDate(contextValue);
-        Date conditionDate = parseDate(conditionValue);
+        Instant contextDate = parseDate(contextValue);
+        Instant conditionDate = parseDate(conditionValue);
 
         if (contextDate == null || conditionDate == null) {
             return false;
         }
 
-        return contextDate.before(conditionDate);
+        return contextDate.isBefore(conditionDate);
     }
 
     private static boolean after(Object contextValue, Object conditionValue) {
-        Date contextDate = parseDate(contextValue);
-        Date conditionDate = parseDate(conditionValue);
+        Instant contextDate = parseDate(contextValue);
+        Instant conditionDate = parseDate(conditionValue);
 
         if (contextDate == null || conditionDate == null) {
             return false;
         }
 
-        return contextDate.after(conditionDate);
+        return contextDate.isAfter(conditionDate);
     }
 
-    private static Date parseDate(Object value) {
+    private static Instant parseDate(Object value) {
+        if (value instanceof Instant) {
+            return (Instant) value;
+        }
         if (value instanceof Date) {
-            return (Date) value;
+            return ((Date) value).toInstant();
         }
         if (value instanceof String) {
             try {
-                // Try ISO 8601 format first
-                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-                isoFormat.setLenient(false);
-                return isoFormat.parse((String) value);
-            } catch (ParseException e1) {
-                try {
-                    // Try alternative ISO format without Z
-                    SimpleDateFormat altFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-                    altFormat.setLenient(false);
-                    return altFormat.parse((String) value);
-                } catch (ParseException e2) {
-                    try {
-                        // Try legacy Date constructor as fallback
-                        return new Date((String) value);
-                    } catch (Exception e3) {
-                        return null;
-                    }
-                }
+                return OffsetDateTime.parse((String) value).toInstant();
+            } catch (DateTimeParseException ignored) {
+                return null;
             }
         }
         return null;

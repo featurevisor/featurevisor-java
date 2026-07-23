@@ -45,7 +45,7 @@ final class EvaluateForced {
      * Evaluates a forced feature and returns the appropriate evaluation result
      * This method matches the PHP implementation's evaluate() method
      *
-     * @param options The evaluation options containing type, featureKey, variableKey, context, logger, and datafileReader
+     * @param options The evaluation options containing type, featureKey, variableKey, context, diagnostics, and evaluationData
      * @param feature The feature to evaluate
      * @param variableSchema The variable schema (can be null)
      * @return EvaluateForcedResult containing evaluation, force, and forceIndex
@@ -55,10 +55,10 @@ final class EvaluateForced {
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
         Map<String, Object> context = options.getContext();
-        Logger logger = options.getLogger();
-        DatafileReader datafileReader = options.getDatafileReader();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
+        InstanceEvaluationDataProvider evaluationData = options.getInstanceEvaluationDataProvider();
 
-        DatafileReader.ForceResult forceResult = datafileReader.getMatchedForce(feature, context);
+        InstanceEvaluationDataProvider.ForceResult forceResult = evaluationData.getMatchedForce(feature, context);
         Force force = forceResult.getForce();
         Integer forceIndex = forceResult.getForceIndex();
 
@@ -79,7 +79,7 @@ final class EvaluateForced {
 
                 result.setEvaluation(evaluation);
 
-                logger.debug("forced enabled found", evaluationToMap(evaluation));
+                diagnostics.debug("forced enabled found", evaluationToMap(evaluation));
 
                 return result;
             }
@@ -105,7 +105,7 @@ final class EvaluateForced {
 
                     result.setEvaluation(evaluation);
 
-                    logger.debug("forced variation found", evaluationToMap(evaluation));
+                    diagnostics.debug("forced variation found", evaluationToMap(evaluation));
 
                     return result;
                 }
@@ -150,12 +150,12 @@ final class EvaluateForced {
 
                                 // Check conditions
                                 if (override.getConditions() != null) {
-                                    matches = datafileReader.allConditionsAreMatched(override.getConditions(), context);
+                                    matches = evaluationData.allConditionsAreMatched(override.getConditions(), context);
                                 }
                                 // Check segments
                                 else if (override.getSegments() != null) {
-                                    Object parsedSegments = datafileReader.parseSegmentsIfStringified(override.getSegments());
-                                    matches = datafileReader.allSegmentsAreMatched(parsedSegments, context);
+                                    Object parsedSegments = evaluationData.parseSegmentsIfStringified(override.getSegments());
+                                    matches = evaluationData.allSegmentsAreMatched(parsedSegments, context);
                                 }
 
                                 if (matches) {
@@ -180,7 +180,7 @@ final class EvaluateForced {
 
                     result.setEvaluation(evaluation);
 
-                    logger.debug("forced variable", evaluationToMap(evaluation));
+                    diagnostics.debug("forced variable", evaluationToMap(evaluation));
 
                     return result;
                 }

@@ -12,16 +12,16 @@ final class EvaluateDisabled {
     /**
      * Evaluates a disabled feature and returns the appropriate evaluation result
      *
-     * @param options The evaluation options containing type, featureKey, datafileReader, variableKey, and logger
+     * @param options The evaluation options containing type, featureKey, evaluationData, variableKey, and diagnostics
      * @param flag The flag evaluation result
      * @return Evaluation result for disabled feature, or null if not disabled
      */
     public static Evaluation evaluateDisabled(EvaluateOptions options, Evaluation flag) {
         String type = options.getType();
         String featureKey = options.getFeatureKey();
-        DatafileReader datafileReader = options.getDatafileReader();
+        InstanceEvaluationDataProvider evaluationData = options.getInstanceEvaluationDataProvider();
         String variableKey = options.getVariableKey();
-        Logger logger = options.getLogger();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
 
         if (!Evaluation.TYPE_FLAG.equals(type)) {
             if (flag != null && Boolean.FALSE.equals(flag.getEnabled())) {
@@ -30,7 +30,7 @@ final class EvaluateDisabled {
                     .featureKey(featureKey)
                     .reason(Evaluation.REASON_DISABLED);
 
-                Feature feature = datafileReader.getFeature(featureKey);
+                Feature feature = evaluationData.getFeature(featureKey);
 
                 // serve variable default value if feature is disabled (if explicitly specified)
                 if (Evaluation.TYPE_VARIABLE.equals(type)) {
@@ -75,7 +75,7 @@ final class EvaluateDisabled {
                         .enabled(false);
                 }
 
-                logger.debug("feature is disabled", null);
+                diagnostics.debug("feature is disabled", null);
 
                 return evaluation;
             }
