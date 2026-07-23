@@ -65,8 +65,6 @@ public class InstanceEvaluationDataProviderTest {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode fixture = objectMapper.readTree(fixtureStream);
             assertEquals(2, fixture.get("version").asInt());
-            assertEquals("control", fixture.get("bucketing").get("allocationExpectations").get("50000").asText());
-            assertEquals("treatment", fixture.get("bucketing").get("allocationExpectations").get("50001").asText());
             for (JsonNode testCase : fixture.get("numericBucketKeys")) {
                 String bucketKey = Bucketer.getBucketKey(
                     new Bucketer.GetBucketKeyOptions()
@@ -88,6 +86,19 @@ public class InstanceEvaluationDataProviderTest {
                     .datafile(datafile)
                     .diagnostics(DiagnosticReporter.createDiagnosticReporter())
             );
+            Traffic traffic = new Traffic();
+            traffic.setAllocation(objectMapper.convertValue(
+                fixture.get("bucketing").get("allocations"),
+                objectMapper.getTypeFactory().constructCollectionType(List.class, Allocation.class)
+            ));
+            fixture.get("bucketing").get("allocationExpectations").fields().forEachRemaining(entry -> {
+                Allocation allocation = evaluationData.getMatchedAllocation(
+                    traffic,
+                    Integer.parseInt(entry.getKey())
+                );
+                assertNotNull(allocation, "bucket " + entry.getKey());
+                assertEquals(entry.getValue().asText(), allocation.getVariation(), "bucket " + entry.getKey());
+            });
             for (JsonNode testCase : fixture.get("regularExpressions").get("portableCases")) {
                 Condition condition = new Condition();
                 condition.setAttribute("value");
