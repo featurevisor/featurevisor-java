@@ -2,9 +2,10 @@ package com.featurevisor.openfeature;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.featurevisor.sdk.Evaluation;
-import com.featurevisor.sdk.Emitter;
 import com.featurevisor.sdk.Featurevisor;
 import com.featurevisor.sdk.FeaturevisorDiagnosticHandler;
+import com.featurevisor.sdk.FeaturevisorEventName;
+import com.featurevisor.sdk.FeaturevisorUnsubscribe;
 import com.featurevisor.sdk.VariableType;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -52,7 +53,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
     private final String keySeparator;
     private final String variationKey;
     private final TrackingHandler onTrack;
-    private final Emitter.UnsubscribeFunction datafileUnsubscribe;
+    private final FeaturevisorUnsubscribe datafileUnsubscribe;
     private final boolean ownsFeaturevisor;
     private String datafileError;
 
@@ -83,7 +84,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
             });
             this.featurevisor = Featurevisor.createFeaturevisor(fvOptions);
         }
-        this.datafileUnsubscribe = this.featurevisor.on(Emitter.EventName.DATAFILE_SET, details -> datafileError = null);
+        this.datafileUnsubscribe = this.featurevisor.on(FeaturevisorEventName.DATAFILE_SET, details -> datafileError = null);
     }
 
     public FeaturevisorOpenFeatureProvider(Featurevisor.FeaturevisorOptions options) {
@@ -221,20 +222,22 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         return value instanceof Map || value instanceof List;
     }
 
-    private static Map<String, Object> normalizeMap(Map<String, Object> input) {
+    private static Map<String, Object> normalizeMap(Map<?, ?> input) {
         Map<String, Object> result = new HashMap<>();
-        input.forEach((key, value) -> result.put(key, normalize(value)));
+        input.forEach((key, value) -> {
+            if (key instanceof String) result.put((String) key, normalize(value));
+        });
         return result;
     }
     private static Object normalize(Object value) {
         if (value instanceof Instant) return value.toString();
-        if (value instanceof Map) return normalizeMap((Map<String, Object>) value);
+        if (value instanceof Map) return normalizeMap((Map<?, ?>) value);
         if (value instanceof List) { List<Object> result = new ArrayList<>(); for (Object item : (List<?>) value) result.add(normalize(item)); return result; }
         return value;
     }
     private static Value toValue(Object value) throws InstantiationException {
         if (value instanceof Value) return (Value) value;
-        if (value instanceof Map) return new Value(Structure.mapToStructure((Map<String, Object>) value));
+        if (value instanceof Map) return new Value(Structure.mapToStructure(normalizeMap((Map<?, ?>) value)));
         if (value instanceof List) { List<Value> result = new ArrayList<>(); for (Object item : (List<?>) value) result.add(toValue(item)); return new Value(result); }
         return new Value(value);
     }

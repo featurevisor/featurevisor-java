@@ -15,36 +15,36 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * DatafileReader for Featurevisor SDK
+ * InstanceEvaluationDataProvider for Featurevisor SDK
  * Handles reading and parsing datafile content
  */
-class DatafileReader {
+class InstanceEvaluationDataProvider {
 
     /**
-     * Options for creating a DatafileReader
+     * Options for creating a InstanceEvaluationDataProvider
      */
-    public static class DatafileReaderOptions {
+    public static class InstanceEvaluationDataProviderOptions {
         private DatafileContent datafile;
-        private Logger logger;
+        private DiagnosticReporter diagnostics;
 
-        public DatafileReaderOptions() {}
+        public InstanceEvaluationDataProviderOptions() {}
 
-        public DatafileReaderOptions datafile(DatafileContent datafile) {
+        public InstanceEvaluationDataProviderOptions datafile(DatafileContent datafile) {
             this.datafile = datafile;
             return this;
         }
 
-        public DatafileReaderOptions logger(Logger logger) {
-            this.logger = logger;
+        public InstanceEvaluationDataProviderOptions diagnostics(DiagnosticReporter diagnostics) {
+            this.diagnostics = diagnostics;
             return this;
         }
 
         // Getters
         public DatafileContent getDatafile() { return datafile; }
-        public Logger getLogger() { return logger; }
+        public DiagnosticReporter getDiagnostics() { return diagnostics; }
     }
 
     /**
@@ -73,14 +73,14 @@ class DatafileReader {
     private String featurevisorVersion;
     private Map<String, Segment> segments;
     private Map<String, Feature> features;
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
 
     // Cache for regex patterns to avoid creating new objects for the same regex
     private Map<String, Pattern> regexCache;
 
-    public DatafileReader(DatafileReaderOptions options) {
+    public InstanceEvaluationDataProvider(InstanceEvaluationDataProviderOptions options) {
         DatafileContent datafile = options.getDatafile();
-        this.logger = options.getLogger();
+        this.diagnostics = options.getDiagnostics();
 
         this.schemaVersion = datafile.getSchemaVersion();
         this.revision = datafile.getRevision();
@@ -93,7 +93,7 @@ class DatafileReader {
         if (this.features == null) {
             this.features = new HashMap<>();
         }
-        this.regexCache = new HashMap<>();
+        this.regexCache = new ConcurrentHashMap<>();
     }
 
     public String getRevision() {
@@ -166,9 +166,8 @@ class DatafileReader {
             Pattern regex = Pattern.compile(regexString, getPatternFlags(flags));
             regexCache.put(cacheKey, regex);
             return regex;
-        } catch (PatternSyntaxException e) {
-            logger.error("Invalid regex pattern: " + regexString, null);
-            return null;
+        } catch (IllegalArgumentException e) {
+            throw e;
         }
     }
 
@@ -178,7 +177,11 @@ class DatafileReader {
         if (flags.contains("m")) patternFlags |= Pattern.MULTILINE;
         if (flags.contains("s")) patternFlags |= Pattern.DOTALL;
         if (flags.contains("u")) patternFlags |= Pattern.UNICODE_CASE;
-        if (flags.contains("x")) patternFlags |= Pattern.COMMENTS;
+        for (char flag : flags.toCharArray()) {
+            if ("gimsuy".indexOf(flag) == -1) {
+                throw new IllegalArgumentException("Invalid regular expression flag: " + flag);
+            }
+        }
         return patternFlags;
     }
 
@@ -200,10 +203,11 @@ class DatafileReader {
                 return Conditions.conditionIsMatched(condition, context, getRegex);
             } catch (Exception e) {
                 Map<String, Object> details = new HashMap<>();
-                details.put("error", e);
+                details.put("code", "condition_match_error");
+                details.put("originalError", e);
                 details.put("condition", condition);
                 details.put("context", context);
-                logger.warn(e.getMessage(), details);
+                diagnostics.warn(e.getMessage(), details);
                 return false;
             }
         }
@@ -235,10 +239,11 @@ class DatafileReader {
                     return Conditions.conditionIsMatched(condition, context, getRegex);
                 } catch (Exception e) {
                     Map<String, Object> details = new HashMap<>();
-                    details.put("error", e);
+                    details.put("code", "condition_match_error");
+                    details.put("originalError", e);
                     details.put("condition", conditionMap);
                     details.put("context", context);
-                    logger.warn(e.getMessage(), details);
+                    diagnostics.warn(e.getMessage(), details);
                     return false;
                 }
             }
@@ -423,9 +428,10 @@ class DatafileReader {
             return mapper.readValue(conditionsStr, Object.class);
         } catch (Exception e) {
             Map<String, Object> details = new HashMap<>();
-            details.put("error", e);
+            details.put("code", "conditions_parse_error");
+            details.put("originalError", e);
             details.put("conditions", conditions);
-            logger.error("Error parsing conditions", details);
+            diagnostics.error("Error parsing conditions", details);
             return conditions;
         }
     }
@@ -438,8 +444,7 @@ class DatafileReader {
                     ObjectMapper mapper = new ObjectMapper();
                     return mapper.readValue(segmentsStr, Object.class);
                 } catch (Exception e) {
-                    logger.error("Error parsing segments: " + segmentsStr, null);
-                    return segments;
+                    throw new IllegalArgumentException("Error parsing segments", e);
                 }
             }
         }

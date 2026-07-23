@@ -4,33 +4,34 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Logger for Featurevisor SDK
+ * DiagnosticReporter for Featurevisor SDK
  */
-final class Logger {
+final class DiagnosticReporter {
     private static final FeaturevisorLogLevel[] ALL_LEVELS = {
         FeaturevisorLogLevel.DEBUG, FeaturevisorLogLevel.INFO, FeaturevisorLogLevel.WARN, FeaturevisorLogLevel.ERROR, FeaturevisorLogLevel.FATAL
     };
 
     private static final FeaturevisorLogLevel DEFAULT_LEVEL = FeaturevisorLogLevel.INFO;
-    private static final String LOGGER_PREFIX = "[Featurevisor]";
+    private static final String DIAGNOSTIC_PREFIX = "[Featurevisor]";
 
     private FeaturevisorLogLevel level;
-    private LogHandler handler;
+    private DiagnosticOutputHandler handler;
+    private boolean filter;
 
-    interface LogHandler {
+    interface DiagnosticOutputHandler {
         void handle(FeaturevisorLogLevel level, String message, Map<String, Object> details);
     }
 
-    static class CreateLoggerOptions {
+    static class DiagnosticReporterOptions {
         private FeaturevisorLogLevel level;
-        private LogHandler handler;
+        private DiagnosticOutputHandler handler;
 
-        public CreateLoggerOptions level(FeaturevisorLogLevel level) {
+        public DiagnosticReporterOptions level(FeaturevisorLogLevel level) {
             this.level = level;
             return this;
         }
 
-        public CreateLoggerOptions handler(LogHandler handler) {
+        public DiagnosticReporterOptions handler(DiagnosticOutputHandler handler) {
             this.handler = handler;
             return this;
         }
@@ -39,34 +40,39 @@ final class Logger {
             return level;
         }
 
-        public LogHandler getHandler() {
+        public DiagnosticOutputHandler getHandler() {
             return handler;
         }
     }
 
-    Logger() {
+    DiagnosticReporter() {
         this.level = DEFAULT_LEVEL;
-        this.handler = this::defaultLogHandler;
+        this.handler = this::defaultDiagnosticOutputHandler;
+        this.filter = true;
     }
 
-    Logger(FeaturevisorLogLevel level) {
+    DiagnosticReporter(FeaturevisorLogLevel level) {
         this.level = level != null ? level : DEFAULT_LEVEL;
-        this.handler = this::defaultLogHandler;
+        this.handler = this::defaultDiagnosticOutputHandler;
+        this.filter = true;
     }
 
-    Logger(LogHandler handler) {
+    DiagnosticReporter(DiagnosticOutputHandler handler) {
         this.level = DEFAULT_LEVEL;
-        this.handler = handler != null ? handler : this::defaultLogHandler;
+        this.handler = handler != null ? handler : this::defaultDiagnosticOutputHandler;
+        this.filter = handler == null;
     }
 
-    Logger(FeaturevisorLogLevel level, LogHandler handler) {
+    DiagnosticReporter(FeaturevisorLogLevel level, DiagnosticOutputHandler handler) {
         this.level = level != null ? level : DEFAULT_LEVEL;
-        this.handler = handler != null ? handler : this::defaultLogHandler;
+        this.handler = handler != null ? handler : this::defaultDiagnosticOutputHandler;
+        this.filter = handler == null;
     }
 
-    Logger(CreateLoggerOptions options) {
+    DiagnosticReporter(DiagnosticReporterOptions options) {
         this.level = options.getLevel() != null ? options.getLevel() : DEFAULT_LEVEL;
-        this.handler = options.getHandler() != null ? options.getHandler() : this::defaultLogHandler;
+        this.handler = options.getHandler() != null ? options.getHandler() : this::defaultDiagnosticOutputHandler;
+        this.filter = options.getHandler() == null;
     }
 
     public void debug(String message) {
@@ -110,9 +116,14 @@ final class Logger {
     }
 
     public void log(FeaturevisorLogLevel logLevel, String message, Map<String, Object> details) {
-        if (shouldLog(logLevel)) {
-            handler.handle(logLevel, message, details);
+        if (filter && !shouldLog(logLevel)) {
+            return;
         }
+
+        // Custom handlers are evaluator sinks and receive every diagnostic.
+        // Featurevisor applies filters independently for module subscribers,
+        // the main diagnostic handler, console output, and error events.
+        handler.handle(logLevel, message, details);
     }
 
     private boolean shouldLog(FeaturevisorLogLevel logLevel) {
@@ -132,13 +143,13 @@ final class Logger {
         return 0;
     }
 
-    private void defaultLogHandler(FeaturevisorLogLevel level, String message, Map<String, Object> details) {
+    private void defaultDiagnosticOutputHandler(FeaturevisorLogLevel level, String message, Map<String, Object> details) {
         writeToConsole(level, message, details);
     }
 
     static void writeToConsole(FeaturevisorLogLevel level, String message, Map<String, Object> details) {
         String levelStr = level.name().toLowerCase();
-        String logMessage = String.format("%s %s: %s", LOGGER_PREFIX, levelStr, message);
+        String logMessage = String.format("%s %s: %s", DIAGNOSTIC_PREFIX, levelStr, message);
 
         if (details != null && !details.isEmpty()) {
             logMessage += " " + details.toString();
@@ -155,19 +166,20 @@ final class Logger {
         this.level = level != null ? level : DEFAULT_LEVEL;
     }
 
-    LogHandler getHandler() {
+    DiagnosticOutputHandler getHandler() {
         return handler;
     }
 
-    void setHandler(LogHandler handler) {
-        this.handler = handler != null ? handler : this::defaultLogHandler;
+    void setHandler(DiagnosticOutputHandler handler) {
+        this.handler = handler != null ? handler : this::defaultDiagnosticOutputHandler;
+        this.filter = handler == null;
     }
 
-    static Logger createLogger() {
-        return createLogger(new CreateLoggerOptions());
+    static DiagnosticReporter createDiagnosticReporter() {
+        return createDiagnosticReporter(new DiagnosticReporterOptions());
     }
 
-    static Logger createLogger(CreateLoggerOptions options) {
-        return new Logger(options);
+    static DiagnosticReporter createDiagnosticReporter(DiagnosticReporterOptions options) {
+        return new DiagnosticReporter(options);
     }
 }

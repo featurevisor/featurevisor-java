@@ -16,13 +16,13 @@ import java.util.ArrayList;
 
 public class EvaluateNotFoundTest {
 
-    private Logger logger;
-    private DatafileReader datafileReader;
+    private DiagnosticReporter diagnostics;
+    private InstanceEvaluationDataProvider evaluationData;
     private Feature feature;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
 
         // Create a test feature with variations
         feature = new Feature("test-feature");
@@ -59,10 +59,10 @@ public class EvaluateNotFoundTest {
         features.put("test-feature", feature);
         datafile.setFeatures(features);
 
-        // Create DatafileReader with the populated datafile
-        datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        // Create InstanceEvaluationDataProvider with the populated datafile
+        evaluationData = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
     }
 
     @Test
@@ -71,8 +71,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("non-existent-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -91,8 +91,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -111,8 +111,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -130,8 +130,8 @@ public class EvaluateNotFoundTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("non-existent-variable")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -152,8 +152,8 @@ public class EvaluateNotFoundTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -174,8 +174,8 @@ public class EvaluateNotFoundTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -194,8 +194,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -216,8 +216,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -236,8 +236,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -255,8 +255,8 @@ public class EvaluateNotFoundTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 
@@ -275,8 +275,8 @@ public class EvaluateNotFoundTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateNotFound.EvaluateNotFoundResult result = EvaluateNotFound.evaluateNotFound(options);
 

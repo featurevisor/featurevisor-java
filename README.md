@@ -86,7 +86,7 @@ Add the Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>0.1.0</version>
+        <version>2.0.0</version>
     </dependency>
 </dependencies>
 ```
@@ -132,6 +132,8 @@ Featurevisor f = Featurevisor.createFeaturevisor(
 ```
 
 Most applications only need `Featurevisor.createFeaturevisor`, the `Featurevisor` instance type, and `Featurevisor.FeaturevisorOptions`. Public extension and observability types include `FeaturevisorModule`, `FeaturevisorDiagnostic`, and the datafile model types.
+
+Concurrent evaluations are safe after an instance is configured. Do not call state-changing methods such as `setDatafile`, `setContext`, `setSticky`, `addModule`, `removeModule`, or `close` concurrently with evaluations or with each other. Apply those changes from a serialized update path. Module, event, and diagnostic callbacks must synchronize mutable state that they capture.
 
 ## Initialization
 
@@ -572,7 +574,7 @@ You can listen to these events that can occur at various stages in your applicat
 ### `datafile_set`
 
 ```java
-Runnable unsubscribe = f.on("datafile_set", (event) -> {
+FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.DATAFILE_SET, (event) -> {
     String revision = (String) event.get("revision"); // new revision
     String previousRevision = (String) event.get("previousRevision");
     Boolean revisionChanged = (Boolean) event.get("revisionChanged"); // true if revision has changed
@@ -586,7 +588,7 @@ Runnable unsubscribe = f.on("datafile_set", (event) -> {
 });
 
 // stop listening to the event
-unsubscribe.run();
+unsubscribe.unsubscribe();
 ```
 
 The `features` array will contain keys of features that have either been:
@@ -600,7 +602,7 @@ compared to the previous datafile content that existed in the SDK instance.
 ### `context_set`
 
 ```java
-Runnable unsubscribe = f.on("context_set", (event) -> {
+FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.CONTEXT_SET, (event) -> {
     Boolean replaced = (Boolean) event.get("replaced"); // true if context was replaced
     @SuppressWarnings("unchecked")
     Map<String, Object> context = (Map<String, Object>) event.get("context"); // the new context
@@ -612,7 +614,7 @@ Runnable unsubscribe = f.on("context_set", (event) -> {
 ### `sticky_set`
 
 ```java
-Runnable unsubscribe = f.on("sticky_set", (event) -> {
+FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.STICKY_SET, (event) -> {
     Boolean replaced = (Boolean) event.get("replaced"); // true if sticky features got replaced
     @SuppressWarnings("unchecked")
     List<String> features = (List<String>) event.get("features"); // list of all affected feature keys
@@ -624,7 +626,7 @@ Runnable unsubscribe = f.on("sticky_set", (event) -> {
 ### `error`
 
 ```java
-Emitter.UnsubscribeFunction unsubscribe = f.on(Emitter.EventName.ERROR, (event) -> {
+FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.ERROR, (event) -> {
     FeaturevisorDiagnostic diagnostic = (FeaturevisorDiagnostic) event.get("diagnostic");
     System.err.println(diagnostic.getMessage());
 });
@@ -638,16 +640,16 @@ Besides logging with debug level enabled, you can also get more details about ho
 
 ```java
 // flag
-Map<String, Object> evaluation = f.evaluateFlag(featureKey, context);
+Evaluation evaluation = f.evaluateFlag(featureKey, context);
 
 // variation
-Map<String, Object> evaluation = f.evaluateVariation(featureKey, context);
+Evaluation evaluation = f.evaluateVariation(featureKey, context);
 
 // variable
-Map<String, Object> evaluation = f.evaluateVariable(featureKey, variableKey, context);
+Evaluation evaluation = f.evaluateVariable(featureKey, variableKey, context);
 ```
 
-The returned object will always contain the following properties:
+The returned `Evaluation` exposes the following properties:
 
 - `featureKey`: the feature key
 - `reason`: the reason how the value was evaluated
@@ -749,6 +751,8 @@ FeaturevisorModule module = new FeaturevisorModule("diagnostic-module")
 
 ## Child instance
 
+A child snapshots the parent keys that exist when it is spawned. Child values win for those keys. Parent keys introduced later are still inherited. Calling `close()` removes both child-owned listeners and subscriptions delegated to the parent.
+
 When dealing with purely client-side applications, it is understandable that there is only one user involved, like in browser or mobile applications.
 
 But when using Featurevisor SDK in server-side applications, where a single server instance can handle multiple user requests simultaneously, it is important to isolate the context for each request.
@@ -774,8 +778,11 @@ Similar to parent SDK, child instances also support several additional methods:
 
 - `setContext`
 - `setSticky`
+- `evaluateFlag`
 - `isEnabled`
+- `evaluateVariation`
 - `getVariation`
+- `evaluateVariable`
 - `getVariable`
 - `getVariableBoolean`
 - `getVariableString`
@@ -917,7 +924,7 @@ $ make verify-artifacts
 ### Releasing
 
 - Manually create a new release on [GitHub](https://github.com/featurevisor/featurevisor-java/releases)
-- Tag it with a prefix of `v`, like `v1.0.0`
+- Tag it with a prefix of `v`, like `v2.0.0`
 - GitHub Actions publishes the parent POM, Java SDK, and OpenFeature provider to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java)
 
 ## License

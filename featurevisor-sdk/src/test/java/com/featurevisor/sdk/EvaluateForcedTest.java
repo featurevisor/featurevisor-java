@@ -17,13 +17,13 @@ import java.util.ArrayList;
 
 public class EvaluateForcedTest {
 
-    private Logger logger;
-    private DatafileReader datafileReader;
+    private DiagnosticReporter diagnostics;
+    private InstanceEvaluationDataProvider evaluationData;
     private Feature feature;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
 
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2.0");
@@ -31,9 +31,9 @@ public class EvaluateForcedTest {
         datafile.setSegments(new HashMap<>());
         datafile.setFeatures(new HashMap<>());
 
-        datafileReader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        evaluationData = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Create a test feature with variations
         feature = new Feature("test-feature");
@@ -72,8 +72,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 
@@ -97,8 +97,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 
@@ -128,8 +128,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 
@@ -160,8 +160,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 
@@ -190,8 +190,8 @@ public class EvaluateForcedTest {
             .featureKey("test-feature")
             .variableKey("test-variable")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, variableSchema);
 
@@ -228,8 +228,8 @@ public class EvaluateForcedTest {
             .featureKey("test-feature")
             .variableKey("test-variable")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, variableSchema);
 
@@ -253,8 +253,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 
@@ -280,8 +280,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 
@@ -308,8 +308,8 @@ public class EvaluateForcedTest {
             .featureKey("test-feature")
             .variableKey("test-variable")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, variableSchema);
 
@@ -340,8 +340,8 @@ public class EvaluateForcedTest {
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
             .context(Map.of("browser_type", "chrome"))
-            .datafileReader(datafileReader)
-            .logger(logger);
+            .evaluationData(evaluationData)
+            .diagnostics(diagnostics);
 
         EvaluateForced.EvaluateForcedResult result = EvaluateForced.evaluate(options, feature, null);
 

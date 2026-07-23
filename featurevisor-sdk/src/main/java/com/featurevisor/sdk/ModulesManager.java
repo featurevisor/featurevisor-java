@@ -2,73 +2,14 @@ package com.featurevisor.sdk;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-public class ModulesManager {
+final class ModulesManager {
     private final List<FeaturevisorModule> modules = new ArrayList<>();
     private final FeaturevisorDiagnosticReporter diagnosticReporter;
     private final FeaturevisorModuleApiFactory moduleApiFactory;
     private final java.util.function.Consumer<FeaturevisorModule> clearModuleDiagnosticSubscriptions;
 
-    public static class ConfigureBucketKeyOptions {
-        private String featureKey;
-        private Map<String, Object> context;
-        private Bucket bucketBy;
-        private String bucketKey;
-
-        public ConfigureBucketKeyOptions(String featureKey, Map<String, Object> context, Bucket bucketBy, String bucketKey) {
-            this.featureKey = featureKey;
-            this.context = context;
-            this.bucketBy = bucketBy;
-            this.bucketKey = bucketKey;
-        }
-
-        public String getFeatureKey() { return featureKey; }
-        public Map<String, Object> getContext() { return context; }
-        public Bucket getBucketBy() { return bucketBy; }
-        public String getBucketKey() { return bucketKey; }
-
-        public void setFeatureKey(String featureKey) { this.featureKey = featureKey; }
-        public void setContext(Map<String, Object> context) { this.context = context; }
-        public void setBucketBy(Bucket bucketBy) { this.bucketBy = bucketBy; }
-        public void setBucketKey(String bucketKey) { this.bucketKey = bucketKey; }
-    }
-
-    public static class ConfigureBucketValueOptions {
-        private String featureKey;
-        private String bucketKey;
-        private Map<String, Object> context;
-        private int bucketValue;
-
-        public ConfigureBucketValueOptions(String featureKey, String bucketKey, Map<String, Object> context, int bucketValue) {
-            this.featureKey = featureKey;
-            this.bucketKey = bucketKey;
-            this.context = context;
-            this.bucketValue = bucketValue;
-        }
-
-        public String getFeatureKey() { return featureKey; }
-        public String getBucketKey() { return bucketKey; }
-        public Map<String, Object> getContext() { return context; }
-        public int getBucketValue() { return bucketValue; }
-
-        public void setFeatureKey(String featureKey) { this.featureKey = featureKey; }
-        public void setBucketKey(String bucketKey) { this.bucketKey = bucketKey; }
-        public void setContext(Map<String, Object> context) { this.context = context; }
-        public void setBucketValue(int bucketValue) { this.bucketValue = bucketValue; }
-    }
-
-    @FunctionalInterface
-    public interface ConfigureBucketKey {
-        String configure(ConfigureBucketKeyOptions options);
-    }
-
-    @FunctionalInterface
-    public interface ConfigureBucketValue {
-        int configure(ConfigureBucketValueOptions options);
-    }
-
-    public static class ModulesManagerOptions {
+    static class ModulesManagerOptions {
         private List<FeaturevisorModule> modules;
         private FeaturevisorDiagnosticReporter diagnosticReporter;
         private FeaturevisorModuleApiFactory moduleApiFactory;

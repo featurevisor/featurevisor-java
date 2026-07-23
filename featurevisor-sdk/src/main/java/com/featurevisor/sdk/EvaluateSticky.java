@@ -11,7 +11,7 @@ final class EvaluateSticky {
     /**
      * Evaluates sticky scenarios and returns the appropriate evaluation result
      *
-     * @param options The evaluation options containing type, featureKey, variableKey, sticky, and logger
+     * @param options The evaluation options containing type, featureKey, variableKey, sticky, and diagnostics
      * @return Evaluation if sticky data is found and valid, null otherwise
      */
     public static Evaluation evaluateSticky(EvaluateOptions options) {
@@ -19,7 +19,7 @@ final class EvaluateSticky {
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
         Map<String, Object> sticky = options.getSticky();
-        Logger logger = options.getLogger();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
 
         if (sticky != null && sticky.containsKey(featureKey)) {
             Object stickyData = sticky.get(featureKey);
@@ -38,7 +38,7 @@ final class EvaluateSticky {
                         .sticky(stickyMap)
                         .enabled((Boolean) stickyMap.get("enabled"));
 
-                    logger.debug("using sticky enabled", null);
+                    diagnostics.debug("using sticky enabled", null);
 
                     return evaluation;
                 }
@@ -54,7 +54,7 @@ final class EvaluateSticky {
                             .reason(Evaluation.REASON_STICKY)
                             .variationValue(variationValue.toString());
 
-                        logger.debug("using sticky variation", null);
+                        diagnostics.debug("using sticky variation", null);
 
                         return evaluation;
                     }
@@ -79,7 +79,7 @@ final class EvaluateSticky {
                                     .variableKey(variableKey)
                                     .variableValue(result);
 
-                                logger.debug("using sticky variable", null);
+                                diagnostics.debug("using sticky variable", null);
 
                                 return evaluation;
                             }

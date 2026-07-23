@@ -4,6 +4,7 @@ import com.featurevisor.sdk.Bucket;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.math.BigDecimal;
 
 /**
  * Bucketer for Featurevisor SDK
@@ -58,7 +59,7 @@ final class Bucketer {
         private String featureKey;
         private Bucket bucketBy;
         private Map<String, Object> context;
-        private Logger logger;
+        private DiagnosticReporter diagnostics;
 
         public GetBucketKeyOptions() {}
 
@@ -77,8 +78,8 @@ final class Bucketer {
             return this;
         }
 
-        public GetBucketKeyOptions logger(Logger logger) {
-            this.logger = logger;
+        public GetBucketKeyOptions diagnostics(DiagnosticReporter diagnostics) {
+            this.diagnostics = diagnostics;
             return this;
         }
 
@@ -86,19 +87,19 @@ final class Bucketer {
         public String getFeatureKey() { return featureKey; }
         public Bucket getBucketBy() { return bucketBy; }
         public Map<String, Object> getContext() { return context; }
-        public Logger getLogger() { return logger; }
+        public DiagnosticReporter getDiagnostics() { return diagnostics; }
     }
 
     /**
      * Get a bucket key from the given options
-     * @param options The options containing feature key, bucketBy, context, and logger
+     * @param options The options containing feature key, bucketBy, context, and diagnostics
      * @return The bucket key string
      */
     public static String getBucketKey(GetBucketKeyOptions options) {
         String featureKey = options.getFeatureKey();
         Bucket bucketBy = options.getBucketBy();
         Map<String, Object> context = options.getContext();
-        Logger logger = options.getLogger();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
 
         String type;
         List<String> attributeKeys;
@@ -117,7 +118,7 @@ final class Bucketer {
             Map<String, Object> details = new java.util.HashMap<>();
             details.put("featureKey", featureKey);
             details.put("bucketBy", bucketBy);
-            logger.error("invalid bucketBy", details);
+            diagnostics.error("invalid bucketBy", details);
 
             throw new RuntimeException("invalid bucketBy");
         }
@@ -127,7 +128,7 @@ final class Bucketer {
         for (String attributeKey : attributeKeys) {
             Object attributeValue = ContextUtils.getValueFromContext(context, attributeKey);
 
-            if (attributeValue == null) {
+            if (attributeValue == null && !pathExists(context, attributeKey)) {
                 continue;
             }
 
@@ -144,6 +145,45 @@ final class Bucketer {
         bucketKey.add(featureKey);
 
         return String.join(DEFAULT_BUCKET_KEY_SEPARATOR,
-            bucketKey.stream().map(Object::toString).toArray(String[]::new));
+            bucketKey.stream().map(Bucketer::javascriptString).toArray(String[]::new));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean pathExists(Map<String, Object> context, String path) {
+        Object current = context;
+        for (String key : path.split("\\.")) {
+            if (!(current instanceof Map) || !((Map<String, Object>) current).containsKey(key)) {
+                return false;
+            }
+            current = ((Map<String, Object>) current).get(key);
+        }
+        return true;
+    }
+
+    private static String javascriptString(Object value) {
+        if (value == null) return "";
+        if (value instanceof Boolean) return (Boolean) value ? "true" : "false";
+        if (value instanceof Float || value instanceof Double) {
+            double number = ((Number) value).doubleValue();
+            if (Double.isNaN(number)) return "NaN";
+            if (number == Double.POSITIVE_INFINITY) return "Infinity";
+            if (number == Double.NEGATIVE_INFINITY) return "-Infinity";
+            if (number == 0) return "0";
+            BigDecimal decimal = value instanceof Float
+                ? new BigDecimal(Float.toString((Float) value))
+                : BigDecimal.valueOf(number);
+            decimal = decimal.stripTrailingZeros();
+            double absolute = Math.abs(number);
+            return absolute >= 1e21 || absolute < 1e-6
+                ? decimal.toString().replace("E", "e")
+                : decimal.toPlainString();
+        }
+        if (value instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Object> values = (List<Object>) value;
+            return String.join(",", values.stream().map(Bucketer::javascriptString).toArray(String[]::new));
+        }
+        if (value instanceof Map) return "[object Object]";
+        return value.toString();
     }
 }

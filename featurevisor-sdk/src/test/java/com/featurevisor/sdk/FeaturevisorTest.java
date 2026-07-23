@@ -26,11 +26,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FeaturevisorTest {
 
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
@@ -46,7 +46,7 @@ public class FeaturevisorTest {
 
         assertNotNull(sdk);
         assertEquals("2", sdk.getSchemaVersion());
-        // Should have default logger and empty datafile
+        // Should have default diagnostics and empty datafile
         assertNotNull(sdk.getRevision());
         assertNull(sdk.getVariation("nonExistentFeature"));
     }
@@ -207,8 +207,8 @@ public class FeaturevisorTest {
         );
 
         assertNotNull(sdk);
-        // The logger should be set with DEBUG level
-        // We can't directly access the logger level, but we can verify the instance was created
+        // The diagnostics should be set with DEBUG level
+        // We can't directly access the diagnostics level, but we can verify the instance was created
         assertNotNull(sdk.getRevision());
     }
 
@@ -891,7 +891,7 @@ public class FeaturevisorTest {
 
         Featurevisor sdk = Featurevisor.createFeaturevisor();
         final Object[] replaced = {null};
-        sdk.on(Emitter.EventName.DATAFILE_SET, details -> replaced[0] = details.get("replaced"));
+        sdk.on(FeaturevisorEventName.DATAFILE_SET, details -> replaced[0] = details.get("replaced"));
 
         sdk.setDatafile(datafile, true);
 
@@ -931,7 +931,7 @@ public class FeaturevisorTest {
     @Test
     public void testModuleCloseErrorReportsDiagnosticAndErrorEvent() {
         List<FeaturevisorDiagnostic> diagnostics = new ArrayList<>();
-        List<Emitter.EventDetails> errorEvents = new ArrayList<>();
+        List<FeaturevisorEventDetails> errorEvents = new ArrayList<>();
 
         Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
             .onDiagnostic(diagnostics::add)
@@ -940,7 +940,7 @@ public class FeaturevisorTest {
                     throw new RuntimeException("close failed");
                 }))));
 
-        sdk.on(Emitter.EventName.ERROR, errorEvents::add);
+        sdk.on(FeaturevisorEventName.ERROR, errorEvents::add);
         sdk.close();
 
         assertTrue(diagnostics.stream().anyMatch(diagnostic ->
@@ -987,6 +987,29 @@ public class FeaturevisorTest {
             .message("after remove"));
 
         assertEquals(1, received.size());
+    }
+
+    @Test
+    public void testModuleDiagnosticLevelIsIndependentFromInstanceLevel() {
+        List<FeaturevisorDiagnostic> received = new ArrayList<>();
+        FeaturevisorModule observer = new FeaturevisorModule("observer")
+            .setup(api -> api.onDiagnostic(
+                received::add,
+                new FeaturevisorModuleDiagnosticOptions(FeaturevisorLogLevel.DEBUG)
+            ));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .logLevel(FeaturevisorLogLevel.FATAL)
+            .modules(List.of(observer)));
+
+        sdk.isEnabled("missing");
+
+        FeaturevisorDiagnostic diagnostic = received.stream()
+            .filter(item -> "feature_not_found".equals(item.getCode()))
+            .findFirst()
+            .orElseThrow();
+        assertEquals("missing", diagnostic.getDetails().get("featureKey"));
+        assertEquals("feature_not_found", diagnostic.getDetails().get("reason"));
+        assertTrue(diagnostic.getDetails().containsKey("evaluation"));
     }
 
     @Test

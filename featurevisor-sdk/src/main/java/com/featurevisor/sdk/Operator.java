@@ -1,5 +1,8 @@
 package com.featurevisor.sdk;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum Operator {
     EQUALS("equals"),
     NOT_EQUALS("notEquals"),
@@ -48,7 +51,19 @@ public enum Operator {
         this.value = value;
     }
 
+    @JsonValue
     public String getValue() {
         return value;
+    }
+
+    @JsonCreator
+    public static Operator fromValue(String value) {
+        for (Operator operator : values()) {
+            if (operator.value.equals(value)) {
+                return operator;
+            }
+        }
+
+        throw new IllegalArgumentException("Unknown condition operator: " + value);
     }
 }

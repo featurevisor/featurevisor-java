@@ -9,7 +9,7 @@ import java.util.ArrayList;
  * Utility class for comparing semantic versions
  * Based on the TypeScript implementation from: https://github.com/omichelsen/compare-versions
  */
-public class CompareVersions {
+final class CompareVersions {
 
     private static final Pattern SEMVER_PATTERN = Pattern.compile(
         "^[v^~<>=]*?(\\d+)(?:\\.([x*]|\\d+)(?:\\.([x*]|\\d+)(?:\\.([x*]|\\d+))?(?:-([\\da-z\\-]+(?:\\.[\\da-z\\-]+)*))?(?:\\+[\\da-z\\-]+(?:\\.[\\da-z\\-]+)*)?)?)?$",
@@ -57,10 +57,7 @@ public class CompareVersions {
 
         List<String> result = new ArrayList<>();
         for (int i = 1; i <= match.groupCount(); i++) {
-            String group = match.group(i);
-            if (group != null) {
-                result.add(group);
-            }
+            result.add(match.group(i));
         }
         return result;
     }
@@ -107,8 +104,8 @@ public class CompareVersions {
         int maxLength = Math.max(a.size(), b.size());
 
         for (int i = 0; i < maxLength; i++) {
-            String aVal = i < a.size() ? a.get(i) : "0";
-            String bVal = i < b.size() ? b.get(i) : "0";
+            String aVal = i < a.size() && a.get(i) != null ? a.get(i) : "0";
+            String bVal = i < b.size() && b.get(i) != null ? b.get(i) : "0";
 
             int r = compareStrings(aVal, bVal);
             if (r != 0) return r;

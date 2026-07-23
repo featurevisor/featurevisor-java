@@ -20,7 +20,7 @@ public class EventsTest {
         newStickyFeatures.put("feature3", Map.of("enabled", true));
         boolean replace = true;
 
-        Emitter.EventDetails result = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForStickySetEvent(
             previousStickyFeatures, newStickyFeatures, replace);
 
         @SuppressWarnings("unchecked")
@@ -45,7 +45,7 @@ public class EventsTest {
 
         boolean replace = true;
 
-        Emitter.EventDetails result = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForStickySetEvent(
             previousStickyFeatures, newStickyFeatures, replace);
 
         @SuppressWarnings("unchecked")
@@ -62,7 +62,7 @@ public class EventsTest {
     @Test
     public void testGetParamsForStickySetEventWithNullInputs() {
         // Test with null inputs
-        Emitter.EventDetails result = Events.getParamsForStickySetEvent(null, null, false);
+        FeaturevisorEventDetails result = Events.getParamsForStickySetEvent(null, null, false);
 
         @SuppressWarnings("unchecked")
         List<String> features = (List<String>) result.get("features");
@@ -103,7 +103,7 @@ public class EventsTest {
         newDatafileContent.setFeatures(features);
         newDatafileContent.setSegments(new HashMap<>());
 
-        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForDatafileSetEvent(
             previousDatafileContent, newDatafileContent, false);
 
         String revision = (String) result.get("revision");
@@ -173,7 +173,7 @@ public class EventsTest {
         newDatafileContent.setFeatures(newFeatures);
         newDatafileContent.setSegments(new HashMap<>());
 
-        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForDatafileSetEvent(
             previousDatafileContent, newDatafileContent, true);
 
         String revision = (String) result.get("revision");
@@ -233,7 +233,7 @@ public class EventsTest {
         newDatafileContent.setFeatures(newFeatures);
         newDatafileContent.setSegments(new HashMap<>());
 
-        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForDatafileSetEvent(
             previousDatafileContent, newDatafileContent, false);
 
         String revision = (String) result.get("revision");
@@ -253,7 +253,7 @@ public class EventsTest {
     @Test
     public void testGetParamsForDatafileSetEventWithNullInputs() {
         // Test with null inputs
-        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(null, null, false);
+        FeaturevisorEventDetails result = Events.getParamsForDatafileSetEvent(null, null, false);
 
         String revision = (String) result.get("revision");
         String previousRevision = (String) result.get("previousRevision");
@@ -278,7 +278,7 @@ public class EventsTest {
         newDatafileContent.setRevision("1");
         newDatafileContent.setFeatures(new HashMap<>());
 
-        Emitter.EventDetails result = Events.getParamsForDatafileSetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForDatafileSetEvent(
             previousDatafileContent, newDatafileContent, false);
 
         Boolean revisionChanged = (Boolean) result.get("revisionChanged");

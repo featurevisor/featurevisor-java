@@ -24,31 +24,131 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-public class DatafileReaderTest {
+public class InstanceEvaluationDataProviderTest {
+
+    @Test
+    public void testConcurrentConditionEvaluationsShareRegexCacheSafely() throws Exception {
+        DatafileContent datafile = new DatafileContent();
+        datafile.setSchemaVersion("2");
+        datafile.setRevision("concurrent");
+        datafile.setSegments(new HashMap<>());
+        datafile.setFeatures(new HashMap<>());
+        InstanceEvaluationDataProvider evaluationData = new InstanceEvaluationDataProvider(
+            new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
+                .datafile(datafile)
+                .diagnostics(DiagnosticReporter.createDiagnosticReporter())
+        );
+        Condition condition = new Condition();
+        condition.setAttribute("browser");
+        condition.setOperator(Operator.MATCHES);
+        condition.setValue("^chrome$");
+        condition.setRegexFlags("i");
+
+        ExecutorService executor = Executors.newFixedThreadPool(8);
+        for (int index = 0; index < 100; index++) {
+            executor.submit(() ->
+                assertTrue(evaluationData.allConditionsAreMatched(condition, Map.of("browser", "Chrome")))
+            );
+        }
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+    }
 
     @Test
     public void testSharedV3ConformanceFixture() throws Exception {
         try (InputStream fixtureStream = getClass().getResourceAsStream("/conformance/sdk-v3.json")) {
             assertNotNull(fixtureStream);
-            JsonNode fixture = new ObjectMapper().readTree(fixtureStream);
-            assertEquals(1, fixture.get("version").asInt());
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode fixture = objectMapper.readTree(fixtureStream);
+            assertEquals(2, fixture.get("version").asInt());
             assertEquals("control", fixture.get("bucketing").get("allocationExpectations").get("50000").asText());
             assertEquals("treatment", fixture.get("bucketing").get("allocationExpectations").get("50001").asText());
+            for (JsonNode testCase : fixture.get("numericBucketKeys")) {
+                String bucketKey = Bucketer.getBucketKey(
+                    new Bucketer.GetBucketKeyOptions()
+                        .featureKey("feature")
+                        .bucketBy(new Bucket("value"))
+                        .context(Map.of("value", testCase.get("value").doubleValue()))
+                        .diagnostics(DiagnosticReporter.createDiagnosticReporter())
+                );
+                assertEquals(testCase.get("expected").asText() + ".feature", bucketKey);
+            }
+
+            DatafileContent datafile = new DatafileContent();
+            datafile.setSchemaVersion("2");
+            datafile.setRevision("conformance");
+            datafile.setSegments(new HashMap<>());
+            datafile.setFeatures(new HashMap<>());
+            InstanceEvaluationDataProvider evaluationData = new InstanceEvaluationDataProvider(
+                new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
+                    .datafile(datafile)
+                    .diagnostics(DiagnosticReporter.createDiagnosticReporter())
+            );
+            for (JsonNode testCase : fixture.get("regularExpressions").get("portableCases")) {
+                Condition condition = new Condition();
+                condition.setAttribute("value");
+                condition.setOperator(Operator.MATCHES);
+                condition.setValue(testCase.get("pattern").asText());
+                String flags = testCase.get("flags").asText();
+                condition.setRegexFlags(flags.isEmpty() ? null : flags);
+                assertEquals(
+                    testCase.get("expected").asBoolean(),
+                    evaluationData.allConditionsAreMatched(
+                        condition,
+                        Map.of("value", testCase.get("value").asText())
+                    ),
+                    "pattern " + testCase.get("pattern").asText() + ", flags " + flags
+                );
+            }
+            for (JsonNode testCase : fixture.get("conditionCases")) {
+                Condition condition = objectMapper.treeToValue(testCase.get("condition"), Condition.class);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> context = objectMapper.convertValue(
+                    testCase.get("context"),
+                    Map.class
+                );
+                assertEquals(
+                    testCase.get("expected").asBoolean(),
+                    evaluationData.allConditionsAreMatched(condition, context),
+                    testCase.get("name").asText()
+                );
+            }
+
+            JsonNode aggregateCase = fixture.get("defaults").get("aggregateCase");
+            DatafileContent aggregateDatafile = objectMapper.treeToValue(
+                aggregateCase.get("datafile"),
+                DatafileContent.class
+            );
+            Featurevisor aggregateFeaturevisor = Featurevisor.createFeaturevisor(
+                new Featurevisor.FeaturevisorOptions().datafile(aggregateDatafile)
+            );
+            EvaluatedFeature evaluated = aggregateFeaturevisor.getAllEvaluations(
+                Map.of(),
+                List.of(),
+                new Featurevisor.OverrideOptions().defaultVariationValue(
+                    aggregateCase.get("defaultVariationValue").asText()
+                )
+            ).getValue().get("experiment");
+            assertEquals(aggregateCase.get("expected").get("enabled").asBoolean(), evaluated.getEnabled());
+            assertEquals(aggregateCase.get("expected").get("variation").asText(), evaluated.getVariation());
         }
     }
 
-    private Logger logger;
+    private DiagnosticReporter diagnostics;
 
     @BeforeEach
     public void setUp() {
-        logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
     }
 
     @Test
-    public void testDatafileReaderIsClass() {
-        // This test verifies that DatafileReader is a class
-        assertNotNull(DatafileReader.class);
+    public void testInstanceEvaluationDataProviderIsClass() {
+        // This test verifies that InstanceEvaluationDataProvider is a class
+        assertNotNull(InstanceEvaluationDataProvider.class);
     }
 
     @Test
@@ -131,10 +231,10 @@ public class DatafileReaderTest {
         features.put("test", testFeature);
         datafileContent.setFeatures(features);
 
-        // Create DatafileReader
-        DatafileReader reader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        // Create InstanceEvaluationDataProvider
+        InstanceEvaluationDataProvider reader = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafileContent)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Test basic getters
         assertEquals("1", reader.getRevision());
@@ -224,9 +324,9 @@ public class DatafileReaderTest {
 
         datafileContent.setSegments(segments);
 
-        DatafileReader reader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        InstanceEvaluationDataProvider reader = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafileContent)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Test wildcard segments
         assertTrue(reader.allSegmentsAreMatched("*", new HashMap<>()));
@@ -313,9 +413,9 @@ public class DatafileReaderTest {
         features.put("test", testFeature);
         datafileContent.setFeatures(features);
 
-        DatafileReader reader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        InstanceEvaluationDataProvider reader = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafileContent)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Test feature keys
         List<String> featureKeys = reader.getFeatureKeys();
@@ -395,9 +495,9 @@ public class DatafileReaderTest {
         features.put("test", feature);
         datafileContent.setFeatures(features);
 
-        DatafileReader reader = new DatafileReader(new DatafileReader.DatafileReaderOptions()
+        InstanceEvaluationDataProvider reader = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafileContent)
-            .logger(logger));
+            .diagnostics(diagnostics));
 
         // Test traffic matching
         Map<String, Object> netherlandsContext = Map.of("country", "nl");

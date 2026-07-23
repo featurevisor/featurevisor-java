@@ -34,12 +34,12 @@ final class Evaluate {
             // default: variation
             if (options.getDefaultVariationValue() != null &&
                 Evaluation.TYPE_VARIATION.equals(evaluation.getType()) &&
-                evaluation.getVariationValue() == null) {
+                evaluation.getVariationValue() == null && evaluation.getVariation() == null) {
                 evaluation.variationValue(options.getDefaultVariationValue());
             }
 
             // default: variable
-            if (options.getDefaultVariableValue() != null &&
+            if (options.hasDefaultVariableValue() &&
                 Evaluation.TYPE_VARIABLE.equals(evaluation.getType()) &&
                 evaluation.getVariableValue() == null) {
                 evaluation.variableValue(options.getDefaultVariableValue());
@@ -55,7 +55,7 @@ final class Evaluate {
             String type = opts.getType();
             String featureKey = opts.getFeatureKey();
             String variableKey = opts.getVariableKey();
-            Logger logger = opts.getLogger();
+            DiagnosticReporter diagnostics = opts.getDiagnostics();
 
             Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                 .reason(Evaluation.REASON_ERROR)
@@ -65,7 +65,7 @@ final class Evaluate {
             details.put("featureKey", featureKey);
             details.put("variableKey", variableKey);
             details.put("error", e.getMessage());
-            logger.error("error during evaluation", details);
+            diagnostics.error("error during evaluation", details);
 
             return evaluation;
         }
@@ -80,7 +80,7 @@ final class Evaluate {
         String type = options.getType();
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
-        Logger logger = options.getLogger();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
 
         Evaluation evaluation;
 
@@ -90,9 +90,7 @@ final class Evaluate {
 
             if (!Evaluation.TYPE_FLAG.equals(type)) {
                 // needed by variation and variable evaluations
-                flag = options.getFlagEvaluation() != null ?
-                    options.getFlagEvaluation() :
-                    evaluate(options.copy().type(Evaluation.TYPE_FLAG));
+                flag = evaluate(options.copy().type(Evaluation.TYPE_FLAG));
 
                 Evaluation disabledEvaluation = EvaluateDisabled.evaluateDisabled(options, flag);
                 if (disabledEvaluation != null) {
@@ -152,7 +150,7 @@ final class Evaluate {
             details.put("featureKey", featureKey);
             details.put("bucketKey", bucketKey);
             details.put("bucketValue", bucketValue);
-            logger.debug("nothing matched", details);
+            diagnostics.debug("nothing matched", details);
 
             return evaluation;
         } catch (Exception e) {
@@ -164,7 +162,7 @@ final class Evaluate {
             details.put("featureKey", featureKey);
             details.put("variableKey", variableKey);
             details.put("error", e.getMessage());
-            logger.error("error during evaluation", details);
+            diagnostics.error("error during evaluation", details);
 
             return evaluation;
         }
@@ -180,8 +178,8 @@ final class Evaluate {
         String type = options.getType();
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
-        Logger logger = options.getLogger();
-        DatafileReader datafileReader = options.getDatafileReader();
+        DiagnosticReporter diagnostics = options.getDiagnostics();
+        InstanceEvaluationDataProvider evaluationData = options.getInstanceEvaluationDataProvider();
 
         // Check if required features are enabled
         List<Object> requiredList = feature.getRequired();
@@ -195,7 +193,7 @@ final class Evaluate {
         for (Object required : requiredList) {
             if (required instanceof String) {
                 String requiredFeatureKey = (String) required;
-                Feature requiredFeature = datafileReader.getFeature(requiredFeatureKey);
+                Feature requiredFeature = evaluationData.getFeature(requiredFeatureKey);
 
                 if (requiredFeature == null) {
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
@@ -205,7 +203,7 @@ final class Evaluate {
                     Map<String, Object> details = new HashMap<>();
                     details.put("featureKey", featureKey);
                     details.put("requiredFeatureKey", requiredFeatureKey);
-                    logger.debug("required feature not found", details);
+                    diagnostics.debug("required feature not found", details);
 
                     return evaluation;
                 }
@@ -223,7 +221,7 @@ final class Evaluate {
                     Map<String, Object> details = new HashMap<>();
                     details.put("featureKey", featureKey);
                     details.put("requiredFeatureKey", requiredFeatureKey);
-                    logger.debug("required feature disabled", details);
+                    diagnostics.debug("required feature disabled", details);
 
                     return evaluation;
                 }
@@ -237,7 +235,7 @@ final class Evaluate {
                     continue;
                 }
 
-                Feature requiredFeature = datafileReader.getFeature(requiredFeatureKey);
+                Feature requiredFeature = evaluationData.getFeature(requiredFeatureKey);
 
                 if (requiredFeature == null) {
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
@@ -247,7 +245,7 @@ final class Evaluate {
                     Map<String, Object> details = new HashMap<>();
                     details.put("featureKey", featureKey);
                     details.put("requiredFeatureKey", requiredFeatureKey);
-                    logger.debug("required feature not found", details);
+                    diagnostics.debug("required feature not found", details);
 
                     return evaluation;
                 }
@@ -272,7 +270,7 @@ final class Evaluate {
                     details.put("requiredFeatureKey", requiredFeatureKey);
                     details.put("requiredVariation", requiredVariation);
                     details.put("actualVariation", variationValue);
-                    logger.debug("required feature variation mismatch", details);
+                    diagnostics.debug("required feature variation mismatch", details);
 
                     return evaluation;
                 }

@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 
-public class LoggerTest {
+public class DiagnosticReporterTest {
 
     private ByteArrayOutputStream outputStream;
     private PrintStream originalOut;
@@ -34,35 +34,35 @@ public class LoggerTest {
     }
 
     @Test
-    public void testCreateLoggerWithDefaultOptions() {
-        Logger logger = Logger.createLogger();
-        assertNotNull(logger);
-        assertTrue(logger instanceof Logger);
+    public void testCreateDiagnosticReporterWithDefaultOptions() {
+        DiagnosticReporter diagnostics = DiagnosticReporter.createDiagnosticReporter();
+        assertNotNull(diagnostics);
+        assertTrue(diagnostics instanceof DiagnosticReporter);
     }
 
     @Test
-    public void testCreateLoggerWithCustomLevel() {
-        Logger logger = Logger.createLogger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
-        assertNotNull(logger);
-        assertTrue(logger instanceof Logger);
+    public void testCreateDiagnosticReporterWithCustomLevel() {
+        DiagnosticReporter diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
+        assertNotNull(diagnostics);
+        assertTrue(diagnostics instanceof DiagnosticReporter);
     }
 
     @Test
-    public void testCreateLoggerWithCustomHandler() {
+    public void testCreateDiagnosticReporterWithCustomHandler() {
         final boolean[] handlerCalled = {false};
         final String[] capturedLevel = {null};
         final String[] capturedMessage = {null};
         final Object[] capturedDetails = {null};
 
-                Logger.LogHandler customHandler = (level, message, details) -> {
+                DiagnosticReporter.DiagnosticOutputHandler customHandler = (level, message, details) -> {
             handlerCalled[0] = true;
             capturedLevel[0] = level.name().toLowerCase();
             capturedMessage[0] = message;
             capturedDetails[0] = details;
         };
 
-        Logger logger = Logger.createLogger(new Logger.CreateLoggerOptions().handler(customHandler));
-        logger.info("test message");
+        DiagnosticReporter diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().handler(customHandler));
+        diagnostics.info("test message");
 
         assertTrue(handlerCalled[0]);
         assertEquals("info", capturedLevel[0]);
@@ -71,9 +71,9 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerConstructorWithDefaultLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions());
-        logger.debug("debug message");
+    public void testDiagnosticReporterConstructorWithDefaultLevel() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions());
+        diagnostics.debug("debug message");
 
         // Debug should not be logged with default level (info)
         String output = outputStream.toString();
@@ -81,9 +81,9 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerConstructorWithProvidedLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
-        logger.debug("debug message");
+    public void testDiagnosticReporterConstructorWithProvidedLevel() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
+        diagnostics.debug("debug message");
 
         // Debug should be logged with debug level
         String output = outputStream.toString();
@@ -92,9 +92,9 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerConstructorWithDefaultHandler() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions());
-        logger.info("test message");
+    public void testDiagnosticReporterConstructorWithDefaultHandler() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions());
+        diagnostics.info("test message");
 
         String output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
@@ -102,21 +102,21 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerConstructorWithProvidedHandler() {
+    public void testDiagnosticReporterConstructorWithProvidedHandler() {
         final boolean[] handlerCalled = {false};
         final String[] capturedLevel = {null};
         final String[] capturedMessage = {null};
         final Object[] capturedDetails = {null};
 
-        Logger.LogHandler customHandler = (level, message, details) -> {
+        DiagnosticReporter.DiagnosticOutputHandler customHandler = (level, message, details) -> {
             handlerCalled[0] = true;
             capturedLevel[0] = level.name().toLowerCase();
             capturedMessage[0] = message;
             capturedDetails[0] = details;
         };
 
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().handler(customHandler));
-        logger.info("test message");
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().handler(customHandler));
+        diagnostics.info("test message");
 
         assertTrue(handlerCalled[0]);
         assertEquals("info", capturedLevel[0]);
@@ -126,10 +126,10 @@ public class LoggerTest {
 
     @Test
     public void testSetLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.INFO));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.INFO));
 
         // Debug should not be logged initially
-        logger.debug("debug message");
+        diagnostics.debug("debug message");
         String output = outputStream.toString();
         assertFalse(output.contains("debug message"));
 
@@ -137,8 +137,8 @@ public class LoggerTest {
         outputStream.reset();
 
         // Set to debug level
-        logger.setLevel(FeaturevisorLogLevel.DEBUG);
-        logger.debug("debug message");
+        diagnostics.setLevel(FeaturevisorLogLevel.DEBUG);
+        diagnostics.debug("debug message");
         output = outputStream.toString();
         assertTrue(output.contains("debug message"));
     }
@@ -148,8 +148,8 @@ public class LoggerTest {
         FeaturevisorLogLevel[] levels = {FeaturevisorLogLevel.DEBUG, FeaturevisorLogLevel.INFO, FeaturevisorLogLevel.WARN, FeaturevisorLogLevel.ERROR};
 
         for (FeaturevisorLogLevel level : levels) {
-            Logger logger = new Logger(new Logger.CreateLoggerOptions().level(level));
-            logger.error("error message");
+            DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(level));
+            diagnostics.error("error message");
 
             String output = outputStream.toString();
             assertTrue(output.contains("error message"));
@@ -161,104 +161,104 @@ public class LoggerTest {
 
     @Test
     public void testLogLevelFilteringWarnMessages() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
 
-        logger.warn("warn message");
+        diagnostics.warn("warn message");
         String output = outputStream.toString();
         assertTrue(output.contains("warn message"));
 
         outputStream.reset();
 
-        logger.error("error message");
+        diagnostics.error("error message");
         output = outputStream.toString();
         assertTrue(output.contains("error message"));
     }
 
     @Test
     public void testLogLevelFilteringInfoMessages() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.WARN));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.WARN));
 
-        logger.info("info message");
+        diagnostics.info("info message");
         String output = outputStream.toString();
         assertFalse(output.contains("info message"));
     }
 
     @Test
     public void testLogLevelFilteringDebugMessages() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.INFO));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.INFO));
 
-        logger.debug("debug message");
+        diagnostics.debug("debug message");
         String output = outputStream.toString();
         assertFalse(output.contains("debug message"));
     }
 
     @Test
     public void testLogLevelFilteringDebugLevel() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
-        logger.debug("debug message");
+        diagnostics.debug("debug message");
         String output = outputStream.toString();
         assertTrue(output.contains("debug message"));
 
         outputStream.reset();
 
-        logger.info("info message");
+        diagnostics.info("info message");
         output = outputStream.toString();
         assertTrue(output.contains("info message"));
 
         outputStream.reset();
 
-        logger.warn("warn message");
+        diagnostics.warn("warn message");
         output = outputStream.toString();
         assertTrue(output.contains("warn message"));
 
         outputStream.reset();
 
-        logger.error("error message");
+        diagnostics.error("error message");
         output = outputStream.toString();
         assertTrue(output.contains("error message"));
     }
 
     @Test
     public void testConvenienceMethods() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Test debug method
-        logger.debug("debug message");
+        diagnostics.debug("debug message");
         String output = outputStream.toString();
         assertTrue(output.contains("debug message"));
 
         outputStream.reset();
 
         // Test info method
-        logger.info("info message");
+        diagnostics.info("info message");
         output = outputStream.toString();
         assertTrue(output.contains("info message"));
 
         outputStream.reset();
 
         // Test warn method
-        logger.warn("warn message");
+        diagnostics.warn("warn message");
         output = outputStream.toString();
         assertTrue(output.contains("warn message"));
 
         outputStream.reset();
 
         // Test error method
-        logger.error("error message");
+        diagnostics.error("error message");
         output = outputStream.toString();
         assertTrue(output.contains("error message"));
     }
 
     @Test
     public void testHandleDetailsParameter() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.INFO));
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.INFO));
 
         Map<String, Object> details = new HashMap<>();
         details.put("key", "value");
         details.put("number", 42);
 
-        logger.info("message with details", details);
+        diagnostics.info("message with details", details);
         String output = outputStream.toString();
         assertTrue(output.contains("message with details"));
         // Note: The exact format of details in output may vary based on implementation
@@ -271,21 +271,21 @@ public class LoggerTest {
         final String[] capturedMessage = {null};
         final Object[] capturedDetails = {null};
 
-        Logger.LogHandler customHandler = (level, message, details) -> {
+        DiagnosticReporter.DiagnosticOutputHandler customHandler = (level, message, details) -> {
             handlerCalled[0] = true;
             capturedLevel[0] = level.name().toLowerCase();
             capturedMessage[0] = message;
             capturedDetails[0] = details;
         };
 
-        Logger logger = new Logger(new Logger.CreateLoggerOptions()
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions()
             .handler(customHandler)
             .level(FeaturevisorLogLevel.DEBUG));
 
         Map<String, Object> details = new HashMap<>();
         details.put("test", true);
 
-        logger.log(FeaturevisorLogLevel.INFO, "test message", details);
+        diagnostics.log(FeaturevisorLogLevel.INFO, "test message", details);
 
         assertTrue(handlerCalled[0]);
         assertEquals("info", capturedLevel[0]);
@@ -294,29 +294,29 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLogMethodWithLevelFiltering() {
+    public void testCustomEvaluatorSinkReceivesAllLevels() {
         final boolean[] handlerCalled = {false};
 
-        Logger.LogHandler customHandler = (level, message, details) -> {
+        DiagnosticReporter.DiagnosticOutputHandler customHandler = (level, message, details) -> {
             handlerCalled[0] = true;
         };
 
-        Logger logger = new Logger(new Logger.CreateLoggerOptions()
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions()
             .handler(customHandler)
             .level(FeaturevisorLogLevel.WARN));
 
-        logger.log(FeaturevisorLogLevel.DEBUG, "debug message", null);
+        diagnostics.log(FeaturevisorLogLevel.DEBUG, "debug message", null);
 
-        assertFalse(handlerCalled[0]);
+        assertTrue(handlerCalled[0]);
     }
 
         @Test
-    public void testDefaultLogHandler() {
-        // Test that default handler works through the logger
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+    public void testDefaultDiagnosticOutputHandler() {
+        // Test that default handler works through the diagnostics
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Test debug level
-        logger.debug("debug message");
+        diagnostics.debug("debug message");
         String output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
         assertTrue(output.contains("debug message"));
@@ -324,7 +324,7 @@ public class LoggerTest {
         outputStream.reset();
 
         // Test info level
-        logger.info("info message");
+        diagnostics.info("info message");
         output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
         assertTrue(output.contains("info message"));
@@ -332,7 +332,7 @@ public class LoggerTest {
         outputStream.reset();
 
         // Test warn level
-        logger.warn("warn message");
+        diagnostics.warn("warn message");
         output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
         assertTrue(output.contains("warn message"));
@@ -340,28 +340,28 @@ public class LoggerTest {
         outputStream.reset();
 
         // Test error level
-        logger.error("error message");
+        diagnostics.error("error message");
         output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
         assertTrue(output.contains("error message"));
     }
 
     @Test
-    public void testDefaultLogHandlerWithUndefinedDetails() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions());
-        logger.info("message without details");
+    public void testDefaultDiagnosticOutputHandlerWithUndefinedDetails() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions());
+        diagnostics.info("message without details");
         String output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
         assertTrue(output.contains("message without details"));
     }
 
     @Test
-    public void testDefaultLogHandlerWithProvidedDetails() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions());
+    public void testDefaultDiagnosticOutputHandlerWithProvidedDetails() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions());
         Map<String, Object> details = new HashMap<>();
         details.put("key", "value");
 
-        logger.info("message with details", details);
+        diagnostics.info("message with details", details);
         String output = outputStream.toString();
         assertTrue(output.contains("[Featurevisor]"));
         assertTrue(output.contains("message with details"));
@@ -378,15 +378,15 @@ public class LoggerTest {
     }
 
     @Test
-    public void testCreateLoggerOptionsBuilder() {
-        Logger.LogHandler handler = (level, message, details) -> {};
-        Logger.CreateLoggerOptions options = new Logger.CreateLoggerOptions()
+    public void testDiagnosticReporterOptionsBuilder() {
+        DiagnosticReporter.DiagnosticOutputHandler handler = (level, message, details) -> {};
+        DiagnosticReporter.DiagnosticReporterOptions options = new DiagnosticReporter.DiagnosticReporterOptions()
             .level(FeaturevisorLogLevel.DEBUG)
             .handler(handler);
 
         // Test that the builder pattern works correctly
-        Logger logger = new Logger(options);
-        assertNotNull(logger);
+        DiagnosticReporter diagnostics = new DiagnosticReporter(options);
+        assertNotNull(diagnostics);
     }
 
     @Test
@@ -399,22 +399,22 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerWithNullMessage() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+    public void testDiagnosticReporterWithNullMessage() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Should not throw exception with null message
         assertDoesNotThrow(() -> {
-            logger.info(null);
+            diagnostics.info(null);
         });
     }
 
     @Test
-    public void testLoggerWithEmptyMessage() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+    public void testDiagnosticReporterWithEmptyMessage() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Should handle empty message
         assertDoesNotThrow(() -> {
-            logger.info("");
+            diagnostics.info("");
         });
 
         String output = outputStream.toString();
@@ -422,12 +422,12 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerWithNullDetails() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+    public void testDiagnosticReporterWithNullDetails() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
         // Should handle null details
         assertDoesNotThrow(() -> {
-            logger.info("test message", null);
+            diagnostics.info("test message", null);
         });
 
         String output = outputStream.toString();
@@ -435,8 +435,8 @@ public class LoggerTest {
     }
 
     @Test
-    public void testLoggerWithComplexDetails() {
-        Logger logger = new Logger(new Logger.CreateLoggerOptions().level(FeaturevisorLogLevel.DEBUG));
+    public void testDiagnosticReporterWithComplexDetails() {
+        DiagnosticReporter diagnostics = new DiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions().level(FeaturevisorLogLevel.DEBUG));
 
         Map<String, Object> complexDetails = new HashMap<>();
         complexDetails.put("string", "value");
@@ -454,7 +454,7 @@ public class LoggerTest {
         complexDetails.put("nested", nested);
 
         assertDoesNotThrow(() -> {
-            logger.info("complex message", complexDetails);
+            diagnostics.info("complex message", complexDetails);
         });
 
         String output = outputStream.toString();

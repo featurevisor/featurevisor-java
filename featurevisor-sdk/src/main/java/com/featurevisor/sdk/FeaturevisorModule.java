@@ -10,8 +10,8 @@ public class FeaturevisorModule {
     private String name;
     private Consumer<FeaturevisorModuleApi> setup;
     private Function<EvaluateOptions, EvaluateOptions> before;
-    private ModulesManager.ConfigureBucketKey bucketKey;
-    private ModulesManager.ConfigureBucketValue bucketValue;
+    private ConfigureBucketKey bucketKey;
+    private ConfigureBucketValue bucketValue;
     private BiFunction<Evaluation, EvaluateOptions, Evaluation> after;
     private Runnable close;
 
@@ -23,16 +23,16 @@ public class FeaturevisorModule {
     public String getName() { return name; }
     public Consumer<FeaturevisorModuleApi> getSetup() { return setup; }
     public Function<EvaluateOptions, EvaluateOptions> getBefore() { return before; }
-    public ModulesManager.ConfigureBucketKey getBucketKey() { return bucketKey; }
-    public ModulesManager.ConfigureBucketValue getBucketValue() { return bucketValue; }
+    public ConfigureBucketKey getBucketKey() { return bucketKey; }
+    public ConfigureBucketValue getBucketValue() { return bucketValue; }
     public BiFunction<Evaluation, EvaluateOptions, Evaluation> getAfter() { return after; }
     public Runnable getClose() { return close; }
 
     public void setName(String name) { this.name = name; }
     public void setSetup(Consumer<FeaturevisorModuleApi> setup) { this.setup = setup; }
     public void setBefore(Function<EvaluateOptions, EvaluateOptions> before) { this.before = before; }
-    public void setBucketKey(ModulesManager.ConfigureBucketKey bucketKey) { this.bucketKey = bucketKey; }
-    public void setBucketValue(ModulesManager.ConfigureBucketValue bucketValue) { this.bucketValue = bucketValue; }
+    public void setBucketKey(ConfigureBucketKey bucketKey) { this.bucketKey = bucketKey; }
+    public void setBucketValue(ConfigureBucketValue bucketValue) { this.bucketValue = bucketValue; }
     public void setAfter(BiFunction<Evaluation, EvaluateOptions, Evaluation> after) { this.after = after; }
     public void setClose(Runnable close) { this.close = close; }
 
@@ -46,12 +46,12 @@ public class FeaturevisorModule {
         return this;
     }
 
-    public FeaturevisorModule bucketKey(ModulesManager.ConfigureBucketKey bucketKey) {
+    public FeaturevisorModule bucketKey(ConfigureBucketKey bucketKey) {
         this.bucketKey = bucketKey;
         return this;
     }
 
-    public FeaturevisorModule bucketValue(ModulesManager.ConfigureBucketValue bucketValue) {
+    public FeaturevisorModule bucketValue(ConfigureBucketValue bucketValue) {
         this.bucketValue = bucketValue;
         return this;
     }
