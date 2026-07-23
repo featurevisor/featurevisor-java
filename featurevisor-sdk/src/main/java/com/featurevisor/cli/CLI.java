@@ -33,7 +33,7 @@ import com.featurevisor.sdk.FeaturevisorModule;
 @Command(
     name = "featurevisor",
     mixinStandardHelpOptions = true,
-    version = "2.0.0",
+    version = "3.0.0",
     description = "Featurevisor Java Library CLI - Test runner, benchmark, and distribution assessment"
 )
 public class CLI implements Runnable {
