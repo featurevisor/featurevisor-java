@@ -117,7 +117,10 @@ To authenticate with GitHub Packages, in your `~/.m2/settings.xml` file, add the
 
 You can generate a new GitHub token with `read:packages` scope here: [https://github.com/settings/tokens](https://github.com/settings/tokens)
 
-See example application here: [https://github.com/featurevisor/featurevisor-example-java](https://github.com/featurevisor/featurevisor-example-java)
+Example applications:
+
+- [Java application](https://github.com/featurevisor/featurevisor-example-java)
+- [Kotlin Android application](https://github.com/featurevisor/featurevisor-example-android)
 
 ## Public API
 
