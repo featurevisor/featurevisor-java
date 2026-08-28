@@ -64,7 +64,7 @@ public class InstanceEvaluationDataProviderTest {
             assertNotNull(fixtureStream);
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode fixture = objectMapper.readTree(fixtureStream);
-            assertEquals(2, fixture.get("version").asInt());
+            assertEquals(5, fixture.get("version").asInt());
             for (JsonNode testCase : fixture.get("numericBucketKeys")) {
                 String bucketKey = Bucketer.getBucketKey(
                     new Bucketer.GetBucketKeyOptions()

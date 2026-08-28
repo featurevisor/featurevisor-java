@@ -29,6 +29,9 @@ public class DatafileContent {
     @JsonDeserialize(using = com.featurevisor.sdk.FeaturesDeserializer.class)
     private Map<String, Feature> features;
 
+    @JsonProperty("variables")
+    private Map<String, GlobalVariable> variables;
+
     // Constructors
     public DatafileContent() {}
 
@@ -81,6 +84,9 @@ public class DatafileContent {
             this.features = features;
         }
     }
+
+    public Map<String, GlobalVariable> getVariables() { return variables; }
+    public void setVariables(Map<String, GlobalVariable> variables) { this.variables = variables; }
 
     /**
      * Static method to parse JSON string into DatafileContent object

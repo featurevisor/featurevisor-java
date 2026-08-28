@@ -66,7 +66,7 @@ public class FeaturevisorTest {
         sdk.setContext(Map.of("country", "nl"), false);
 
         assertTrue(diagnostics.stream().anyMatch(diagnostic -> "datafile_set".equals(diagnostic.getCode())));
-        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "sticky_set".equals(diagnostic.getCode())));
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "sticky_features_set".equals(diagnostic.getCode())));
         assertTrue(diagnostics.stream().anyMatch(diagnostic -> "context_set".equals(diagnostic.getCode())));
     }
 

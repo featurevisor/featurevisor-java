@@ -3,6 +3,8 @@ package com.featurevisor.sdk;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class VariableOverride {
+    @JsonProperty("key") private String key;
+    @JsonProperty("keyPath") private java.util.List<String> keyPath;
     @JsonProperty("value")
     private Object value;
 
@@ -11,6 +13,7 @@ public class VariableOverride {
 
     @JsonProperty("segments")
     private Object segments; // Can be GroupSegment, List<GroupSegment>
+    @JsonProperty("requiredFeatures") private java.util.List<Object> requiredFeatures;
 
     // Constructors
     public VariableOverride() {}
@@ -43,4 +46,10 @@ public class VariableOverride {
     public void setSegments(Object segments) {
         this.segments = segments;
     }
+    public String getKey() { return key; }
+    public void setKey(String key) { this.key = key; }
+    public java.util.List<String> getKeyPath() { return keyPath; }
+    public void setKeyPath(java.util.List<String> keyPath) { this.keyPath = keyPath; }
+    public java.util.List<Object> getRequiredFeatures() { return requiredFeatures; }
+    public void setRequiredFeatures(java.util.List<Object> value) { this.requiredFeatures = value; }
 }

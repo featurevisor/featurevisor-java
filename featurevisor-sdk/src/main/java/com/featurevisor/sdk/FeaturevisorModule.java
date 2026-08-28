@@ -10,9 +10,11 @@ public class FeaturevisorModule {
     private String name;
     private Consumer<FeaturevisorModuleApi> setup;
     private Function<EvaluateOptions, EvaluateOptions> before;
+    private Function<EvaluateOptions, EvaluateOptions> beforeEvaluation;
     private ConfigureBucketKey bucketKey;
     private ConfigureBucketValue bucketValue;
     private BiFunction<Evaluation, EvaluateOptions, Evaluation> after;
+    private BiFunction<Evaluation, EvaluateOptions, Evaluation> afterEvaluation;
     private Runnable close;
 
     public FeaturevisorModule(String name) {
@@ -23,17 +25,21 @@ public class FeaturevisorModule {
     public String getName() { return name; }
     public Consumer<FeaturevisorModuleApi> getSetup() { return setup; }
     public Function<EvaluateOptions, EvaluateOptions> getBefore() { return before; }
+    public Function<EvaluateOptions, EvaluateOptions> getBeforeEvaluation() { return beforeEvaluation; }
     public ConfigureBucketKey getBucketKey() { return bucketKey; }
     public ConfigureBucketValue getBucketValue() { return bucketValue; }
     public BiFunction<Evaluation, EvaluateOptions, Evaluation> getAfter() { return after; }
+    public BiFunction<Evaluation, EvaluateOptions, Evaluation> getAfterEvaluation() { return afterEvaluation; }
     public Runnable getClose() { return close; }
 
     public void setName(String name) { this.name = name; }
     public void setSetup(Consumer<FeaturevisorModuleApi> setup) { this.setup = setup; }
     public void setBefore(Function<EvaluateOptions, EvaluateOptions> before) { this.before = before; }
+    public void setBeforeEvaluation(Function<EvaluateOptions, EvaluateOptions> value) { this.beforeEvaluation = value; }
     public void setBucketKey(ConfigureBucketKey bucketKey) { this.bucketKey = bucketKey; }
     public void setBucketValue(ConfigureBucketValue bucketValue) { this.bucketValue = bucketValue; }
     public void setAfter(BiFunction<Evaluation, EvaluateOptions, Evaluation> after) { this.after = after; }
+    public void setAfterEvaluation(BiFunction<Evaluation, EvaluateOptions, Evaluation> value) { this.afterEvaluation = value; }
     public void setClose(Runnable close) { this.close = close; }
 
     public FeaturevisorModule setup(Consumer<FeaturevisorModuleApi> setup) {
@@ -45,6 +51,7 @@ public class FeaturevisorModule {
         this.before = before;
         return this;
     }
+    public FeaturevisorModule beforeEvaluation(Function<EvaluateOptions, EvaluateOptions> value) { this.beforeEvaluation = value; return this; }
 
     public FeaturevisorModule bucketKey(ConfigureBucketKey bucketKey) {
         this.bucketKey = bucketKey;
@@ -60,6 +67,7 @@ public class FeaturevisorModule {
         this.after = after;
         return this;
     }
+    public FeaturevisorModule afterEvaluation(BiFunction<Evaluation, EvaluateOptions, Evaluation> value) { this.afterEvaluation = value; return this; }
 
     public FeaturevisorModule close(Runnable close) {
         this.close = close;

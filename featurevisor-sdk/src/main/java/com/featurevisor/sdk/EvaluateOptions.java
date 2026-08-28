@@ -12,6 +12,7 @@ public class EvaluateOptions {
     private String type;
     private String featureKey;
     private String variableKey;
+    private boolean globalVariable;
 
     // Dependencies
     private Map<String, Object> context;
@@ -20,7 +21,8 @@ public class EvaluateOptions {
     private InstanceEvaluationDataProvider evaluationData;
 
     // Override options
-    private Map<String, Object> sticky;
+    private Map<String, Object> stickyFeatures;
+    private Map<String, Object> stickyVariables;
     private String defaultVariationValue;
     private Object defaultVariableValue;
     private boolean defaultVariableValueSet;
@@ -43,11 +45,14 @@ public class EvaluateOptions {
     public String getType() { return type; }
     public String getFeatureKey() { return featureKey; }
     public String getVariableKey() { return variableKey; }
+    public boolean isGlobalVariable() { return globalVariable; }
     public Map<String, Object> getContext() { return context; }
     DiagnosticReporter getDiagnostics() { return diagnostics; }
     ModulesManager getModulesManager() { return modulesManager; }
     InstanceEvaluationDataProvider getInstanceEvaluationDataProvider() { return evaluationData; }
-    public Map<String, Object> getSticky() { return sticky; }
+    public Map<String, Object> getStickyFeatures() { return stickyFeatures; }
+    @Deprecated public Map<String, Object> getSticky() { return stickyFeatures; }
+    public Map<String, Object> getStickyVariables() { return stickyVariables; }
     public String getDefaultVariationValue() { return defaultVariationValue; }
     public Object getDefaultVariableValue() { return defaultVariableValue; }
     public boolean hasDefaultVariableValue() { return defaultVariableValueSet; }
@@ -56,11 +61,14 @@ public class EvaluateOptions {
     public void setType(String type) { this.type = type; }
     public void setFeatureKey(String featureKey) { this.featureKey = featureKey; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
+    public void setGlobalVariable(boolean value) { this.globalVariable = value; }
     public void setContext(Map<String, Object> context) { this.context = context; }
     void setDiagnostics(DiagnosticReporter diagnostics) { this.diagnostics = diagnostics; }
     void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
     void setInstanceEvaluationDataProvider(InstanceEvaluationDataProvider evaluationData) { this.evaluationData = evaluationData; }
-    public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
+    public void setStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
+    @Deprecated public void setSticky(Map<String, Object> value) { this.stickyFeatures = value; }
+    public void setStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
     public void setDefaultVariableValue(Object defaultVariableValue) {
         this.defaultVariableValue = defaultVariableValue;
@@ -103,10 +111,10 @@ public class EvaluateOptions {
         return this;
     }
 
-    public EvaluateOptions sticky(Map<String, Object> sticky) {
-        this.sticky = sticky;
-        return this;
-    }
+    public EvaluateOptions stickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; return this; }
+    @Deprecated public EvaluateOptions sticky(Map<String, Object> value) { return stickyFeatures(value); }
+    public EvaluateOptions stickyVariables(Map<String, Object> value) { this.stickyVariables = value; return this; }
+    public EvaluateOptions globalVariable(boolean value) { this.globalVariable = value; return this; }
 
     public EvaluateOptions defaultVariationValue(String defaultVariationValue) {
         this.defaultVariationValue = defaultVariationValue;
@@ -138,7 +146,9 @@ public class EvaluateOptions {
         copy.diagnostics = this.diagnostics;
         copy.modulesManager = this.modulesManager;
         copy.evaluationData = this.evaluationData;
-        copy.sticky = this.sticky;
+        copy.stickyFeatures = this.stickyFeatures;
+        copy.stickyVariables = this.stickyVariables;
+        copy.globalVariable = this.globalVariable;
         copy.defaultVariationValue = this.defaultVariationValue;
         copy.defaultVariableValue = this.defaultVariableValue;
         copy.defaultVariableValueSet = this.defaultVariableValueSet;
@@ -166,7 +176,8 @@ public class EvaluateOptions {
                 ", diagnostics=" + diagnostics +
                 ", modulesManager=" + modulesManager +
                 ", evaluationData=" + evaluationData +
-                ", sticky=" + sticky +
+                ", stickyFeatures=" + stickyFeatures +
+                ", stickyVariables=" + stickyVariables +
                 ", defaultVariationValue=" + defaultVariationValue +
                 ", defaultVariableValue=" + defaultVariableValue +
                 '}';

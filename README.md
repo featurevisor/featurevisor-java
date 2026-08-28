@@ -22,10 +22,9 @@ This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles
 - [Getting variation](#getting-variation)
 - [Getting variables](#getting-variables)
   - [Type specific methods](#type-specific-methods)
-- [Getting all evaluations](#getting-all-evaluations)
-- [Sticky](#sticky)
-  - [Initialize with sticky](#initialize-with-sticky)
-  - [Set sticky afterwards](#set-sticky-afterwards)
+- [Getting global variables](#getting-global-variables)
+- [Getting aggregate evaluations](#getting-aggregate-evaluations)
+- [Sticky features and variables](#sticky-features-and-variables)
 - [Setting datafile](#setting-datafile)
   - [Merging by default](#merging-by-default)
   - [Replacing](#replacing)
@@ -38,7 +37,8 @@ This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles
 - [Events](#events)
   - [`datafile_set`](#datafile_set)
   - [`context_set`](#context_set)
-  - [`sticky_set`](#sticky_set)
+  - [`sticky_features_set`](#sticky_features_set)
+  - [`sticky_variables_set`](#sticky_variables_set)
   - [`error`](#error)
 - [Evaluation details](#evaluation-details)
 - [Modules](#modules)
@@ -86,7 +86,7 @@ Add the Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>3.0.0</version>
+        <version>4.0.0</version>
     </dependency>
 </dependencies>
 ```
@@ -136,7 +136,7 @@ Featurevisor f = Featurevisor.createFeaturevisor(
 
 Most applications only need `Featurevisor.createFeaturevisor`, the `Featurevisor` instance type, and `Featurevisor.FeaturevisorOptions`. Public extension and observability types include `FeaturevisorModule`, `FeaturevisorDiagnostic`, and the datafile model types.
 
-Concurrent evaluations are safe after an instance is configured. Do not call state-changing methods such as `setDatafile`, `setContext`, `setSticky`, `addModule`, `removeModule`, or `close` concurrently with evaluations or with each other. Apply those changes from a serialized update path. Module, event, and diagnostic callbacks must synchronize mutable state that they capture.
+Concurrent evaluations are safe after an instance is configured. Do not call state changing methods such as `setDatafile`, `setContext`, `setStickyFeatures`, `setStickyVariables`, `addModule`, `removeModule`, or `close` concurrently with evaluations or with each other. Apply those changes from a serialized update path. Module, event, and diagnostic callbacks must synchronize mutable state that they capture.
 
 ## Initialization
 
@@ -167,11 +167,12 @@ We will learn about several different options in the next sections.
 
 ## Evaluation types
 
-We can evaluate 3 types of values against a particular [feature](https://featurevisor.com/docs/features/):
+We can evaluate flags, variations, variables inside features, and [global variables](https://featurevisor.com/docs/defining-variables/):
 
 - [**Flag**](#check-if-enabled) (`boolean`): whether the feature is enabled or not
 - [**Variation**](#getting-variation) (`Object`): the variation of the feature (if any)
 - [**Variables**](#getting-variables): variable values of the feature (if any)
+- [**Global variables**](#getting-global-variables): reusable values that are not owned by a feature
 
 These evaluations are run against the provided context.
 
@@ -384,7 +385,21 @@ If a variable schema type is `json` and the resolved value is a malformed string
 - `getVariableJSONNode(...)`
 - `getVariableJSON(...)`
 
-## Getting all evaluations
+## Getting global variables
+
+Global variables use the same overloaded methods as variables inside features. A call with one key evaluates a global variable, while a call with a feature key and variable key evaluates a variable owned by that feature:
+
+```java
+String message = f.getVariableString("welcomeMessage", context, null);
+Object value = f.getVariable("checkoutSettings", context);
+Evaluation evaluation = f.evaluateVariable("checkoutSettings", context);
+```
+
+The type specific methods are `getVariableBoolean`, `getVariableString`, `getVariableInteger`, `getVariableDouble`, `getVariableArray`, `getVariableObject`, and `getVariableJSON`.
+
+Global variables resolve sticky values first, then required features, then the first matching override, and finally their default value. If required features are unmet, `disabledValue` is used unless `useDefaultWhenDisabled` is enabled. Caller defaults are only used when the evaluation itself has no value.
+
+## Getting aggregate evaluations
 
 You can get evaluations of all features available in the SDK instance:
 
@@ -392,7 +407,7 @@ You can get evaluations of all features available in the SDK instance:
 import com.featurevisor.sdk.EvaluatedFeatures;
 import com.featurevisor.sdk.EvaluatedFeature;
 
-EvaluatedFeatures allEvaluations = f.getAllEvaluations(context);
+EvaluatedFeatures allEvaluations = f.getFeatureEvaluations(context);
 
 // Access the evaluations map
 Map<String, EvaluatedFeature> evaluations = allEvaluations.getValue();
@@ -416,13 +431,17 @@ System.out.println(evaluations);
 
 This is handy especially when you want to pass all evaluations from a backend application to the frontend.
 
-## Sticky
+Global variables can be evaluated together as well:
+
+```java
+Map<String, Object> variables = f.getVariableEvaluations(context, null, null);
+```
+
+## Sticky features and variables
 
 For the lifecycle of the SDK instance in your application, you can set some features with sticky values, meaning that they will not be evaluated against the fetched [datafile](https://featurevisor.com/docs/building-datafiles/):
 
-Sticky values belong to an SDK or child instance. Evaluation options do not accept sticky overrides; use `new Featurevisor.SpawnOptions().sticky(...)` when a child needs its own sticky state.
-
-### Initialize with sticky
+Sticky values belong to an SDK or child instance. Feature sticky values and global variable sticky values are independent.
 
 ```java
 Map<String, Object> stickyFeatures = new HashMap<>();
@@ -443,12 +462,11 @@ stickyFeatures.put("anotherFeatureKey", anotherFeatureSticky);
 
 Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
     .datafile(datafile)
-    .sticky(stickyFeatures));
+    .stickyFeatures(stickyFeatures)
+    .stickyVariables(Map.of("welcomeMessage", "Hello")));
 ```
 
 Once initialized with sticky features, the SDK will look for values there first before evaluating the targeting conditions and going through the bucketing process.
-
-### Set sticky afterwards
 
 You can also set sticky features after the SDK is initialized:
 
@@ -456,7 +474,8 @@ You can also set sticky features after the SDK is initialized:
 Map<String, Object> stickyFeatures = new HashMap<>();
 // ... build sticky features map
 
-f.setSticky(stickyFeatures, true); // replace existing sticky features
+f.setStickyFeatures(stickyFeatures, true); // replace existing sticky features
+f.setStickyVariables(Map.of("welcomeMessage", "Welcome back"), true);
 ```
 
 ## Setting datafile
@@ -469,7 +488,7 @@ f.setDatafile(datafileContent);
 
 ### Merging by default
 
-By default, `setDatafile(datafile)` merges the incoming datafile with the SDK's stored datafile. Incoming top-level metadata is used, and incoming segments/features override existing segments/features with the same keys.
+By default, `setDatafile(datafile)` merges the incoming datafile with the SDK's stored datafile. Incoming top level metadata is used, and incoming segments, features, and global variables override existing entities with the same keys.
 
 This means you can call `setDatafile` more than once with different datafiles, and the SDK instance accumulates their features and segments together. This is what makes [loading datafiles on demand](#loading-datafiles-on-demand) possible.
 
@@ -587,6 +606,9 @@ FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.DATAFILE_SET, (
     @SuppressWarnings("unchecked")
     List<String> features = (List<String>) event.get("features");
 
+    @SuppressWarnings("unchecked")
+    List<String> variables = (List<String>) event.get("variables");
+
     // handle here
 });
 
@@ -594,7 +616,7 @@ FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.DATAFILE_SET, (
 unsubscribe.unsubscribe();
 ```
 
-The `features` array will contain keys of features that have either been:
+The `features` and `variables` arrays contain directly changed entities and entities affected through segment or required feature dependencies.
 
 - added, or
 - updated, or
@@ -614,15 +636,24 @@ FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.CONTEXT_SET, (e
 });
 ```
 
-### `sticky_set`
+### `sticky_features_set`
 
 ```java
-FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.STICKY_SET, (event) -> {
+FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.STICKY_FEATURES_SET, (event) -> {
     Boolean replaced = (Boolean) event.get("replaced"); // true if sticky features got replaced
     @SuppressWarnings("unchecked")
     List<String> features = (List<String>) event.get("features"); // list of all affected feature keys
 
     System.out.println("Sticky features set");
+});
+```
+
+### `sticky_variables_set`
+
+```java
+FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.STICKY_VARIABLES_SET, (event) -> {
+    @SuppressWarnings("unchecked")
+    List<String> variables = (List<String>) event.get("variables");
 });
 ```
 
@@ -650,6 +681,9 @@ Evaluation evaluation = f.evaluateVariation(featureKey, context);
 
 // variable
 Evaluation evaluation = f.evaluateVariable(featureKey, variableKey, context);
+
+// global variable
+Evaluation evaluation = f.evaluateVariable(variableKey, context);
 ```
 
 The returned `Evaluation` exposes the following properties:
@@ -692,6 +726,9 @@ FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
         return options.copy().context(context);
     })
 
+    // before any feature or global variable evaluation
+    .beforeEvaluation(options -> options)
+
     // configure bucket key
     .bucketKey(options -> {
         String bucketKey = options.getBucketKey();
@@ -706,6 +743,9 @@ FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
 
     // after evaluation
     .after((evaluation, options) -> evaluation)
+
+    // after any feature or global variable evaluation
+    .afterEvaluation((evaluation, options) -> evaluation)
 
     // called by f.close()
     .close(() -> {
@@ -780,7 +820,8 @@ String variableValue = childF.getVariableString("my_feature", "my_variable");
 Similar to parent SDK, child instances also support several additional methods:
 
 - `setContext`
-- `setSticky`
+- `setStickyFeatures`
+- `setStickyVariables`
 - `evaluateFlag`
 - `isEnabled`
 - `evaluateVariation`
@@ -795,7 +836,8 @@ Similar to parent SDK, child instances also support several additional methods:
 - `getVariableObject`
 - `getVariableJSON`
 - `getVariableJSONNode`
-- `getAllEvaluations`
+- `getFeatureEvaluations`
+- `getVariableEvaluations`
 - `on`
 - `close`
 
@@ -880,9 +922,9 @@ var client = api.getClient();
 boolean enabled = client.getBooleanValue("checkout", false, new ImmutableContext("user-123"));
 ```
 
-Use `checkout` for a flag, `checkout:variation` for its variation, and `checkout:title` for its `title` variable. Boolean variables use the boolean resolver. Lists, structures, and JSON variables use the object resolver.
+Use `checkout` for a flag, `checkout:variation` for its variation, `checkout:title` for its `title` variable, and `variable:welcomeMessage` for a global variable. Boolean variables use the boolean resolver. Lists, structures, and JSON variables use the object resolver.
 
-OpenFeature's targeting key maps to `userId` by default. `targetingKeyField`, `keySeparator`, and `variationKey` on `FeaturevisorOpenFeatureProvider.Options` can customize the mapping.
+OpenFeature's targeting key maps to `userId` by default. `targetingKeyField`, `keySeparator`, `variationKey`, and `globalVariablePrefix` on `FeaturevisorOpenFeatureProvider.Options` can customize the mapping. The global variable prefix defaults to `variable` and cannot contain the configured separator.
 
 You can also reuse an existing Featurevisor instance:
 
@@ -927,7 +969,7 @@ $ make verify-artifacts
 ### Releasing
 
 1. Merge the release changes into `main`.
-2. Tag the release with a `v` prefix, such as `v3.0.0`, and push the tag.
+2. Tag the release with a `v` prefix, such as `v4.0.0`, and push the tag.
 3. GitHub Actions verifies and publishes the parent POM, Java SDK, and OpenFeature provider to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java).
 4. Create the corresponding [GitHub release](https://github.com/featurevisor/featurevisor-java/releases).
 
