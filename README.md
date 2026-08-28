@@ -167,7 +167,7 @@ We will learn about several different options in the next sections.
 
 ## Evaluation types
 
-We can evaluate flags, variations, variables inside features, and [global variables](https://featurevisor.com/docs/defining-variables/):
+We can evaluate flags, variations, variables inside features, and [global variables](https://featurevisor.com/docs/global-variables/):
 
 - [**Flag**](#check-if-enabled) (`boolean`): whether the feature is enabled or not
 - [**Variation**](#getting-variation) (`Object`): the variation of the feature (if any)
