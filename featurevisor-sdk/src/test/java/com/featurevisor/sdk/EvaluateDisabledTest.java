@@ -197,8 +197,6 @@ public class EvaluateDisabledTest {
         variableSchema.setType(VariableType.STRING);
         variableSchema.setDefaultValue("default-value");
         variableSchema.setUseDefaultWhenDisabled(true);
-        variableSchema.setDisabledValue(null); // Explicitly set to null to test useDefaultWhenDisabled
-
         Map<String, VariableSchema> variablesSchema = new HashMap<>();
         variablesSchema.put("test-variable", variableSchema);
         testFeature.setVariablesSchema(variablesSchema);

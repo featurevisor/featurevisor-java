@@ -434,16 +434,16 @@ final class EvaluateByBucketing {
 
                 // default value
                 if (variableSchema != null) {
-                    Object variableValue = variableSchema.getDefaultValue();
-
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                         .reason(Evaluation.REASON_VARIABLE_DEFAULT)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic.getKey())
                         .traffic(convertTrafficToMap(matchedTraffic))
-                        .variableValue(variableValue)
                         .variableSchema(variableSchema);
+                    if (variableSchema.hasDefaultValue()) {
+                        evaluation.variableValue(variableSchema.getDefaultValue());
+                    }
 
                     Map<String, Object> details = new HashMap<>();
                     details.put("featureKey", featureKey);
@@ -478,15 +478,18 @@ final class EvaluateByBucketing {
         }
 
         if (Evaluation.TYPE_VARIABLE.equals(type) && variableSchema != null) {
-            result.setEvaluation(new Evaluation()
+            Evaluation variableDefaultEvaluation = new Evaluation()
                 .type(type)
                 .featureKey(featureKey)
                 .reason(Evaluation.REASON_VARIABLE_DEFAULT)
                 .bucketKey(bucketKey)
                 .bucketValue(bucketValue)
                 .variableKey(variableKey)
-                .variableValue(variableSchema.getDefaultValue())
-                .variableSchema(variableSchema));
+                .variableSchema(variableSchema);
+            if (variableSchema.hasDefaultValue()) {
+                variableDefaultEvaluation.variableValue(variableSchema.getDefaultValue());
+            }
+            result.setEvaluation(variableDefaultEvaluation);
             return result;
         }
 

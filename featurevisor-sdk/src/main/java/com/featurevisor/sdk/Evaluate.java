@@ -41,7 +41,7 @@ final class Evaluate {
             // default: variable
             if (options.hasDefaultVariableValue() &&
                 Evaluation.TYPE_VARIABLE.equals(evaluation.getType()) &&
-                evaluation.getVariableValue() == null) {
+                !evaluation.hasVariableValue()) {
                 evaluation.variableValue(options.getDefaultVariableValue());
             }
 
@@ -156,15 +156,18 @@ final class Evaluate {
                 variableSchema = feature.getVariablesSchema().get(variableKey);
             }
             if (Evaluation.TYPE_VARIABLE.equals(type) && variableSchema != null) {
-                return new Evaluation()
+                Evaluation variableDefaultEvaluation = new Evaluation()
                     .type(type)
                     .featureKey(featureKey)
                     .reason(Evaluation.REASON_VARIABLE_DEFAULT)
                     .bucketKey(bucketKey)
                     .bucketValue(bucketValue)
                     .variableKey(variableKey)
-                    .variableValue(variableSchema.getDefaultValue())
                     .variableSchema(variableSchema);
+                if (variableSchema.hasDefaultValue()) {
+                    variableDefaultEvaluation.variableValue(variableSchema.getDefaultValue());
+                }
+                return variableDefaultEvaluation;
             }
 
             // nothing matched
@@ -250,10 +253,14 @@ final class Evaluate {
             return new Evaluation(Evaluation.TYPE_VARIABLE, null, key).reason(Evaluation.REASON_VARIABLE_NOT_FOUND);
         }
         if (!requiredFeaturesAreMatched(variable.getRequiredFeatures(), options)) {
-            Object value = Boolean.TRUE.equals(variable.getUseDefaultWhenDisabled()) ? variable.getDefaultValue() : variable.getDisabledValue();
-            return new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
+            boolean useDefault = Boolean.TRUE.equals(variable.getUseDefaultWhenDisabled());
+            Evaluation evaluation = new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
                 .reason(Evaluation.REASON_REQUIRED_FEATURES_UNMET).variable(variable)
-                .requiredFeatures(variable.getRequiredFeatures()).variableValue(value);
+                .requiredFeatures(variable.getRequiredFeatures());
+            if (useDefault ? variable.hasDefaultValue() : variable.hasDisabledValue()) {
+                evaluation.variableValue(useDefault ? variable.getDefaultValue() : variable.getDisabledValue());
+            }
+            return evaluation;
         }
         if (variable.getOverrides() != null) {
             for (int index = 0; index < variable.getOverrides().size(); index++) {
@@ -266,8 +273,10 @@ final class Evaluate {
                 }
             }
         }
-        return new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
-            .reason(Evaluation.REASON_VARIABLE_DEFAULT).variable(variable).variableValue(variable.getDefaultValue());
+        Evaluation evaluation = new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
+            .reason(Evaluation.REASON_VARIABLE_DEFAULT).variable(variable);
+        if (variable.hasDefaultValue()) evaluation.variableValue(variable.getDefaultValue());
+        return evaluation;
     }
 
     /**

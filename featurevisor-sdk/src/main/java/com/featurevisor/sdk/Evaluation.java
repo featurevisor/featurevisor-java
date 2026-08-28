@@ -64,6 +64,7 @@ public class Evaluation {
     // Variable fields
     private String variableKey;
     private Object variableValue;
+    private boolean variableValueSet;
     private VariableSchema variableSchema;
     private GlobalVariable variable;
     private Integer variableOverrideIndex;
@@ -103,6 +104,7 @@ public class Evaluation {
     public String getVariationValue() { return variationValue; }
     public String getVariableKey() { return variableKey; }
     public Object getVariableValue() { return variableValue; }
+    public boolean hasVariableValue() { return variableValueSet; }
     public VariableSchema getVariableSchema() { return variableSchema; }
     public GlobalVariable getVariable() { return variable; }
     public Integer getVariableOverrideIndex() { return variableOverrideIndex; }
@@ -130,7 +132,7 @@ public class Evaluation {
     public void setVariation(Variation variation) { this.variation = variation; }
     public void setVariationValue(String variationValue) { this.variationValue = variationValue; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
-    public void setVariableValue(Object variableValue) { this.variableValue = variableValue; }
+    public void setVariableValue(Object variableValue) { this.variableValue = variableValue; this.variableValueSet = true; }
     public void setVariableSchema(VariableSchema variableSchema) { this.variableSchema = variableSchema; }
     public void setVariable(GlobalVariable variable) { this.variable = variable; }
     public void setVariableOverrideIndex(Integer variableOverrideIndex) { this.variableOverrideIndex = variableOverrideIndex; }
@@ -224,6 +226,7 @@ public class Evaluation {
 
     public Evaluation variableValue(Object variableValue) {
         this.variableValue = variableValue;
+        this.variableValueSet = true;
         return this;
     }
 
@@ -276,6 +279,7 @@ public class Evaluation {
         copy.variationValue = this.variationValue;
         copy.variableKey = this.variableKey;
         copy.variableValue = this.variableValue;
+        copy.variableValueSet = this.variableValueSet;
         copy.variableSchema = this.variableSchema;
         copy.variable = this.variable;
         copy.variableOverrideIndex = this.variableOverrideIndex;

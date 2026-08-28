@@ -365,10 +365,10 @@ public class CLI implements Runnable {
         // Update the SDK instance context and sticky values for this assertion
         if (f instanceof Featurevisor) {
             ((Featurevisor) f).setContext(context, true);
-            ((Featurevisor) f).setSticky(sticky, true);
+            ((Featurevisor) f).setStickyFeatures(sticky, true);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             ((com.featurevisor.sdk.ChildInstance) f).setContext(context, true);
-            ((com.featurevisor.sdk.ChildInstance) f).setSticky(sticky, true);
+            ((com.featurevisor.sdk.ChildInstance) f).setStickyFeatures(sticky, true);
         }
 
         boolean hasError = false;

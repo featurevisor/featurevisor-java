@@ -33,7 +33,7 @@ class GlobalVariablesConformanceTest {
 
     @Test void evaluatesGlobalVariablesAndRequiredFeaturesFromSharedFixture() throws Exception {
         JsonNode root = fixture();
-        assertEquals(5, root.get("version").asInt());
+        assertEquals(6, root.get("version").asInt());
 
         JsonNode global = root.get("globalVariables");
         Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
@@ -129,5 +129,80 @@ class GlobalVariablesConformanceTest {
             assertSameKeys(dependencyDetails[0].get("features"), dependency.get("expectedChangedFeatures"));
             assertSameKeys(dependencyDetails[0].get("variables"), dependency.get("expectedChangedVariables"));
         }
+    }
+
+    @Test void explicitNullVariableValueBeatsCallerDefault() throws Exception {
+        DatafileContent datafile = objectMapper.readValue("""
+            {
+              "schemaVersion": "2",
+              "revision": "null-default",
+              "segments": {},
+              "features": {
+                "feature": {
+                  "key": "feature",
+                  "bucketBy": "userId",
+                  "variablesSchema": {
+                    "nullable": {
+                      "type": "json",
+                      "defaultValue": null,
+                      "useDefaultWhenDisabled": true
+                    }
+                  },
+                  "traffic": []
+                },
+                "allocatedFeature": {
+                  "key": "allocatedFeature",
+                  "bucketBy": "userId",
+                  "variablesSchema": {
+                    "nullable": {
+                      "type": "json",
+                      "defaultValue": null
+                    },
+                    "missing": {
+                      "type": "json"
+                    }
+                  },
+                  "traffic": [{
+                    "key": "all",
+                    "segments": "*",
+                    "percentage": 100000
+                  }]
+                }
+              },
+              "variables": {
+                "nullable": {
+                  "type": "json",
+                  "defaultValue": null
+                }
+              }
+            }
+            """, DatafileContent.class);
+        assertTrue(datafile.getVariables().get("nullable").hasDefaultValue());
+        assertTrue(datafile.getFeatures().get("feature").getVariablesSchema().get("nullable").hasDefaultValue());
+        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .datafile(datafile)
+            .logLevel(FeaturevisorLogLevel.FATAL));
+        Featurevisor.OverrideOptions options = new Featurevisor.OverrideOptions();
+        options.setDefaultVariableValue(Map.of("fallback", true));
+
+        Evaluation evaluation = f.evaluateVariable("nullable", Collections.emptyMap(), options);
+
+        assertTrue(evaluation.hasVariableValue());
+        assertNull(evaluation.getVariableValue());
+        assertEquals(Evaluation.REASON_VARIABLE_DEFAULT, evaluation.getReason());
+
+        Evaluation featureEvaluation = f.evaluateVariable("feature", "nullable", Collections.emptyMap(), options);
+        assertTrue(featureEvaluation.hasVariableValue());
+        assertNull(featureEvaluation.getVariableValue());
+        assertEquals(Evaluation.REASON_VARIABLE_DEFAULT, featureEvaluation.getReason());
+
+        Map<String, Object> context = Map.of("userId", "user");
+        Evaluation allocatedNull = f.evaluateVariable("allocatedFeature", "nullable", context, options);
+        assertTrue(allocatedNull.hasVariableValue());
+        assertNull(allocatedNull.getVariableValue());
+
+        Evaluation allocatedMissing = f.evaluateVariable("allocatedFeature", "missing", context, options);
+        assertTrue(allocatedMissing.hasVariableValue());
+        assertEquals(Map.of("fallback", true), allocatedMissing.getVariableValue());
     }
 }

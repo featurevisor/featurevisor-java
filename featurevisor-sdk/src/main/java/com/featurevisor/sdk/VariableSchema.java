@@ -2,6 +2,8 @@ package com.featurevisor.sdk;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import java.util.List;
 import java.util.Map;
 
@@ -16,8 +18,8 @@ public class VariableSchema {
     @JsonProperty("type")
     private VariableType type;
 
-    @JsonProperty("defaultValue")
     private Object defaultValue;
+    private boolean defaultValueSet;
 
     @JsonProperty("description")
     private String description;
@@ -25,8 +27,8 @@ public class VariableSchema {
     @JsonProperty("useDefaultWhenDisabled")
     private Boolean useDefaultWhenDisabled;
 
-    @JsonProperty("disabledValue")
     private Object disabledValue;
+    private boolean disabledValueSet;
 
     @JsonProperty("schema")
     private String schema;
@@ -82,6 +84,7 @@ public class VariableSchema {
     public VariableSchema(VariableType type, Object defaultValue) {
         this.type = type;
         this.defaultValue = defaultValue;
+        this.defaultValueSet = true;
     }
 
     // Getters and Setters
@@ -113,9 +116,13 @@ public class VariableSchema {
         return defaultValue;
     }
 
+    @JsonSetter(value = "defaultValue", nulls = Nulls.SET)
     public void setDefaultValue(Object defaultValue) {
         this.defaultValue = defaultValue;
+        this.defaultValueSet = true;
     }
+
+    public boolean hasDefaultValue() { return defaultValueSet; }
 
     public String getDescription() {
         return description;
@@ -137,9 +144,13 @@ public class VariableSchema {
         return disabledValue;
     }
 
+    @JsonSetter(value = "disabledValue", nulls = Nulls.SET)
     public void setDisabledValue(Object disabledValue) {
         this.disabledValue = disabledValue;
+        this.disabledValueSet = true;
     }
+
+    public boolean hasDisabledValue() { return disabledValueSet; }
 
     public String getSchema() {
         return schema;

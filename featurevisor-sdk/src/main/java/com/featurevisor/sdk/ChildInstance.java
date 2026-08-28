@@ -112,7 +112,7 @@ public class ChildInstance {
             this.sticky.putAll(sticky);
         }
 
-        FeaturevisorEventDetails params = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails params = Events.getParamsForStickyFeaturesSetEvent(
             previousStickyFeatures, this.sticky, replace);
 
         this.emitter.trigger(FeaturevisorEventName.STICKY_FEATURES_SET, params);
@@ -126,8 +126,6 @@ public class ChildInstance {
         this.emitter.trigger(FeaturevisorEventName.STICKY_VARIABLES_SET, Events.getParamsForStickyVariablesSetEvent(previous, this.stickyVariables, replace));
     }
     public void setStickyVariables(Map<String, Object> sticky) { setStickyVariables(sticky, false); }
-    @Deprecated public void setSticky(Map<String, Object> sticky, boolean replace) { setStickyFeatures(sticky, replace); }
-    @Deprecated public void setSticky(Map<String, Object> sticky) { setStickyFeatures(sticky, false); }
 
     /**
      * Flag
@@ -542,7 +540,6 @@ public class ChildInstance {
     }
     public Map<String, Object> getVariableEvaluations(Map<String, Object> context, List<String> keys, Featurevisor.OverrideOptions options) { return parent.getVariableEvaluations(mergeContexts(this.context, context), keys, mergeOverrideOptions(options)); }
     public Map<String, Object> getVariableEvaluations() { return getVariableEvaluations(null, null, null); }
-    @Deprecated public EvaluatedFeatures getAllEvaluations() { return getFeatureEvaluations(); }
 
     /**
      * Helper methods

@@ -51,7 +51,6 @@ public class EvaluateOptions {
     ModulesManager getModulesManager() { return modulesManager; }
     InstanceEvaluationDataProvider getInstanceEvaluationDataProvider() { return evaluationData; }
     public Map<String, Object> getStickyFeatures() { return stickyFeatures; }
-    @Deprecated public Map<String, Object> getSticky() { return stickyFeatures; }
     public Map<String, Object> getStickyVariables() { return stickyVariables; }
     public String getDefaultVariationValue() { return defaultVariationValue; }
     public Object getDefaultVariableValue() { return defaultVariableValue; }
@@ -67,7 +66,6 @@ public class EvaluateOptions {
     void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
     void setInstanceEvaluationDataProvider(InstanceEvaluationDataProvider evaluationData) { this.evaluationData = evaluationData; }
     public void setStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
-    @Deprecated public void setSticky(Map<String, Object> value) { this.stickyFeatures = value; }
     public void setStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
     public void setDefaultVariableValue(Object defaultVariableValue) {
@@ -112,7 +110,6 @@ public class EvaluateOptions {
     }
 
     public EvaluateOptions stickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; return this; }
-    @Deprecated public EvaluateOptions sticky(Map<String, Object> value) { return stickyFeatures(value); }
     public EvaluateOptions stickyVariables(Map<String, Object> value) { this.stickyVariables = value; return this; }
     public EvaluateOptions globalVariable(boolean value) { this.globalVariable = value; return this; }
 

@@ -115,10 +115,12 @@ final class EvaluateForced {
             // @NOTE: this implementation here deviated from PHP implementation. in PHP, it was partially delegated to EvaluateByBucketing
             if (variableKey != null) {
                 Object variableValue = null;
+                boolean variableValueSet = false;
 
                 // First check if force has direct variables
                 if (force.getVariables() != null && force.getVariables().containsKey(variableKey)) {
                     variableValue = force.getVariables().get(variableKey);
+                    variableValueSet = true;
                 }
                 // If no direct variable, check if force has a variation with variable overrides
                 else if (force.getVariation() != null && feature.getVariations() != null) {
@@ -135,6 +137,7 @@ final class EvaluateForced {
                         // Get base variable value from variation
                         if (forcedVariation.getVariables() != null && forcedVariation.getVariables().containsKey(variableKey)) {
                             variableValue = forcedVariation.getVariables().get(variableKey);
+                            variableValueSet = true;
                         }
 
                         // Apply variable overrides if they exist
@@ -160,6 +163,7 @@ final class EvaluateForced {
 
                                 if (matches) {
                                     variableValue = override.getValue();
+                                    variableValueSet = true;
                                     break; // Use the first matching override
                                 }
                             }
@@ -167,7 +171,7 @@ final class EvaluateForced {
                     }
                 }
 
-                if (variableValue != null) {
+                if (variableValueSet) {
                     Evaluation evaluation = new Evaluation()
                         .type(type)
                         .featureKey(featureKey)

@@ -81,7 +81,6 @@ public class Featurevisor {
         public FeaturevisorLogLevel getLogLevel() { return logLevel; }
         public Map<String, Object> getStickyFeatures() { return stickyFeatures; }
         public Map<String, Object> getStickyVariables() { return stickyVariables; }
-        @Deprecated public Map<String, Object> getSticky() { return stickyFeatures; }
         public List<FeaturevisorModule> getModules() { return modules; }
         public FeaturevisorDiagnosticHandler getOnDiagnostic() { return onDiagnostic; }
 
@@ -92,7 +91,6 @@ public class Featurevisor {
         public void setLogLevel(FeaturevisorLogLevel logLevel) { this.logLevel = logLevel; }
         public void setStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
         public void setStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
-        @Deprecated public void setSticky(Map<String, Object> value) { this.stickyFeatures = value; }
         public void setModules(List<FeaturevisorModule> modules) { this.modules = modules; }
         public void setOnDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) { this.onDiagnostic = onDiagnostic; }
 
@@ -119,7 +117,6 @@ public class Featurevisor {
 
         public FeaturevisorOptions stickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; return this; }
         public FeaturevisorOptions stickyVariables(Map<String, Object> value) { this.stickyVariables = value; return this; }
-        @Deprecated public FeaturevisorOptions sticky(Map<String, Object> value) { return stickyFeatures(value); }
 
         public FeaturevisorOptions modules(List<FeaturevisorModule> modules) {
             this.modules = modules;
@@ -518,7 +515,7 @@ public class Featurevisor {
             this.stickyFeatures.putAll(sticky);
         }
 
-        FeaturevisorEventDetails params = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails params = Events.getParamsForStickyFeaturesSetEvent(
             previousStickyFeatures, this.stickyFeatures, replace);
 
         reportDiagnostic(new FeaturevisorDiagnostic()
@@ -538,8 +535,6 @@ public class Featurevisor {
         this.emitter.trigger(FeaturevisorEventName.STICKY_VARIABLES_SET, params);
     }
     public void setStickyVariables(Map<String, Object> sticky) { setStickyVariables(sticky, false); }
-    @Deprecated public void setSticky(Map<String, Object> sticky, boolean replace) { setStickyFeatures(sticky, replace); }
-    @Deprecated public void setSticky(Map<String, Object> sticky) { setStickyFeatures(sticky, false); }
 
     /**
      * Get revision
@@ -1187,8 +1182,4 @@ public class Featurevisor {
         return result;
     }
     public Map<String, Object> getVariableEvaluations() { return getVariableEvaluations(null, null, null); }
-    @Deprecated public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> keys, OverrideOptions options) { return getFeatureEvaluations(context, keys, options); }
-    @Deprecated public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> keys) { return getFeatureEvaluations(context, keys, null); }
-    @Deprecated public EvaluatedFeatures getAllEvaluations(Map<String, Object> context) { return getFeatureEvaluations(context, null, null); }
-    @Deprecated public EvaluatedFeatures getAllEvaluations() { return getFeatureEvaluations(); }
 }

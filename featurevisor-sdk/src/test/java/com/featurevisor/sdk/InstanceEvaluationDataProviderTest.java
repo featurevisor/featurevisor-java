@@ -64,7 +64,7 @@ public class InstanceEvaluationDataProviderTest {
             assertNotNull(fixtureStream);
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode fixture = objectMapper.readTree(fixtureStream);
-            assertEquals(5, fixture.get("version").asInt());
+            assertEquals(6, fixture.get("version").asInt());
             for (JsonNode testCase : fixture.get("numericBucketKeys")) {
                 String bucketKey = Bucketer.getBucketKey(
                     new Bucketer.GetBucketKeyOptions()
@@ -137,7 +137,7 @@ public class InstanceEvaluationDataProviderTest {
             Featurevisor aggregateFeaturevisor = Featurevisor.createFeaturevisor(
                 new Featurevisor.FeaturevisorOptions().datafile(aggregateDatafile)
             );
-            EvaluatedFeature evaluated = aggregateFeaturevisor.getAllEvaluations(
+            EvaluatedFeature evaluated = aggregateFeaturevisor.getFeatureEvaluations(
                 Map.of(),
                 List.of(),
                 new Featurevisor.OverrideOptions().defaultVariationValue(

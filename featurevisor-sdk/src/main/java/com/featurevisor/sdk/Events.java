@@ -98,7 +98,7 @@ final class Events {
      * @param replace Whether the sticky features were replaced
      * @return Event details for sticky set event
      */
-    public static FeaturevisorEventDetails getParamsForStickySetEvent(
+    public static FeaturevisorEventDetails getParamsForStickyFeaturesSetEvent(
             Map<String, Object> previousStickyFeatures,
             Map<String, Object> newStickyFeatures,
             boolean replace) {

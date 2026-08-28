@@ -324,12 +324,12 @@ public class ChildTest {
         assertFalse(childInstance.isEnabled("newFeature"));
         Map<String, Object> stickyFeature = new HashMap<>();
         stickyFeature.put("enabled", true);
-        childInstance.setSticky(Map.of("newFeature", stickyFeature), false);
+        childInstance.setStickyFeatures(Map.of("newFeature", stickyFeature), false);
         assertTrue(childInstance.isEnabled("newFeature"));
         assertEquals("sticky", childInstance.evaluateFlag("newFeature").getReason());
 
-        // Test getAllEvaluations
-        com.featurevisor.sdk.EvaluatedFeatures allEvaluations = childInstance.getAllEvaluations();
+        // Test getFeatureEvaluations
+        com.featurevisor.sdk.EvaluatedFeatures allEvaluations = childInstance.getFeatureEvaluations();
         assertNotNull(allEvaluations.getValue());
         assertTrue(allEvaluations.getValue().containsKey("test"));
         assertTrue(allEvaluations.getValue().containsKey("anotherTest"));

@@ -3,7 +3,6 @@ package com.featurevisor.sdk;
 public enum FeaturevisorEventName {
     DATAFILE_SET("datafile_set"),
     CONTEXT_SET("context_set"),
-    STICKY_SET("sticky_set"),
     STICKY_FEATURES_SET("sticky_features_set"),
     STICKY_VARIABLES_SET("sticky_variables_set"),
     ERROR("error");
