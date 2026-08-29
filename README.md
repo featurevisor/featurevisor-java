@@ -2,7 +2,7 @@
 
 This is a port of Featurevisor [Javascript SDK](https://featurevisor.com/docs/sdks/javascript/) v3.x to Java, providing a way to evaluate feature flags, variations, and variables in your Java applications.
 
-This SDK supports Featurevisor v3 behavior and v2 datafiles. Generated datafiles continue to carry `schemaVersion: "2"`.
+This SDK supports Featurevisor v3 behaviour and v2 datafiles. Generated datafiles continue to carry `schemaVersion: "2"`.
 
 ## Table of contents <!-- omit in toc -->
 
@@ -526,7 +526,7 @@ loadDatafile("checkout");
 
 ### Updating datafile
 
-You can set the datafile as many times as you want in your application, which will result in emitting a [`datafile_set`](#datafile_set) event that you can listen and react to accordingly.
+You can set the datafile as many times as you want in your application, which will result in emitting a [`datafile_set`](#datafile-set) event that you can listen and react to accordingly.
 
 The triggers for setting the datafile again can be:
 
@@ -584,7 +584,7 @@ Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOp
 
 Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance. Evaluation metadata belongs in `details`.
 
-Diagnostic handlers are isolated from SDK behavior. An exception in a handler does not stop other handlers or evaluations.
+Diagnostic handlers are isolated from SDK behaviour. An exception in a handler does not stop other handlers or evaluations.
 
 
 ## Events
@@ -708,6 +708,8 @@ And optionally these properties depending on whether you are evaluating a featur
 Modules allow you to intercept the evaluation process and customize it further as per your needs.
 
 For feature evaluations, all `before` callbacks run in registration order, followed by all `beforeEvaluation` callbacks. After evaluation and caller defaults, all `afterEvaluation` callbacks run, followed by all `after` callbacks. Global variable evaluations use only `beforeEvaluation` and `afterEvaluation`. Required feature checks run through the complete module pipeline, and transformed defaults are preserved.
+
+`before` and `after` remain available as deprecated feature-only compatibility callbacks. Use `beforeEvaluation` and `afterEvaluation` for new modules so the same callbacks can handle feature and global variable evaluations.
 
 ### Defining a module
 
@@ -855,7 +857,7 @@ f.close();
 
 This package also provides a CLI tool for running your Featurevisor project's test specs and benchmarking against this Java SDK:
 
-All three commands accept repeatable `--target=<target>` options. `test` builds only the selected Target datafiles and runs untargeted assertions plus assertions for those targets. `benchmark` and `assess-distribution` run independently against every selected Target datafile. Without `--target`, existing project-wide behavior is preserved. Project definitions, test specs, Target discovery, and datafile generation continue to come from the Node.js CLI.
+All three commands accept repeatable `--target=<target>` options. `test` builds only the selected Target datafiles and runs untargeted assertions plus assertions for those targets. `benchmark` and `assess-distribution` run independently against every selected Target datafile. Without `--target`, existing project-wide behaviour is preserved. Project definitions, test specs, Target discovery, and datafile generation continue to come from the Node.js CLI.
 
 ### Test
 
