@@ -899,7 +899,7 @@ Add the provider with the same version as the Featurevisor Java SDK:
 <dependency>
   <groupId>com.featurevisor</groupId>
   <artifactId>featurevisor-openfeature</artifactId>
-  <version>FEATUREVISOR_VERSION</version>
+  <version>4.0.0</version>
 </dependency>
 ```
 
