@@ -21,6 +21,7 @@ public class Evaluation {
     public static final String REASON_FEATURE_NOT_FOUND = "feature_not_found";
     public static final String REASON_DISABLED = "disabled";
     public static final String REASON_REQUIRED = "required";
+    public static final String REASON_REQUIRED_FEATURES_UNMET = "required_features_unmet";
     public static final String REASON_OUT_OF_RANGE = "out_of_range";
     public static final String REASON_NO_VARIATIONS = "no_variations";
     public static final String REASON_VARIATION_DISABLED = "variation_disabled";
@@ -53,6 +54,7 @@ public class Evaluation {
     private Integer forceIndex;
     private Map<String, Object> force;
     private List<Map<String, Object>> required;
+    private List<Object> requiredFeatures;
     private Map<String, Object> sticky;
 
     // Variation fields
@@ -62,8 +64,12 @@ public class Evaluation {
     // Variable fields
     private String variableKey;
     private Object variableValue;
+    private boolean variableValueSet;
     private VariableSchema variableSchema;
+    private GlobalVariable variable;
     private Integer variableOverrideIndex;
+    private String variableOverrideKey;
+    private List<String> variableOverridePath;
 
     // Required feature fields
     private String requiredFeatureKey;
@@ -92,13 +98,18 @@ public class Evaluation {
     public Integer getForceIndex() { return forceIndex; }
     public Map<String, Object> getForce() { return force; }
     public List<Map<String, Object>> getRequired() { return required; }
+    public List<Object> getRequiredFeatures() { return requiredFeatures; }
     public Map<String, Object> getSticky() { return sticky; }
     public Variation getVariation() { return variation; }
     public String getVariationValue() { return variationValue; }
     public String getVariableKey() { return variableKey; }
     public Object getVariableValue() { return variableValue; }
+    public boolean hasVariableValue() { return variableValueSet; }
     public VariableSchema getVariableSchema() { return variableSchema; }
+    public GlobalVariable getVariable() { return variable; }
     public Integer getVariableOverrideIndex() { return variableOverrideIndex; }
+    public String getVariableOverrideKey() { return variableOverrideKey; }
+    public List<String> getVariableOverridePath() { return variableOverridePath; }
     public String getRequiredFeatureKey() { return requiredFeatureKey; }
     public String getRequiredVariation() { return requiredVariation; }
     public String getActualVariation() { return actualVariation; }
@@ -116,13 +127,17 @@ public class Evaluation {
     public void setForceIndex(Integer forceIndex) { this.forceIndex = forceIndex; }
     public void setForce(Map<String, Object> force) { this.force = force; }
     public void setRequired(List<Map<String, Object>> required) { this.required = required; }
+    public void setRequiredFeatures(List<Object> value) { this.requiredFeatures = value; }
     public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
     public void setVariation(Variation variation) { this.variation = variation; }
     public void setVariationValue(String variationValue) { this.variationValue = variationValue; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
-    public void setVariableValue(Object variableValue) { this.variableValue = variableValue; }
+    public void setVariableValue(Object variableValue) { this.variableValue = variableValue; this.variableValueSet = true; }
     public void setVariableSchema(VariableSchema variableSchema) { this.variableSchema = variableSchema; }
+    public void setVariable(GlobalVariable variable) { this.variable = variable; }
     public void setVariableOverrideIndex(Integer variableOverrideIndex) { this.variableOverrideIndex = variableOverrideIndex; }
+    public void setVariableOverrideKey(String value) { this.variableOverrideKey = value; }
+    public void setVariableOverridePath(List<String> value) { this.variableOverridePath = value; }
     public void setRequiredFeatureKey(String requiredFeatureKey) { this.requiredFeatureKey = requiredFeatureKey; }
     public void setRequiredVariation(String requiredVariation) { this.requiredVariation = requiredVariation; }
     public void setActualVariation(String actualVariation) { this.actualVariation = actualVariation; }
@@ -187,6 +202,7 @@ public class Evaluation {
         this.required = required;
         return this;
     }
+    public Evaluation requiredFeatures(List<Object> value) { this.requiredFeatures = value; return this; }
 
     public Evaluation sticky(Map<String, Object> sticky) {
         this.sticky = sticky;
@@ -210,6 +226,7 @@ public class Evaluation {
 
     public Evaluation variableValue(Object variableValue) {
         this.variableValue = variableValue;
+        this.variableValueSet = true;
         return this;
     }
 
@@ -217,11 +234,14 @@ public class Evaluation {
         this.variableSchema = variableSchema;
         return this;
     }
+    public Evaluation variable(GlobalVariable value) { this.variable = value; return this; }
 
     public Evaluation variableOverrideIndex(Integer variableOverrideIndex) {
         this.variableOverrideIndex = variableOverrideIndex;
         return this;
     }
+    public Evaluation variableOverrideKey(String value) { this.variableOverrideKey = value; return this; }
+    public Evaluation variableOverridePath(List<String> value) { this.variableOverridePath = value; return this; }
 
     public Evaluation requiredFeatureKey(String requiredFeatureKey) {
         this.requiredFeatureKey = requiredFeatureKey;
@@ -253,13 +273,18 @@ public class Evaluation {
         copy.forceIndex = this.forceIndex;
         copy.force = this.force;
         copy.required = this.required;
+        copy.requiredFeatures = this.requiredFeatures;
         copy.sticky = this.sticky;
         copy.variation = this.variation;
         copy.variationValue = this.variationValue;
         copy.variableKey = this.variableKey;
         copy.variableValue = this.variableValue;
+        copy.variableValueSet = this.variableValueSet;
         copy.variableSchema = this.variableSchema;
+        copy.variable = this.variable;
         copy.variableOverrideIndex = this.variableOverrideIndex;
+        copy.variableOverrideKey = this.variableOverrideKey;
+        copy.variableOverridePath = this.variableOverridePath;
         copy.requiredFeatureKey = this.requiredFeatureKey;
         copy.requiredVariation = this.requiredVariation;
         copy.actualVariation = this.actualVariation;

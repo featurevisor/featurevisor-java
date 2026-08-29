@@ -24,7 +24,8 @@ public class Featurevisor {
     // from options
     private Map<String, Object> context = new HashMap<>();
     private DiagnosticReporter diagnostics;
-    private Map<String, Object> sticky;
+    private Map<String, Object> stickyFeatures;
+    private Map<String, Object> stickyVariables;
     private FeaturevisorDiagnosticHandler onDiagnostic;
     private boolean closed = false;
 
@@ -66,7 +67,8 @@ public class Featurevisor {
         private String datafileString;
         private Map<String, Object> context;
         private FeaturevisorLogLevel logLevel;
-        private Map<String, Object> sticky;
+        private Map<String, Object> stickyFeatures;
+        private Map<String, Object> stickyVariables;
         private List<FeaturevisorModule> modules;
         private FeaturevisorDiagnosticHandler onDiagnostic;
 
@@ -77,7 +79,8 @@ public class Featurevisor {
         public String getDatafileString() { return datafileString; }
         public Map<String, Object> getContext() { return context; }
         public FeaturevisorLogLevel getLogLevel() { return logLevel; }
-        public Map<String, Object> getSticky() { return sticky; }
+        public Map<String, Object> getStickyFeatures() { return stickyFeatures; }
+        public Map<String, Object> getStickyVariables() { return stickyVariables; }
         public List<FeaturevisorModule> getModules() { return modules; }
         public FeaturevisorDiagnosticHandler getOnDiagnostic() { return onDiagnostic; }
 
@@ -86,7 +89,8 @@ public class Featurevisor {
         public void setDatafileString(String datafileString) { this.datafileString = datafileString; }
         public void setContext(Map<String, Object> context) { this.context = context; }
         public void setLogLevel(FeaturevisorLogLevel logLevel) { this.logLevel = logLevel; }
-        public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
+        public void setStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
+        public void setStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
         public void setModules(List<FeaturevisorModule> modules) { this.modules = modules; }
         public void setOnDiagnostic(FeaturevisorDiagnosticHandler onDiagnostic) { this.onDiagnostic = onDiagnostic; }
 
@@ -111,10 +115,8 @@ public class Featurevisor {
             return this;
         }
 
-        public FeaturevisorOptions sticky(Map<String, Object> sticky) {
-            this.sticky = sticky;
-            return this;
-        }
+        public FeaturevisorOptions stickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; return this; }
+        public FeaturevisorOptions stickyVariables(Map<String, Object> value) { this.stickyVariables = value; return this; }
 
         public FeaturevisorOptions modules(List<FeaturevisorModule> modules) {
             this.modules = modules;
@@ -145,7 +147,8 @@ public class Featurevisor {
      * Options for overriding evaluation behavior
      */
     public static class OverrideOptions {
-        private Map<String, Object> sticky;
+        private Map<String, Object> stickyFeatures;
+        private Map<String, Object> stickyVariables;
         private String defaultVariationValue;
         private Object defaultVariableValue;
         private boolean defaultVariableValueSet;
@@ -153,13 +156,15 @@ public class Featurevisor {
         public OverrideOptions() {}
 
         // Getters
-        Map<String, Object> getInternalSticky() { return sticky; }
+        Map<String, Object> getInternalStickyFeatures() { return stickyFeatures; }
+        Map<String, Object> getInternalStickyVariables() { return stickyVariables; }
         public String getDefaultVariationValue() { return defaultVariationValue; }
         public Object getDefaultVariableValue() { return defaultVariableValue; }
         public boolean hasDefaultVariableValue() { return defaultVariableValueSet; }
 
         // Setters
-        void setInternalSticky(Map<String, Object> sticky) { this.sticky = sticky; }
+        void setInternalStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
+        void setInternalStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
         public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
         public void setDefaultVariableValue(Object defaultVariableValue) {
             this.defaultVariableValue = defaultVariableValue;
@@ -181,14 +186,15 @@ public class Featurevisor {
 
     /** Options used only when spawning a child instance. */
     public static class SpawnOptions {
-        private Map<String, Object> sticky;
+        private Map<String, Object> stickyFeatures;
+        private Map<String, Object> stickyVariables;
 
-        public Map<String, Object> getSticky() { return sticky; }
-        public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
-        public SpawnOptions sticky(Map<String, Object> sticky) {
-            this.sticky = sticky;
-            return this;
-        }
+        public Map<String, Object> getStickyFeatures() { return stickyFeatures; }
+        public Map<String, Object> getStickyVariables() { return stickyVariables; }
+        public void setStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
+        public void setStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
+        public SpawnOptions stickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; return this; }
+        public SpawnOptions stickyVariables(Map<String, Object> value) { this.stickyVariables = value; return this; }
     }
 
     /**
@@ -231,7 +237,8 @@ public class Featurevisor {
             }));
 
         this.emitter = new Emitter();
-        this.sticky = options.getSticky();
+        this.stickyFeatures = options.getStickyFeatures();
+        this.stickyVariables = options.getStickyVariables();
         this.onDiagnostic = options.getOnDiagnostic();
 
         // datafile
@@ -483,37 +490,51 @@ public class Featurevisor {
         }
         merged.setFeatures(features);
 
+        Map<String, GlobalVariable> variables = new HashMap<>();
+        if (previous.getVariables() != null) { variables.putAll(previous.getVariables()); }
+        if (incoming.getVariables() != null) { variables.putAll(incoming.getVariables()); }
+        merged.setVariables(variables);
+
         return merged;
     }
 
     /**
      * Set sticky features
      */
-    public void setSticky(Map<String, Object> sticky) {
-        setSticky(sticky, false);
+    public void setStickyFeatures(Map<String, Object> sticky) {
+        setStickyFeatures(sticky, false);
     }
 
-    public void setSticky(Map<String, Object> sticky, boolean replace) {
-        Map<String, Object> previousStickyFeatures = this.sticky != null ?
-            new HashMap<>(this.sticky) : new HashMap<>();
+    public void setStickyFeatures(Map<String, Object> sticky, boolean replace) {
+        Map<String, Object> previousStickyFeatures = this.stickyFeatures != null ? new HashMap<>(this.stickyFeatures) : new HashMap<>();
 
         if (replace) {
-            this.sticky = new HashMap<>(sticky);
+            this.stickyFeatures = new HashMap<>(sticky);
         } else {
-            this.sticky = new HashMap<>(this.sticky != null ? this.sticky : new HashMap<>());
-            this.sticky.putAll(sticky);
+            this.stickyFeatures = new HashMap<>(this.stickyFeatures != null ? this.stickyFeatures : new HashMap<>());
+            this.stickyFeatures.putAll(sticky);
         }
 
-        FeaturevisorEventDetails params = Events.getParamsForStickySetEvent(
-            previousStickyFeatures, this.sticky, replace);
+        FeaturevisorEventDetails params = Events.getParamsForStickyFeaturesSetEvent(
+            previousStickyFeatures, this.stickyFeatures, replace);
 
         reportDiagnostic(new FeaturevisorDiagnostic()
             .level(FeaturevisorLogLevel.INFO)
-            .code("sticky_set")
+            .code("sticky_features_set")
             .message("Sticky features set")
             .details(params), null);
-        this.emitter.trigger(FeaturevisorEventName.STICKY_SET, params);
+        this.emitter.trigger(FeaturevisorEventName.STICKY_FEATURES_SET, params);
     }
+
+    public void setStickyVariables(Map<String, Object> sticky, boolean replace) {
+        Map<String, Object> previous = this.stickyVariables != null ? new HashMap<>(this.stickyVariables) : new HashMap<>();
+        this.stickyVariables = replace ? new HashMap<>(sticky) : new HashMap<>(previous);
+        if (!replace) { this.stickyVariables.putAll(sticky); }
+        FeaturevisorEventDetails params = Events.getParamsForStickyVariablesSetEvent(previous, this.stickyVariables, replace);
+        reportDiagnostic(new FeaturevisorDiagnostic().level(FeaturevisorLogLevel.INFO).code("sticky_variables_set").message("Sticky variables set").details(params), null);
+        this.emitter.trigger(FeaturevisorEventName.STICKY_VARIABLES_SET, params);
+    }
+    public void setStickyVariables(Map<String, Object> sticky) { setStickyVariables(sticky, false); }
 
     /**
      * Get revision
@@ -537,6 +558,7 @@ public class Featurevisor {
     public List<String> getVariableKeys(String featureKey) {
         return this.evaluationData.getVariableKeys(featureKey);
     }
+    public List<String> getVariableKeys() { return this.evaluationData.getGlobalVariableKeys(); }
 
     public boolean hasVariations(String featureKey) {
         return this.evaluationData.hasVariations(featureKey);
@@ -628,7 +650,7 @@ public class Featurevisor {
             options = new SpawnOptions();
         }
 
-        return new ChildInstance(this, getContext(context), options.getSticky());
+        return new ChildInstance(this, getContext(context), options.getStickyFeatures(), options.getStickyVariables());
     }
 
     public ChildInstance spawn(Map<String, Object> context) {
@@ -650,14 +672,16 @@ public class Featurevisor {
             options = new OverrideOptions();
         }
 
-        Map<String, Object> mergedSticky = options.getInternalSticky() != null ? options.getInternalSticky() : this.sticky;
+        Map<String, Object> mergedStickyFeatures = options.getInternalStickyFeatures() != null ? options.getInternalStickyFeatures() : this.stickyFeatures;
+        Map<String, Object> mergedStickyVariables = options.getInternalStickyVariables() != null ? options.getInternalStickyVariables() : this.stickyVariables;
 
         return new EvaluateOptions()
             .context(getContext(context))
             .diagnostics(this.diagnostics)
             .modulesManager(this.modulesManager)
             .evaluationData(this.evaluationData)
-            .sticky(mergedSticky)
+            .stickyFeatures(mergedStickyFeatures)
+            .stickyVariables(mergedStickyVariables)
             .defaultVariationValue(options.getDefaultVariationValue())
             .defaultVariableValue(options.getDefaultVariableValue(), options.hasDefaultVariableValue());
     }
@@ -761,6 +785,39 @@ public class Featurevisor {
     public Evaluation evaluateVariable(String featureKey, String variableKey) {
         return evaluateVariable(featureKey, variableKey, null, null);
     }
+
+    public Evaluation evaluateVariable(String variableKey, Map<String, Object> context, OverrideOptions options) {
+        return Evaluate.evaluateWithModules(getEvaluationDependencies(context, options)
+            .type(Evaluation.TYPE_VARIABLE).featureKey(null).variableKey(variableKey).globalVariable(true));
+    }
+    public Evaluation evaluateVariable(String variableKey, Map<String, Object> context) { return evaluateVariable(variableKey, context, null); }
+    public Evaluation evaluateVariable(String variableKey) { return evaluateVariable(variableKey, (Map<String, Object>) null, null); }
+
+    public Object getVariable(String variableKey, Map<String, Object> context, OverrideOptions options) {
+        Evaluation evaluation = evaluateVariable(variableKey, context, options);
+        Object value = evaluation.getVariableValue();
+        if (value == null && options != null && options.hasDefaultVariableValue()) value = options.getDefaultVariableValue();
+        if (value instanceof String && evaluation.getVariable() != null && VariableType.JSON == evaluation.getVariable().getType()) {
+            try { return OBJECT_MAPPER.readValue((String) value, Object.class); } catch (Exception ignored) { return null; }
+        }
+        return value;
+    }
+    public Object getVariable(String variableKey, Map<String, Object> context) { return getVariable(variableKey, context, null); }
+    public Object getVariable(String variableKey) { return getVariable(variableKey, (Map<String, Object>) null, null); }
+    public Boolean getVariableBoolean(String key, Map<String, Object> context, OverrideOptions options) { return Helpers.getValueByType(getVariable(key, context, options), "boolean"); }
+    public Boolean getVariableBoolean(String key) { return getVariableBoolean(key, (Map<String, Object>) null, null); }
+    public String getVariableString(String key, Map<String, Object> context, OverrideOptions options) { return Helpers.getValueByType(getVariable(key, context, options), "string"); }
+    public String getVariableString(String key) { return getVariableString(key, (Map<String, Object>) null, null); }
+    public Integer getVariableInteger(String key, Map<String, Object> context, OverrideOptions options) { return (Integer) Helpers.getValueByType(getVariable(key, context, options), "integer"); }
+    public Integer getVariableInteger(String key) { return getVariableInteger(key, (Map<String, Object>) null, null); }
+    public Double getVariableDouble(String key, Map<String, Object> context, OverrideOptions options) { return (Double) Helpers.getValueByType(getVariable(key, context, options), "double"); }
+    public Double getVariableDouble(String key) { return getVariableDouble(key, (Map<String, Object>) null, null); }
+    @SuppressWarnings("unchecked") public <T> List<T> getVariableArray(String key, Map<String, Object> context, OverrideOptions options) { return Helpers.getValueByType(getVariable(key, context, options), "array"); }
+    public <T> List<T> getVariableArray(String key) { return getVariableArray(key, (Map<String, Object>) null, (OverrideOptions) null); }
+    @SuppressWarnings("unchecked") public <T> T getVariableObject(String key, Map<String, Object> context, OverrideOptions options) { return Helpers.getValueByType(getVariable(key, context, options), "object"); }
+    public <T> T getVariableObject(String key) { return getVariableObject(key, (Map<String, Object>) null, (OverrideOptions) null); }
+    @SuppressWarnings("unchecked") public <T> T getVariableJSON(String key, Map<String, Object> context, OverrideOptions options) { return Helpers.getValueByType(getVariable(key, context, options), "json"); }
+    public <T> T getVariableJSON(String key) { return getVariableJSON(key, (Map<String, Object>) null, (OverrideOptions) null); }
 
     public Object getVariable(String featureKey, String variableKey, Map<String, Object> context, OverrideOptions options) {
         try {
@@ -1051,7 +1108,7 @@ public class Featurevisor {
     /**
      * Get all evaluations
      */
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys, OverrideOptions options) {
+    public EvaluatedFeatures getFeatureEvaluations(Map<String, Object> context, List<String> featureKeys, OverrideOptions options) {
         if (context == null) {
             context = new HashMap<>();
         }
@@ -1077,7 +1134,8 @@ public class Featurevisor {
             if (options.hasDefaultVariableValue()) {
                 opts.defaultVariableValue(options.getDefaultVariableValue());
             }
-            opts.setInternalSticky(options.getInternalSticky());
+            opts.setInternalStickyFeatures(options.getInternalStickyFeatures());
+            opts.setInternalStickyVariables(options.getInternalStickyVariables());
 
             // variation
             if (this.evaluationData.hasVariations(featureKey)) {
@@ -1105,15 +1163,23 @@ public class Featurevisor {
         return EvaluatedFeatures.of(result);
     }
 
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys) {
-        return getAllEvaluations(context, featureKeys, null);
+    public EvaluatedFeatures getFeatureEvaluations(Map<String, Object> context, List<String> featureKeys) {
+        return getFeatureEvaluations(context, featureKeys, null);
     }
 
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context) {
-        return getAllEvaluations(context, null, null);
+    public EvaluatedFeatures getFeatureEvaluations(Map<String, Object> context) {
+        return getFeatureEvaluations(context, null, null);
     }
 
-    public EvaluatedFeatures getAllEvaluations() {
-        return getAllEvaluations(null, null, null);
+    public EvaluatedFeatures getFeatureEvaluations() {
+        return getFeatureEvaluations(null, null, null);
     }
+
+    public Map<String, Object> getVariableEvaluations(Map<String, Object> context, List<String> variableKeys, OverrideOptions options) {
+        Map<String, Object> result = new HashMap<>();
+        List<String> keys = variableKeys == null || variableKeys.isEmpty() ? evaluationData.getGlobalVariableKeys() : variableKeys;
+        for (String key : keys) result.put(key, getVariable(key, context, options));
+        return result;
+    }
+    public Map<String, Object> getVariableEvaluations() { return getVariableEvaluations(null, null, null); }
 }

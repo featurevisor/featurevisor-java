@@ -41,7 +41,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -59,7 +59,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -82,7 +82,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -105,7 +105,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -123,7 +123,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -145,7 +145,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -163,7 +163,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -185,7 +185,7 @@ public class EvaluateStickyTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -212,7 +212,7 @@ public class EvaluateStickyTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -233,7 +233,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -252,7 +252,7 @@ public class EvaluateStickyTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -274,7 +274,7 @@ public class EvaluateStickyTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -290,7 +290,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_FLAG)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -309,7 +309,7 @@ public class EvaluateStickyTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -334,7 +334,7 @@ public class EvaluateStickyTest {
             .type(Evaluation.TYPE_VARIABLE)
             .featureKey("test-feature")
             .variableKey("test-variable")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
@@ -358,7 +358,7 @@ public class EvaluateStickyTest {
         EvaluateOptions options = new EvaluateOptions()
             .type(Evaluation.TYPE_VARIATION)
             .featureKey("test-feature")
-            .sticky(sticky)
+            .stickyFeatures(sticky)
             .diagnostics(diagnostics);
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);

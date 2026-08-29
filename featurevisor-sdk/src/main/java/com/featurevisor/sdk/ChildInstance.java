@@ -16,16 +16,18 @@ public class ChildInstance {
     private Featurevisor parent;
     private Map<String, Object> context;
     private Map<String, Object> sticky;
+    private Map<String, Object> stickyVariables;
     private Emitter emitter;
     private final List<FeaturevisorUnsubscribe> parentUnsubscribers = new ArrayList<>();
 
     /**
      * Constructor
      */
-    ChildInstance(Featurevisor parent, Map<String, Object> context, Map<String, Object> sticky) {
+    ChildInstance(Featurevisor parent, Map<String, Object> context, Map<String, Object> sticky, Map<String, Object> stickyVariables) {
         this.parent = parent;
         this.context = context != null ? new HashMap<>(context) : new HashMap<>();
         this.sticky = sticky;
+        this.stickyVariables = stickyVariables;
         this.emitter = new Emitter();
     }
 
@@ -33,7 +35,7 @@ public class ChildInstance {
      * Subscribe to event
      */
     public FeaturevisorUnsubscribe on(FeaturevisorEventName eventName, FeaturevisorEventHandler callback) {
-        if (FeaturevisorEventName.CONTEXT_SET.equals(eventName) || FeaturevisorEventName.STICKY_SET.equals(eventName)) {
+        if (FeaturevisorEventName.CONTEXT_SET.equals(eventName) || FeaturevisorEventName.STICKY_FEATURES_SET.equals(eventName) || FeaturevisorEventName.STICKY_VARIABLES_SET.equals(eventName)) {
             return this.emitter.on(eventName, callback);
         }
 
@@ -99,7 +101,7 @@ public class ChildInstance {
     /**
      * Set sticky features
      */
-    public void setSticky(Map<String, Object> sticky, boolean replace) {
+    public void setStickyFeatures(Map<String, Object> sticky, boolean replace) {
         Map<String, Object> previousStickyFeatures = this.sticky != null ?
             new HashMap<>(this.sticky) : new HashMap<>();
 
@@ -110,15 +112,20 @@ public class ChildInstance {
             this.sticky.putAll(sticky);
         }
 
-        FeaturevisorEventDetails params = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails params = Events.getParamsForStickyFeaturesSetEvent(
             previousStickyFeatures, this.sticky, replace);
 
-        this.emitter.trigger(FeaturevisorEventName.STICKY_SET, params);
+        this.emitter.trigger(FeaturevisorEventName.STICKY_FEATURES_SET, params);
     }
 
-    public void setSticky(Map<String, Object> sticky) {
-        setSticky(sticky, false);
+    public void setStickyFeatures(Map<String, Object> sticky) { setStickyFeatures(sticky, false); }
+    public void setStickyVariables(Map<String, Object> sticky, boolean replace) {
+        Map<String, Object> previous = this.stickyVariables != null ? new HashMap<>(this.stickyVariables) : new HashMap<>();
+        this.stickyVariables = replace ? new HashMap<>(sticky) : new HashMap<>(previous);
+        if (!replace) this.stickyVariables.putAll(sticky);
+        this.emitter.trigger(FeaturevisorEventName.STICKY_VARIABLES_SET, Events.getParamsForStickyVariablesSetEvent(previous, this.stickyVariables, replace));
     }
+    public void setStickyVariables(Map<String, Object> sticky) { setStickyVariables(sticky, false); }
 
     /**
      * Flag
@@ -226,6 +233,31 @@ public class ChildInstance {
     public Object getVariable(String featureKey, String variableKey) {
         return getVariable(featureKey, variableKey, null, null);
     }
+
+    public Evaluation evaluateVariable(String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
+        return parent.evaluateVariable(variableKey, mergeContexts(this.context, context), mergeOverrideOptions(options));
+    }
+    public Evaluation evaluateVariable(String variableKey, Map<String, Object> context) { return evaluateVariable(variableKey, context, null); }
+    public Evaluation evaluateVariable(String variableKey) { return evaluateVariable(variableKey, (Map<String, Object>) null, null); }
+    public Object getVariable(String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
+        return parent.getVariable(variableKey, mergeContexts(this.context, context), mergeOverrideOptions(options));
+    }
+    public Object getVariable(String variableKey, Map<String, Object> context) { return getVariable(variableKey, context, null); }
+    public Object getVariable(String variableKey) { return getVariable(variableKey, (Map<String, Object>) null, null); }
+    public Boolean getVariableBoolean(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableBoolean(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public Boolean getVariableBoolean(String key) { return getVariableBoolean(key, (Map<String, Object>) null, null); }
+    public String getVariableString(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableString(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public String getVariableString(String key) { return getVariableString(key, (Map<String, Object>) null, null); }
+    public Integer getVariableInteger(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableInteger(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public Integer getVariableInteger(String key) { return getVariableInteger(key, (Map<String, Object>) null, null); }
+    public Double getVariableDouble(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableDouble(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public Double getVariableDouble(String key) { return getVariableDouble(key, (Map<String, Object>) null, null); }
+    public <T> List<T> getVariableArray(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableArray(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public <T> List<T> getVariableArray(String key) { return getVariableArray(key, (Map<String, Object>) null, (Featurevisor.OverrideOptions) null); }
+    public <T> T getVariableObject(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableObject(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public <T> T getVariableObject(String key) { return getVariableObject(key, (Map<String, Object>) null, (Featurevisor.OverrideOptions) null); }
+    public <T> T getVariableJSON(String key, Map<String, Object> context, Featurevisor.OverrideOptions options) { return parent.getVariableJSON(key, mergeContexts(this.context, context), mergeOverrideOptions(options)); }
+    public <T> T getVariableJSON(String key) { return getVariableJSON(key, (Map<String, Object>) null, (Featurevisor.OverrideOptions) null); }
 
     public Boolean getVariableBoolean(String featureKey, String variableKey, Map<String, Object> context, Featurevisor.OverrideOptions options) {
         return this.parent.getVariableBoolean(
@@ -487,25 +519,27 @@ public class ChildInstance {
     /**
      * Get all evaluations
      */
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys, Featurevisor.OverrideOptions options) {
-        return this.parent.getAllEvaluations(
+    public EvaluatedFeatures getFeatureEvaluations(Map<String, Object> context, List<String> featureKeys, Featurevisor.OverrideOptions options) {
+        return this.parent.getFeatureEvaluations(
             mergeContexts(this.context, context),
             featureKeys,
             mergeOverrideOptions(options)
         );
     }
 
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context, List<String> featureKeys) {
-        return getAllEvaluations(context, featureKeys, null);
+    public EvaluatedFeatures getFeatureEvaluations(Map<String, Object> context, List<String> featureKeys) {
+        return getFeatureEvaluations(context, featureKeys, null);
     }
 
-    public EvaluatedFeatures getAllEvaluations(Map<String, Object> context) {
-        return getAllEvaluations(context, null, null);
+    public EvaluatedFeatures getFeatureEvaluations(Map<String, Object> context) {
+        return getFeatureEvaluations(context, null, null);
     }
 
-    public EvaluatedFeatures getAllEvaluations() {
-        return getAllEvaluations(null, null, null);
+    public EvaluatedFeatures getFeatureEvaluations() {
+        return getFeatureEvaluations(null, null, null);
     }
+    public Map<String, Object> getVariableEvaluations(Map<String, Object> context, List<String> keys, Featurevisor.OverrideOptions options) { return parent.getVariableEvaluations(mergeContexts(this.context, context), keys, mergeOverrideOptions(options)); }
+    public Map<String, Object> getVariableEvaluations() { return getVariableEvaluations(null, null, null); }
 
     /**
      * Helper methods
@@ -525,7 +559,8 @@ public class ChildInstance {
             options = new Featurevisor.OverrideOptions();
         }
 
-        options.setInternalSticky(this.sticky);
+        options.setInternalStickyFeatures(this.sticky);
+        options.setInternalStickyVariables(this.stickyVariables);
 
         return options;
     }

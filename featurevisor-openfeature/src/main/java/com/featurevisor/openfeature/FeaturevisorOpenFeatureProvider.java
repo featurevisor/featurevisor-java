@@ -38,6 +38,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         private String targetingKeyField = "userId";
         private String keySeparator = ":";
         private String variationKey = "variation";
+        private String globalVariablePrefix = "variable";
         private TrackingHandler onTrack;
 
         public Options featurevisor(Featurevisor value) { this.featurevisor = value; return this; }
@@ -45,6 +46,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         public Options targetingKeyField(String value) { this.targetingKeyField = value; return this; }
         public Options keySeparator(String value) { this.keySeparator = value; return this; }
         public Options variationKey(String value) { this.variationKey = value; return this; }
+        public Options globalVariablePrefix(String value) { this.globalVariablePrefix = value; return this; }
         public Options onTrack(TrackingHandler value) { this.onTrack = value; return this; }
     }
 
@@ -52,6 +54,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
     private final String targetingKeyField;
     private final String keySeparator;
     private final String variationKey;
+    private final String globalVariablePrefix;
     private final TrackingHandler onTrack;
     private final FeaturevisorUnsubscribe datafileUnsubscribe;
     private final boolean ownsFeaturevisor;
@@ -62,6 +65,10 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         this.targetingKeyField = nonEmpty(resolved.targetingKeyField, "userId");
         this.keySeparator = nonEmpty(resolved.keySeparator, ":");
         this.variationKey = nonEmpty(resolved.variationKey, "variation");
+        this.globalVariablePrefix = nonEmpty(resolved.globalVariablePrefix, "variable");
+        if (this.globalVariablePrefix.contains(this.keySeparator)) {
+            throw new IllegalArgumentException("globalVariablePrefix cannot contain keySeparator");
+        }
         this.onTrack = resolved.onTrack;
         this.ownsFeaturevisor = resolved.featurevisor == null;
         if (resolved.featurevisor != null) {
@@ -142,7 +149,15 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
 
         Evaluation evaluation;
         Object value;
-        if (selector == null || selector.isEmpty()) {
+        if (featureKey.equals(globalVariablePrefix) && selector != null && !selector.isEmpty()) {
+            evaluation = featurevisor.evaluateVariable(selector, fvContext);
+            value = evaluation.getVariableValue();
+            if (evaluation.getVariable() != null
+                    && evaluation.getVariable().getType() == VariableType.JSON
+                    && value instanceof String) {
+                try { value = OBJECT_MAPPER.readValue((String) value, Object.class); } catch (Exception ignored) { }
+            }
+        } else if (selector == null || selector.isEmpty()) {
             if (!"boolean".equals(expectedType)) return typeMismatch(flagKey, defaultValue, expectedType, ImmutableMetadata.EMPTY);
             evaluation = featurevisor.evaluateFlag(featureKey, fvContext);
             value = evaluation.getEnabled();
@@ -174,9 +189,9 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
 
     private ImmutableMetadata metadata(Evaluation evaluation) {
         ImmutableMetadata.ImmutableMetadataBuilder builder = ImmutableMetadata.builder()
-                .addString("featureKey", evaluation.getFeatureKey())
                 .addString("featurevisorReason", evaluation.getReason())
                 .addString("schemaVersion", featurevisor.getSchemaVersion());
+        if (evaluation.getFeatureKey() != null) builder.addString("featureKey", evaluation.getFeatureKey());
         if (featurevisor.getRevision() != null) builder.addString("revision", featurevisor.getRevision());
         if (evaluation.getVariableKey() != null) builder.addString("variableKey", evaluation.getVariableKey());
         if (evaluation.getRuleKey() != null) builder.addString("ruleKey", evaluation.getRuleKey());
@@ -184,6 +199,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         if (evaluation.getBucketValue() != null) builder.addInteger("bucketValue", evaluation.getBucketValue());
         if (evaluation.getForceIndex() != null) builder.addInteger("forceIndex", evaluation.getForceIndex());
         if (evaluation.getVariableOverrideIndex() != null) builder.addInteger("variableOverrideIndex", evaluation.getVariableOverrideIndex());
+        if (evaluation.getVariableOverrideKey() != null) builder.addString("variableOverrideKey", evaluation.getVariableOverrideKey());
         return builder.build();
     }
 
@@ -191,7 +207,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         if (List.of(Evaluation.REASON_FEATURE_NOT_FOUND, Evaluation.REASON_VARIABLE_NOT_FOUND, Evaluation.REASON_NO_VARIATIONS, Evaluation.REASON_ERROR).contains(reason)) return Reason.ERROR;
         if (List.of(Evaluation.REASON_REQUIRED, Evaluation.REASON_FORCED, Evaluation.REASON_STICKY, Evaluation.REASON_RULE, Evaluation.REASON_VARIABLE_OVERRIDE_RULE, Evaluation.REASON_VARIABLE_OVERRIDE_VARIATION).contains(reason)) return Reason.TARGETING_MATCH;
         if (Evaluation.REASON_ALLOCATED.equals(reason)) return Reason.SPLIT;
-        if (List.of(Evaluation.REASON_DISABLED, Evaluation.REASON_VARIATION_DISABLED, Evaluation.REASON_VARIABLE_DISABLED).contains(reason)) return Reason.DISABLED;
+        if (List.of(Evaluation.REASON_DISABLED, Evaluation.REASON_VARIATION_DISABLED, Evaluation.REASON_VARIABLE_DISABLED, Evaluation.REASON_REQUIRED_FEATURES_UNMET).contains(reason)) return Reason.DISABLED;
         return Reason.DEFAULT;
     }
 

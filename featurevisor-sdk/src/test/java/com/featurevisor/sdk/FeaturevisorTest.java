@@ -62,11 +62,11 @@ public class FeaturevisorTest {
         datafile.setSegments(new HashMap<>());
         datafile.setFeatures(new HashMap<>());
         sdk.setDatafile(datafile);
-        sdk.setSticky(Map.of("test", Map.of("enabled", true)), false);
+        sdk.setStickyFeatures(Map.of("test", Map.of("enabled", true)), false);
         sdk.setContext(Map.of("country", "nl"), false);
 
         assertTrue(diagnostics.stream().anyMatch(diagnostic -> "datafile_set".equals(diagnostic.getCode())));
-        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "sticky_set".equals(diagnostic.getCode())));
+        assertTrue(diagnostics.stream().anyMatch(diagnostic -> "sticky_features_set".equals(diagnostic.getCode())));
         assertTrue(diagnostics.stream().anyMatch(diagnostic -> "context_set".equals(diagnostic.getCode())));
     }
 
@@ -231,7 +231,7 @@ public class FeaturevisorTest {
         sticky.put("test", testSticky);
 
         Featurevisor sdk = Featurevisor.createFeaturevisor(
-            new Featurevisor.FeaturevisorOptions().sticky(sticky)
+            new Featurevisor.FeaturevisorOptions().stickyFeatures(sticky)
         );
 
         assertNotNull(sdk);
@@ -810,7 +810,7 @@ public class FeaturevisorTest {
 
         sticky.put("test", testSticky);
 
-        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().sticky(sticky));
+        Featurevisor sdk = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().stickyFeatures(sticky));
 
         // initially control
         Map<String, Object> context = Map.of(
@@ -828,7 +828,7 @@ public class FeaturevisorTest {
         assertEquals("control", sdk.getVariation("test", context));
 
         // unsetting sticky features will make it treatment
-        sdk.setSticky(new HashMap<>(), true);
+        sdk.setStickyFeatures(new HashMap<>(), true);
         assertEquals("treatment", sdk.getVariation("test", context));
     }
 
@@ -1932,8 +1932,8 @@ public class FeaturevisorTest {
             "userId", "123"
         );
 
-        // Test getAllEvaluations
-        com.featurevisor.sdk.EvaluatedFeatures evaluatedFeatures = sdk.getAllEvaluations(context);
+        // Test getFeatureEvaluations
+        com.featurevisor.sdk.EvaluatedFeatures evaluatedFeatures = sdk.getFeatureEvaluations(context);
         assertNotNull(evaluatedFeatures);
         assertNotNull(evaluatedFeatures.getValue());
         assertTrue(evaluatedFeatures.getValue().containsKey("test"));

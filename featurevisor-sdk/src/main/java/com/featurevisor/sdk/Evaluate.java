@@ -41,7 +41,7 @@ final class Evaluate {
             // default: variable
             if (options.hasDefaultVariableValue() &&
                 Evaluation.TYPE_VARIABLE.equals(evaluation.getType()) &&
-                evaluation.getVariableValue() == null) {
+                !evaluation.hasVariableValue()) {
                 evaluation.variableValue(options.getDefaultVariableValue());
             }
 
@@ -85,6 +85,9 @@ final class Evaluate {
         Evaluation evaluation;
 
         try {
+            if (options.isGlobalVariable()) {
+                return evaluateGlobalVariable(options);
+            }
             // root
             Evaluation flag;
 
@@ -124,9 +127,18 @@ final class Evaluate {
 
             // required (only for flag evaluations)
             if (Evaluation.TYPE_FLAG.equals(type)) {
+                if (feature.getRequiredFeatures() != null) {
+                    if (!requiredFeaturesAreMatched(feature.getRequiredFeatures(), options)) {
+                        return new Evaluation(type, featureKey, variableKey)
+                            .reason(Evaluation.REASON_REQUIRED)
+                            .requiredFeatures(feature.getRequiredFeatures())
+                            .enabled(false);
+                    }
+                } else {
                 Evaluation requiredEvaluation = evaluateRequired(options, feature);
                 if (requiredEvaluation != null) {
                     return requiredEvaluation;
+                }
                 }
             }
 
@@ -137,6 +149,25 @@ final class Evaluate {
 
             if (bucketingResult.getEvaluation() != null) {
                 return bucketingResult.getEvaluation();
+            }
+
+            if (Evaluation.TYPE_VARIABLE.equals(type) && variableSchema == null && variableKey != null
+                    && feature.getVariablesSchema() != null) {
+                variableSchema = feature.getVariablesSchema().get(variableKey);
+            }
+            if (Evaluation.TYPE_VARIABLE.equals(type) && variableSchema != null) {
+                Evaluation variableDefaultEvaluation = new Evaluation()
+                    .type(type)
+                    .featureKey(featureKey)
+                    .reason(Evaluation.REASON_VARIABLE_DEFAULT)
+                    .bucketKey(bucketKey)
+                    .bucketValue(bucketValue)
+                    .variableKey(variableKey)
+                    .variableSchema(variableSchema);
+                if (variableSchema.hasDefaultValue()) {
+                    variableDefaultEvaluation.variableValue(variableSchema.getDefaultValue());
+                }
+                return variableDefaultEvaluation;
             }
 
             // nothing matched
@@ -166,6 +197,86 @@ final class Evaluate {
 
             return evaluation;
         }
+    }
+
+    static boolean requiredFeaturesAreMatched(List<Object> requirements, EvaluateOptions options) {
+        if (requirements == null || requirements.isEmpty()) { return true; }
+        EvaluateOptions clean = options.copy()
+            .defaultVariableValue(null, false)
+            .defaultVariationValue(null)
+            .globalVariable(false);
+        clean.setVariableKey(null);
+        for (Object item : requirements) {
+            String key;
+            boolean enabled = true;
+            String variation = null;
+            if (item instanceof String) {
+                key = (String) item;
+            } else if (item instanceof Map) {
+                @SuppressWarnings("unchecked") Map<String, Object> value = (Map<String, Object>) item;
+                key = (String) value.get("feature");
+                if (value.containsKey("enabled")) { enabled = Boolean.TRUE.equals(value.get("enabled")); }
+                variation = (String) value.get("variation");
+            } else { return false; }
+            if (key == null) { return false; }
+            Evaluation flag = evaluateWithModules(clean.copy().type(Evaluation.TYPE_FLAG).featureKey(key));
+            if (Boolean.TRUE.equals(flag.getEnabled()) != enabled) { return false; }
+            if (variation != null) {
+                Evaluation variationEvaluation = evaluateWithModules(clean.copy().type(Evaluation.TYPE_VARIATION).featureKey(key));
+                String actualVariation = variationEvaluation.getVariationValue();
+                if (actualVariation == null && variationEvaluation.getVariation() != null) {
+                    actualVariation = variationEvaluation.getVariation().getValue();
+                }
+                if (!variation.equals(actualVariation)) { return false; }
+            }
+        }
+        return true;
+    }
+
+    static boolean variableOverrideIsMatched(VariableOverride override, EvaluateOptions options) {
+        InstanceEvaluationDataProvider data = options.getInstanceEvaluationDataProvider();
+        Map<String, Object> context = options.getContext();
+        if (override.getConditions() != null && !data.allConditionsAreMatched(data.parseConditionsIfStringified(override.getConditions()), context)) { return false; }
+        if (override.getSegments() != null && !data.allSegmentsAreMatched(data.parseSegmentsIfStringified(override.getSegments()), context)) { return false; }
+        if (override.getRequiredFeatures() != null && !requiredFeaturesAreMatched(override.getRequiredFeatures(), options)) { return false; }
+        return override.getConditions() != null || override.getSegments() != null || override.getRequiredFeatures() != null;
+    }
+
+    private static Evaluation evaluateGlobalVariable(EvaluateOptions options) {
+        String key = options.getVariableKey();
+        if (options.getStickyVariables() != null && options.getStickyVariables().containsKey(key)) {
+            return new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
+                .reason(Evaluation.REASON_STICKY).variableValue(options.getStickyVariables().get(key));
+        }
+        GlobalVariable variable = options.getInstanceEvaluationDataProvider().getGlobalVariable(key);
+        if (variable == null) {
+            return new Evaluation(Evaluation.TYPE_VARIABLE, null, key).reason(Evaluation.REASON_VARIABLE_NOT_FOUND);
+        }
+        if (!requiredFeaturesAreMatched(variable.getRequiredFeatures(), options)) {
+            boolean useDefault = Boolean.TRUE.equals(variable.getUseDefaultWhenDisabled());
+            Evaluation evaluation = new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
+                .reason(Evaluation.REASON_REQUIRED_FEATURES_UNMET).variable(variable)
+                .requiredFeatures(variable.getRequiredFeatures());
+            if (useDefault ? variable.hasDefaultValue() : variable.hasDisabledValue()) {
+                evaluation.variableValue(useDefault ? variable.getDefaultValue() : variable.getDisabledValue());
+            }
+            return evaluation;
+        }
+        if (variable.getOverrides() != null) {
+            for (int index = 0; index < variable.getOverrides().size(); index++) {
+                VariableOverride override = variable.getOverrides().get(index);
+                if (variableOverrideIsMatched(override, options)) {
+                    return new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
+                        .reason(Evaluation.REASON_VARIABLE_OVERRIDE_RULE).variable(variable)
+                        .variableValue(override.getValue()).variableOverrideIndex(index)
+                        .variableOverrideKey(override.getKey()).variableOverridePath(override.getKeyPath());
+                }
+            }
+        }
+        Evaluation evaluation = new Evaluation(Evaluation.TYPE_VARIABLE, null, key)
+            .reason(Evaluation.REASON_VARIABLE_DEFAULT).variable(variable);
+        if (variable.hasDefaultValue()) evaluation.variableValue(variable.getDefaultValue());
+        return evaluation;
     }
 
     /**

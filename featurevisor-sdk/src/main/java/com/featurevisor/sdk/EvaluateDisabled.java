@@ -40,7 +40,7 @@ final class EvaluateDisabled {
 
                         VariableSchema variableSchema = feature.getVariablesSchema().get(variableKey);
 
-                        if (variableSchema.getDisabledValue() != null) {
+                        if (variableSchema.hasDisabledValue()) {
                             // disabledValue: <value>
                             evaluation = new Evaluation()
                                 .type(type)
@@ -50,7 +50,7 @@ final class EvaluateDisabled {
                                 .variableValue(variableSchema.getDisabledValue())
                                 .variableSchema(variableSchema)
                                 .enabled(false);
-                        } else if (Boolean.TRUE.equals(variableSchema.getUseDefaultWhenDisabled())) {
+                        } else if (Boolean.TRUE.equals(variableSchema.getUseDefaultWhenDisabled()) && variableSchema.hasDefaultValue()) {
                             // useDefaultWhenDisabled: true
                             evaluation = new Evaluation()
                                 .type(type)

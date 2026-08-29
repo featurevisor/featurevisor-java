@@ -255,4 +255,26 @@ public class ModulesManagerTest {
         assertTrue((Boolean) context.get("module1"));
         assertTrue((Boolean) context.get("module2"));
     }
+
+    @Test
+    void testCanonicalModulePhaseOrder() {
+        List<String> order = new ArrayList<>();
+        for (String name : List.of("first", "second")) {
+            modulesManager.add(new FeaturevisorModule(name)
+                .before(options -> { order.add("before:" + name); return options; })
+                .beforeEvaluation(options -> { order.add("beforeEvaluation:" + name); return options; })
+                .afterEvaluation((evaluation, options) -> { order.add("afterEvaluation:" + name); return evaluation; })
+                .after((evaluation, options) -> { order.add("after:" + name); return evaluation; }));
+        }
+
+        EvaluateOptions options = modulesManager.executeBeforeModules(new EvaluateOptions("flag", "test"));
+        modulesManager.executeAfterModules(new Evaluation("flag", "test", "allocated"), options);
+
+        assertEquals(List.of(
+            "before:first", "before:second",
+            "beforeEvaluation:first", "beforeEvaluation:second",
+            "afterEvaluation:first", "afterEvaluation:second",
+            "after:first", "after:second"
+        ), order);
+    }
 }

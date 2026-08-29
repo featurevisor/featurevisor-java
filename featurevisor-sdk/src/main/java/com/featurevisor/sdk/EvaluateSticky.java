@@ -11,14 +11,14 @@ final class EvaluateSticky {
     /**
      * Evaluates sticky scenarios and returns the appropriate evaluation result
      *
-     * @param options The evaluation options containing type, featureKey, variableKey, sticky, and diagnostics
+     * @param options The evaluation options containing type, featureKey, variableKey, sticky features, and diagnostics
      * @return Evaluation if sticky data is found and valid, null otherwise
      */
     public static Evaluation evaluateSticky(EvaluateOptions options) {
         String type = options.getType();
         String featureKey = options.getFeatureKey();
         String variableKey = options.getVariableKey();
-        Map<String, Object> sticky = options.getSticky();
+        Map<String, Object> sticky = options.getStickyFeatures();
         DiagnosticReporter diagnostics = options.getDiagnostics();
 
         if (sticky != null && sticky.containsKey(featureKey)) {

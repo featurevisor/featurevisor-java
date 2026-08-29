@@ -21,6 +21,9 @@ public class Feature {
     @JsonSetter(nulls = Nulls.AS_EMPTY)
     private List<Object> required = new ArrayList<>(); // Can be String or RequiredWithVariation
 
+    @JsonProperty("requiredFeatures")
+    private List<Object> requiredFeatures;
+
     @JsonProperty("variablesSchema")
     private Map<String, VariableSchema> variablesSchema;
 
@@ -85,6 +88,9 @@ public class Feature {
     public void setRequired(List<Object> required) {
         this.required = (required != null) ? required : new ArrayList<>();
     }
+
+    public List<Object> getRequiredFeatures() { return requiredFeatures; }
+    public void setRequiredFeatures(List<Object> requiredFeatures) { this.requiredFeatures = requiredFeatures; }
 
     public Map<String, VariableSchema> getVariablesSchema() {
         return variablesSchema;

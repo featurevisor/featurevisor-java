@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class FeaturevisorOpenFeatureProviderTest {
     private static final String DATAFILE = """
-        {"schemaVersion":"2","revision":"openfeature-test","segments":{},"features":{"checkout":{
+        {"schemaVersion":"2","revision":"openfeature-test","segments":{},"variables":{"welcome":{"hash":"welcome","type":"string","defaultValue":"Welcome","overrides":[{"key":"nl","conditions":{"attribute":"country","operator":"equals","value":"nl"},"value":"Welkom"}]}},"features":{"checkout":{
           "bucketBy":"userId",
           "variations":[{"value":"on","variables":{"title":"Hello","count":3,"ratio":1.5,"visible":true,"items":["a"],"config":{"color":"blue"},"json":"{\\\"nested\\\":true}"}}],
           "variablesSchema":{"title":{"type":"string","defaultValue":"Default"},"count":{"type":"integer","defaultValue":0},"ratio":{"type":"double","defaultValue":0},"visible":{"type":"boolean","defaultValue":false},"items":{"type":"array","defaultValue":[]},"config":{"type":"object","defaultValue":{}},"json":{"type":"json","defaultValue":"{}"}},
@@ -58,6 +58,24 @@ class FeaturevisorOpenFeatureProviderTest {
         provider.track("purchase", ImmutableContext.EMPTY, null);
         assertEquals(List.of("purchase"), tracked);
         provider.shutdown();
+    }
+
+    @Test void resolvesGlobalVariablesWithDefaultAndCustomPrefixes() throws Exception {
+        FeaturevisorOpenFeatureProvider provider = new FeaturevisorOpenFeatureProvider(options());
+        assertEquals("Welcome", provider.getStringEvaluation("variable:welcome", "fallback", ImmutableContext.EMPTY).getValue());
+
+        FeaturevisorOpenFeatureProvider custom = new FeaturevisorOpenFeatureProvider(
+            new FeaturevisorOpenFeatureProvider.Options().featurevisorOptions(options()).globalVariablePrefix("global")
+        );
+        ProviderEvaluation<String> result = custom.getStringEvaluation(
+            "global:welcome", "fallback", new ImmutableContext("user", java.util.Map.of("country", new Value("nl")))
+        );
+        assertEquals("Welkom", result.getValue());
+        assertEquals("nl", result.getFlagMetadata().getString("variableOverrideKey"));
+        assertNull(result.getFlagMetadata().getString("featureKey"));
+        assertThrows(IllegalArgumentException.class, () -> new FeaturevisorOpenFeatureProvider(
+            new FeaturevisorOpenFeatureProvider.Options().featurevisorOptions(options()).globalVariablePrefix("global:variable")
+        ));
     }
 
     @Test void reportsMalformedDatafileAndWorksThroughOpenFeatureApi() throws Exception {

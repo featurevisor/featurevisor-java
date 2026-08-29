@@ -192,8 +192,8 @@ final class EvaluateByBucketing {
                         .reason(Evaluation.REASON_RULE)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
-                        .ruleKey(matchedTraffic.getKey())
-                        .traffic(convertTrafficToMap(matchedTraffic))
+                        .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
+                        .traffic(matchedTraffic != null ? convertTrafficToMap(matchedTraffic) : null)
                         .enabled(matchedTraffic.getEnabled());
 
                     Map<String, Object> details = new HashMap<>();
@@ -299,24 +299,7 @@ final class EvaluateByBucketing {
                     List<VariableOverride> overrides = matchedTraffic.getVariableOverrides().get(variableKey);
                     for (int overrideIndex = 0; overrideIndex < overrides.size(); overrideIndex++) {
                         VariableOverride override = overrides.get(overrideIndex);
-                        boolean matches = false;
-
-                        if (override.getConditions() != null) {
-                            Object conditions = override.getConditions();
-                            if (conditions instanceof String && !"*".equals(conditions)) {
-                                try {
-                                    conditions = new com.fasterxml.jackson.databind.ObjectMapper()
-                                        .readValue((String) conditions, Object.class);
-                                } catch (Exception ignored) {
-                                    conditions = override.getConditions();
-                                }
-                            }
-
-                            matches = evaluationData.allConditionsAreMatched(conditions, context);
-                        } else if (override.getSegments() != null) {
-                            Object parsedSegments = evaluationData.parseSegmentsIfStringified(override.getSegments());
-                            matches = evaluationData.allSegmentsAreMatched(parsedSegments, context);
-                        }
+                        boolean matches = Evaluate.variableOverrideIsMatched(override, options);
 
                         if (matches) {
                             Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
@@ -327,7 +310,9 @@ final class EvaluateByBucketing {
                                 .traffic(convertTrafficToMap(matchedTraffic))
                                 .variableValue(override.getValue())
                                 .variableSchema(variableSchema)
-                                .variableOverrideIndex(overrideIndex);
+                                .variableOverrideIndex(overrideIndex)
+                                .variableOverrideKey(override.getKey())
+                                .variableOverridePath(override.getKeyPath());
 
                             Map<String, Object> details = new HashMap<>();
                             details.put("featureKey", featureKey);
@@ -394,26 +379,7 @@ final class EvaluateByBucketing {
                         List<VariableOverride> overrides = variation.getVariableOverrides().get(variableKey);
                         for (int overrideIndex = 0; overrideIndex < overrides.size(); overrideIndex++) {
                             VariableOverride override = overrides.get(overrideIndex);
-                            boolean matches = false;
-
-                            // Check conditions
-                            if (override.getConditions() != null) {
-                                Object conditions = override.getConditions();
-                                if (conditions instanceof String && !"*".equals(conditions)) {
-                                    try {
-                                        conditions = new com.fasterxml.jackson.databind.ObjectMapper()
-                                            .readValue((String) conditions, Object.class);
-                                    } catch (Exception ignored) {
-                                        conditions = override.getConditions();
-                                    }
-                                }
-                                matches = evaluationData.allConditionsAreMatched(conditions, context);
-                            }
-                            // Check segments
-                            else if (override.getSegments() != null) {
-                                Object parsedSegments = evaluationData.parseSegmentsIfStringified(override.getSegments());
-                                matches = evaluationData.allSegmentsAreMatched(parsedSegments, context);
-                            }
+                            boolean matches = Evaluate.variableOverrideIsMatched(override, options);
 
                             if (matches) {
                                 Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
@@ -424,7 +390,9 @@ final class EvaluateByBucketing {
                                     .traffic(matchedTraffic != null ? convertTrafficToMap(matchedTraffic) : null)
                                     .variableValue(override.getValue())
                                     .variableSchema(variableSchema)
-                                    .variableOverrideIndex(overrideIndex);
+                                    .variableOverrideIndex(overrideIndex)
+                                    .variableOverrideKey(override.getKey())
+                                    .variableOverridePath(override.getKeyPath());
 
                                 Map<String, Object> details = new HashMap<>();
                                 details.put("featureKey", featureKey);
@@ -466,16 +434,16 @@ final class EvaluateByBucketing {
 
                 // default value
                 if (variableSchema != null) {
-                    Object variableValue = variableSchema.getDefaultValue();
-
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                         .reason(Evaluation.REASON_VARIABLE_DEFAULT)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic.getKey())
                         .traffic(convertTrafficToMap(matchedTraffic))
-                        .variableValue(variableValue)
                         .variableSchema(variableSchema);
+                    if (variableSchema.hasDefaultValue()) {
+                        evaluation.variableValue(variableSchema.getDefaultValue());
+                    }
 
                     Map<String, Object> details = new HashMap<>();
                     details.put("featureKey", featureKey);
@@ -493,8 +461,8 @@ final class EvaluateByBucketing {
                     .reason(Evaluation.REASON_VARIABLE_NOT_FOUND)
                     .bucketKey(bucketKey)
                     .bucketValue(bucketValue)
-                    .ruleKey(matchedTraffic.getKey())
-                    .traffic(convertTrafficToMap(matchedTraffic))
+                    .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
+                    .traffic(matchedTraffic != null ? convertTrafficToMap(matchedTraffic) : null)
                     .variableSchema(variableSchema);
 
                 Map<String, Object> details = new HashMap<>();
@@ -507,6 +475,22 @@ final class EvaluateByBucketing {
                 result.setEvaluation(evaluation);
                 return result;
             }
+        }
+
+        if (Evaluation.TYPE_VARIABLE.equals(type) && variableSchema != null) {
+            Evaluation variableDefaultEvaluation = new Evaluation()
+                .type(type)
+                .featureKey(featureKey)
+                .reason(Evaluation.REASON_VARIABLE_DEFAULT)
+                .bucketKey(bucketKey)
+                .bucketValue(bucketValue)
+                .variableKey(variableKey)
+                .variableSchema(variableSchema);
+            if (variableSchema.hasDefaultValue()) {
+                variableDefaultEvaluation.variableValue(variableSchema.getDefaultValue());
+            }
+            result.setEvaluation(variableDefaultEvaluation);
+            return result;
         }
 
         // Nothing matched

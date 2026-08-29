@@ -200,7 +200,7 @@ public class Conditions {
     /**
      * Check if all conditions are matched given a context.
      * This mirrors the JavaScript SDK's narrow root helper without exposing the
-     * internal datafile reader implementation.
+     * instance evaluation data provider.
      */
     public static boolean allConditionsAreMatched(Object conditions, Map<String, Object> context) {
         DatafileContent datafile = new DatafileContent();

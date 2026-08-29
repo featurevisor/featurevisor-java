@@ -73,6 +73,7 @@ class InstanceEvaluationDataProvider {
     private String featurevisorVersion;
     private Map<String, Segment> segments;
     private Map<String, Feature> features;
+    private Map<String, GlobalVariable> variables;
     private DiagnosticReporter diagnostics;
 
     // Cache for regex patterns to avoid creating new objects for the same regex
@@ -87,12 +88,14 @@ class InstanceEvaluationDataProvider {
         this.featurevisorVersion = datafile.getFeaturevisorVersion();
         this.segments = datafile.getSegments();
         this.features = datafile.getFeatures();
+        this.variables = datafile.getVariables();
         if (this.segments == null) {
             this.segments = new HashMap<>();
         }
         if (this.features == null) {
             this.features = new HashMap<>();
         }
+        if (this.variables == null) { this.variables = new HashMap<>(); }
         this.regexCache = new ConcurrentHashMap<>();
     }
 
@@ -111,6 +114,7 @@ class InstanceEvaluationDataProvider {
         datafile.setFeaturevisorVersion(this.featurevisorVersion);
         datafile.setSegments(this.segments);
         datafile.setFeatures(this.features);
+        datafile.setVariables(this.variables);
         return datafile;
     }
 
@@ -133,6 +137,9 @@ class InstanceEvaluationDataProvider {
     public Feature getFeature(String featureKey) {
         return features.get(featureKey);
     }
+
+    public List<String> getGlobalVariableKeys() { return new ArrayList<>(variables.keySet()); }
+    public GlobalVariable getGlobalVariable(String key) { return variables.get(key); }
 
     public List<String> getVariableKeys(String featureKey) {
         Feature feature = getFeature(featureKey);

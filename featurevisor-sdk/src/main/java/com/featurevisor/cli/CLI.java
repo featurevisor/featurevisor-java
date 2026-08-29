@@ -10,6 +10,7 @@ import com.featurevisor.sdk.FeaturevisorLogLevel;
 import com.featurevisor.sdk.Conditions;
 import com.featurevisor.sdk.DatafileContent;
 import com.featurevisor.sdk.Segment;
+import com.featurevisor.sdk.Evaluation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -33,7 +34,7 @@ import com.featurevisor.sdk.FeaturevisorModule;
 @Command(
     name = "featurevisor",
     mixinStandardHelpOptions = true,
-    version = "3.0.0",
+    version = "4.0.0",
     description = "Featurevisor Java Library CLI - Test runner, benchmark, and distribution assessment"
 )
 public class CLI implements Runnable {
@@ -364,10 +365,10 @@ public class CLI implements Runnable {
         // Update the SDK instance context and sticky values for this assertion
         if (f instanceof Featurevisor) {
             ((Featurevisor) f).setContext(context, true);
-            ((Featurevisor) f).setSticky(sticky, true);
+            ((Featurevisor) f).setStickyFeatures(sticky, true);
         } else if (f instanceof com.featurevisor.sdk.ChildInstance) {
             ((com.featurevisor.sdk.ChildInstance) f).setContext(context, true);
-            ((com.featurevisor.sdk.ChildInstance) f).setSticky(sticky, true);
+            ((com.featurevisor.sdk.ChildInstance) f).setStickyFeatures(sticky, true);
         }
 
         boolean hasError = false;
@@ -535,6 +536,36 @@ public class CLI implements Runnable {
         return new TestResult(hasError, errors.toString(), duration);
     }
 
+    private TestResult testGlobalVariable(Map<String, Object> assertion, String variableKey, Featurevisor f) {
+        @SuppressWarnings("unchecked") Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
+        @SuppressWarnings("unchecked") Map<String, Object> stickyVariables = (Map<String, Object>) assertion.getOrDefault("stickyVariables", new HashMap<>());
+        f.setContext(context, true);
+        f.setStickyVariables(stickyVariables, true);
+        Featurevisor.OverrideOptions options = new Featurevisor.OverrideOptions();
+        if (assertion.containsKey("defaultVariableValue")) options.setDefaultVariableValue(assertion.get("defaultVariableValue"));
+        long startTime = System.nanoTime();
+        Evaluation evaluation = f.evaluateVariable(variableKey, context, options);
+        boolean hasError = false;
+        StringBuilder errors = new StringBuilder();
+        if (assertion.containsKey("expectedValue") && !Objects.equals(assertion.get("expectedValue"), evaluation.getVariableValue())) {
+            hasError = true;
+            errors.append("      ✘ expectedValue: expected ").append(assertion.get("expectedValue"))
+                .append(" but received ").append(evaluation.getVariableValue()).append("\n");
+        }
+        if (assertion.containsKey("expectedEvaluation")) {
+            @SuppressWarnings("unchecked") Map<String, Object> expected = (Map<String, Object>) assertion.get("expectedEvaluation");
+            for (Map.Entry<String, Object> entry : expected.entrySet()) {
+                Object actual = getEvaluationValue(evaluation, entry.getKey());
+                if (!Objects.equals(entry.getValue(), actual)) {
+                    hasError = true;
+                    errors.append("      ✘ expectedEvaluation.").append(entry.getKey()).append(": expected ")
+                        .append(entry.getValue()).append(" but received ").append(actual).append("\n");
+                }
+            }
+        }
+        return new TestResult(hasError, errors.toString(), (System.nanoTime() - startTime) / 1_000_000.0);
+    }
+
     /**
      * Helper methods to work with both Instance and ChildInstance
      */
@@ -616,6 +647,8 @@ public class CLI implements Runnable {
             case "variableKey": return evaluation.getVariableKey();
             case "variableValue": return evaluation.getVariableValue();
             case "variableOverrideIndex": return evaluation.getVariableOverrideIndex();
+            case "variableOverrideKey": return evaluation.getVariableOverrideKey();
+            case "variableOverridePath": return evaluation.getVariableOverridePath();
             case "bucketKey": return evaluation.getBucketKey();
             case "bucketValue": return evaluation.getBucketValue();
             case "ruleKey": return evaluation.getRuleKey();
@@ -624,6 +657,7 @@ public class CLI implements Runnable {
             case "sticky": return evaluation.getSticky();
             case "traffic": return evaluation.getTraffic();
             case "required": return evaluation.getRequired() != null ? evaluation.getRequired() : new ArrayList<>();
+            case "requiredFeatures": return evaluation.getRequiredFeatures() != null ? evaluation.getRequiredFeatures() : new ArrayList<>();
             case "error": return evaluation.getError();
             default: return null;
         }
@@ -768,6 +802,14 @@ public class CLI implements Runnable {
                         testResult = testFeature(effectiveAssertion, (String) test.get("feature"), f, level);
 
 
+                    } else if (test.containsKey("variable")) {
+                        String assertionEnvironment = assertion.get("environment") instanceof String ? (String) assertion.get("environment") : null;
+                        String selectedDatafileKey = selectDatafileKeyForAssertion(assertion, datafileCache);
+                        DatafileContent selectedDatafile = datafileCache.get(selectedDatafileKey);
+                        if (selectedDatafile == null) selectedDatafile = datafileCache.get(getEnvironmentKey(assertionEnvironment));
+                        if (selectedDatafile == null) throw new IOException("No datafile found for assertion environment: " + assertionEnvironment);
+                        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(selectedDatafile).logLevel(level));
+                        testResult = testGlobalVariable(assertion, (String) test.get("variable"), f);
                     } else if (test.containsKey("segment")) {
                         testResult = testSegment(assertion, segmentsByKey.get(test.get("segment")), level);
                     } else {
@@ -825,8 +867,8 @@ public class CLI implements Runnable {
                 return;
             }
 
-            if (feature == null) {
-                System.out.println("Feature is required");
+            if (feature == null && variable == null) {
+                System.out.println("Feature or variable is required");
                 return;
             }
 
@@ -856,15 +898,17 @@ public class CLI implements Runnable {
             Object value = null;
 
             System.out.println("Benchmark Featurevisor feature");
-            System.out.println("  Feature: " + feature);
+            if (feature != null) System.out.println("  Feature: " + feature);
             System.out.println("  Environment: " + environment);
             if (target != null) System.out.println("  Target: " + target);
             System.out.println("  Iterations: " + n);
 
             if (variation) {
                 System.out.println("Benchmarking variation for feature '" + feature + "'...");
-            } else if (variable != null) {
+            } else if (variable != null && feature != null) {
                 System.out.println("Benchmarking variable '" + variable + "' for feature '" + feature + "'...");
+            } else if (variable != null) {
+                System.out.println("Benchmarking global variable '" + variable + "'...");
             } else {
                 System.out.println("Benchmarking flag for feature '" + feature + "'...");
             }
@@ -879,8 +923,10 @@ public class CLI implements Runnable {
                 long evaluationStartTime = System.nanoTime();
                 if (variation) {
                     value = f.getVariation(feature, contextMap);
-                } else if (variable != null) {
+                } else if (variable != null && feature != null) {
                     value = f.getVariable(feature, variable, contextMap);
+                } else if (variable != null) {
+                    value = f.getVariable(variable, contextMap);
                 } else {
                     value = f.isEnabled(feature, contextMap);
                 }

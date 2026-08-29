@@ -124,8 +124,13 @@ final class ModulesManager {
     public EvaluateOptions executeBeforeModules(EvaluateOptions options) {
         EvaluateOptions currentOptions = options;
         for (FeaturevisorModule module : modules) {
-            if (module.getBefore() != null) {
+            if (!currentOptions.isGlobalVariable() && module.getBefore() != null) {
                 currentOptions = module.getBefore().apply(currentOptions);
+            }
+        }
+        for (FeaturevisorModule module : modules) {
+            if (module.getBeforeEvaluation() != null) {
+                currentOptions = module.getBeforeEvaluation().apply(currentOptions);
             }
         }
         return currentOptions;
@@ -134,7 +139,12 @@ final class ModulesManager {
     public Evaluation executeAfterModules(Evaluation evaluation, EvaluateOptions options) {
         Evaluation currentEvaluation = evaluation;
         for (FeaturevisorModule module : modules) {
-            if (module.getAfter() != null) {
+            if (module.getAfterEvaluation() != null) {
+                currentEvaluation = module.getAfterEvaluation().apply(currentEvaluation, options);
+            }
+        }
+        for (FeaturevisorModule module : modules) {
+            if (!options.isGlobalVariable() && module.getAfter() != null) {
                 currentEvaluation = module.getAfter().apply(currentEvaluation, options);
             }
         }

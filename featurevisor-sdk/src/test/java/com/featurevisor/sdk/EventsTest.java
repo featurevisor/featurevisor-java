@@ -13,14 +13,14 @@ import java.util.ArrayList;
 public class EventsTest {
 
     @Test
-    public void testGetParamsForStickySetEventEmptyToNew() {
+    public void testGetParamsForStickyFeaturesSetEventEmptyToNew() {
         Map<String, Object> previousStickyFeatures = new HashMap<>();
         Map<String, Object> newStickyFeatures = new HashMap<>();
         newStickyFeatures.put("feature2", Map.of("enabled", true));
         newStickyFeatures.put("feature3", Map.of("enabled", true));
         boolean replace = true;
 
-        FeaturevisorEventDetails result = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForStickyFeaturesSetEvent(
             previousStickyFeatures, newStickyFeatures, replace);
 
         @SuppressWarnings("unchecked")
@@ -34,7 +34,7 @@ public class EventsTest {
     }
 
     @Test
-    public void testGetParamsForStickySetEventAddChangeRemove() {
+    public void testGetParamsForStickyFeaturesSetEventAddChangeRemove() {
         Map<String, Object> previousStickyFeatures = new HashMap<>();
         previousStickyFeatures.put("feature1", Map.of("enabled", true));
         previousStickyFeatures.put("feature2", Map.of("enabled", true));
@@ -45,7 +45,7 @@ public class EventsTest {
 
         boolean replace = true;
 
-        FeaturevisorEventDetails result = Events.getParamsForStickySetEvent(
+        FeaturevisorEventDetails result = Events.getParamsForStickyFeaturesSetEvent(
             previousStickyFeatures, newStickyFeatures, replace);
 
         @SuppressWarnings("unchecked")
@@ -60,9 +60,9 @@ public class EventsTest {
     }
 
     @Test
-    public void testGetParamsForStickySetEventWithNullInputs() {
+    public void testGetParamsForStickyFeaturesSetEventWithNullInputs() {
         // Test with null inputs
-        FeaturevisorEventDetails result = Events.getParamsForStickySetEvent(null, null, false);
+        FeaturevisorEventDetails result = Events.getParamsForStickyFeaturesSetEvent(null, null, false);
 
         @SuppressWarnings("unchecked")
         List<String> features = (List<String>) result.get("features");
