@@ -86,7 +86,7 @@ Add the Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>4.0.0</version>
+        <version>4.1.0</version>
     </dependency>
 </dependencies>
 ```
@@ -901,7 +901,7 @@ Add the provider with the same version as the Featurevisor Java SDK:
 <dependency>
   <groupId>com.featurevisor</groupId>
   <artifactId>featurevisor-openfeature</artifactId>
-  <version>4.0.0</version>
+  <version>4.1.0</version>
 </dependency>
 ```
 
@@ -973,7 +973,7 @@ $ make verify-artifacts
 ### Releasing
 
 1. Merge the release changes into `main`.
-2. Tag the release with a `v` prefix, such as `v4.0.0`, and push the tag.
+2. Tag the release with a `v` prefix, such as `v4.1.0`, and push the tag.
 3. GitHub Actions verifies and publishes the parent POM, Java SDK, and OpenFeature provider to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java).
 4. Create the corresponding [GitHub release](https://github.com/featurevisor/featurevisor-java/releases).
 
