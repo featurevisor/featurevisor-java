@@ -34,7 +34,7 @@ import com.featurevisor.sdk.FeaturevisorModule;
 @Command(
     name = "featurevisor",
     mixinStandardHelpOptions = true,
-    version = "4.0.0",
+    version = "4.1.0",
     description = "Featurevisor Java Library CLI - Test runner, benchmark, and distribution assessment"
 )
 public class CLI implements Runnable {
@@ -209,14 +209,13 @@ public class CLI implements Runnable {
         String assertionEnvironment = assertion.get("environment") instanceof String
             ? (String) assertion.get("environment")
             : null;
-        String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
         String target = assertion.get("target") instanceof String ? (String) assertion.get("target") : null;
 
-        if (target != null && datafileCache.containsKey(targetDatafileCacheKey(assertionEnvironment, target))) {
+        if (target != null) {
             return targetDatafileCacheKey(assertionEnvironment, target);
         }
 
-        return baseDatafileKey;
+        return getEnvironmentKey(assertionEnvironment);
     }
 
     private DatafileContent parseDatafileContent(String datafileOutput, String contextForError) throws IOException {
@@ -523,7 +522,12 @@ public class CLI implements Runnable {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> childContext = (Map<String, Object>) child.getOrDefault("context", new HashMap<>());
                 com.featurevisor.sdk.ChildInstance childF = spawn(f, childContext);
-                TestResult childResult = testFeature(child, featureKey, childF, level);
+                TestResult childResult;
+                try {
+                    childResult = testFeature(child, featureKey, childF, level);
+                } finally {
+                    childF.close();
+                }
                 duration += childResult.duration;
                 hasError = hasError || childResult.hasError;
 
@@ -538,19 +542,17 @@ public class CLI implements Runnable {
 
     private TestResult testGlobalVariable(Map<String, Object> assertion, String variableKey, Featurevisor f) {
         @SuppressWarnings("unchecked") Map<String, Object> context = (Map<String, Object>) assertion.getOrDefault("context", new HashMap<>());
-        @SuppressWarnings("unchecked") Map<String, Object> stickyVariables = (Map<String, Object>) assertion.getOrDefault("stickyVariables", new HashMap<>());
         f.setContext(context, true);
-        f.setStickyVariables(stickyVariables, true);
         Featurevisor.OverrideOptions options = new Featurevisor.OverrideOptions();
         if (assertion.containsKey("defaultVariableValue")) options.setDefaultVariableValue(assertion.get("defaultVariableValue"));
         long startTime = System.nanoTime();
-        Evaluation evaluation = f.evaluateVariable(variableKey, context, options);
+        Evaluation evaluation = f.evaluateVariable(variableKey, new HashMap<>(), options);
         boolean hasError = false;
         StringBuilder errors = new StringBuilder();
         if (assertion.containsKey("expectedValue") && !Objects.equals(assertion.get("expectedValue"), evaluation.getVariableValue())) {
             hasError = true;
-            errors.append("      ✘ expectedValue: expected ").append(assertion.get("expectedValue"))
-                .append(" but received ").append(evaluation.getVariableValue()).append("\n");
+            errors.append("      ✘ expectedValue: expected ").append(formatTestValue(assertion.get("expectedValue")))
+                .append(" but received ").append(formatTestValue(evaluation.getVariableValue())).append("\n");
         }
         if (assertion.containsKey("expectedEvaluation")) {
             @SuppressWarnings("unchecked") Map<String, Object> expected = (Map<String, Object>) assertion.get("expectedEvaluation");
@@ -559,11 +561,92 @@ public class CLI implements Runnable {
                 if (!Objects.equals(entry.getValue(), actual)) {
                     hasError = true;
                     errors.append("      ✘ expectedEvaluation.").append(entry.getKey()).append(": expected ")
-                        .append(entry.getValue()).append(" but received ").append(actual).append("\n");
+                        .append(formatTestValue(entry.getValue())).append(" but received ").append(formatTestValue(actual)).append("\n");
+                }
+            }
+        }
+        if (assertion.containsKey("children")) {
+            @SuppressWarnings("unchecked") List<Map<String, Object>> children = (List<Map<String, Object>>) assertion.get("children");
+            for (int childIndex = 0; childIndex < children.size(); childIndex++) {
+                Map<String, Object> childAssertion = children.get(childIndex);
+                @SuppressWarnings("unchecked") Map<String, Object> childContext = (Map<String, Object>) childAssertion.getOrDefault("context", new HashMap<>());
+                @SuppressWarnings("unchecked") Map<String, Object> childStickyFeatures = (Map<String, Object>) childAssertion.get("stickyFeatures");
+                @SuppressWarnings("unchecked") Map<String, Object> childStickyVariables = (Map<String, Object>) childAssertion.get("stickyVariables");
+                if (childStickyFeatures == null) childStickyFeatures = new HashMap<>();
+                if (childStickyVariables == null) childStickyVariables = new HashMap<>();
+                Featurevisor.SpawnOptions spawnOptions = new Featurevisor.SpawnOptions()
+                    .stickyFeatures(childStickyFeatures)
+                    .stickyVariables(childStickyVariables);
+                com.featurevisor.sdk.ChildInstance child = f.spawn(childContext, spawnOptions);
+                try {
+                    TestResult childResult = testGlobalVariableChild(childAssertion, variableKey, child, childIndex);
+                    hasError = hasError || childResult.hasError;
+                    errors.append(childResult.errors);
+                } finally {
+                    child.close();
                 }
             }
         }
         return new TestResult(hasError, errors.toString(), (System.nanoTime() - startTime) / 1_000_000.0);
+    }
+
+    private TestResult testGlobalVariableChild(Map<String, Object> assertion, String variableKey, com.featurevisor.sdk.ChildInstance child, int childIndex) {
+        Featurevisor.OverrideOptions options = new Featurevisor.OverrideOptions();
+        if (assertion.containsKey("defaultVariableValue")) options.setDefaultVariableValue(assertion.get("defaultVariableValue"));
+        Evaluation evaluation = child.evaluateVariable(variableKey, new HashMap<>(), options);
+        boolean hasError = false;
+        StringBuilder errors = new StringBuilder();
+        String prefix = "children[" + childIndex + "].";
+        if (assertion.containsKey("expectedValue") && !Objects.equals(assertion.get("expectedValue"), evaluation.getVariableValue())) {
+            hasError = true;
+            errors.append("      ✘ ").append(prefix).append("expectedValue: expected ")
+                .append(formatTestValue(assertion.get("expectedValue"))).append(" but received ")
+                .append(formatTestValue(evaluation.getVariableValue())).append("\n");
+        }
+        if (assertion.containsKey("expectedEvaluation")) {
+            @SuppressWarnings("unchecked") Map<String, Object> expected = (Map<String, Object>) assertion.get("expectedEvaluation");
+            for (Map.Entry<String, Object> entry : expected.entrySet()) {
+                Object actual = getEvaluationValue(evaluation, entry.getKey());
+                if (!Objects.equals(entry.getValue(), actual)) {
+                    hasError = true;
+                    errors.append("      ✘ ").append(prefix).append("expectedEvaluation.").append(entry.getKey())
+                        .append(": expected ").append(formatTestValue(entry.getValue()))
+                        .append(" but received ").append(formatTestValue(actual)).append("\n");
+                }
+            }
+        }
+        return new TestResult(hasError, errors.toString(), 0);
+    }
+
+    private String formatTestValue(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ignored) {
+            return String.valueOf(value);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Featurevisor createInstanceForAssertion(DatafileContent datafile, Map<String, Object> assertion, FeaturevisorLogLevel level) {
+        Featurevisor.FeaturevisorOptions options = new Featurevisor.FeaturevisorOptions()
+            .datafile(datafile)
+            .logLevel(level)
+            .context((Map<String, Object>) assertion.getOrDefault("context", new HashMap<>()))
+            .stickyFeatures((Map<String, Object>) assertion.getOrDefault("stickyFeatures", assertion.get("sticky")))
+            .stickyVariables((Map<String, Object>) assertion.get("stickyVariables"));
+        if (assertion.get("at") instanceof Number) {
+            double at = ((Number) assertion.get("at")).doubleValue();
+            options.modules(Collections.singletonList(
+                new FeaturevisorModule("test-module").bucketValue(bucket -> (int) (at * 1000))
+            ));
+        }
+        return Featurevisor.createFeaturevisor(options);
+    }
+
+    private TestResult missingDatafileResult(Map<String, Object> assertion) {
+        String environmentName = assertion.get("environment") instanceof String ? assertion.get("environment").toString() : "none";
+        String targetName = assertion.get("target") instanceof String ? " and target \"" + assertion.get("target") + "\"" : "";
+        return new TestResult(true, "      ✘ datafile not found for environment \"" + environmentName + "\"" + targetName + "\n", 0);
     }
 
     /**
@@ -728,7 +811,7 @@ public class CLI implements Runnable {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> assertions = (List<Map<String, Object>>) test.get("assertions");
 
-                if (test.containsKey("feature") && !targets.isEmpty()) {
+                if ((test.containsKey("feature") || test.containsKey("variable")) && !targets.isEmpty()) {
                     assertions = assertions.stream().filter(assertion -> {
                         Object assertionTarget = assertion.get("target");
                         return assertionTarget == null || targets.contains(assertionTarget.toString());
@@ -751,23 +834,17 @@ public class CLI implements Runnable {
                         String assertionEnvironment = assertion.get("environment") instanceof String
                             ? (String) assertion.get("environment")
                             : null;
-                        String baseDatafileKey = getEnvironmentKey(assertionEnvironment);
                         String selectedDatafileKey = selectDatafileKeyForAssertion(assertion, datafileCache);
 
                         DatafileContent selectedDatafile = datafileCache.get(selectedDatafileKey);
                         if (selectedDatafile == null) {
-                            selectedDatafile = datafileCache.get(baseDatafileKey);
-                        }
-
-                        if (selectedDatafile == null) {
-                            throw new IOException("No datafile found for assertion environment: " + assertionEnvironment);
-                        }
-
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> effectiveAssertion = objectMapper.convertValue(
-                            assertion,
-                            new TypeReference<Map<String, Object>>() {}
-                        );
+                            testResult = missingDatafileResult(assertion);
+                        } else {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> effectiveAssertion = objectMapper.convertValue(
+                                assertion,
+                                new TypeReference<Map<String, Object>>() {}
+                            );
 
                         if (Boolean.TRUE.equals(showDatafile)) {
                             System.out.println();
@@ -775,41 +852,33 @@ public class CLI implements Runnable {
                             System.out.println();
                         }
 
-                        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
-                            .datafile(selectedDatafile)
-                            .logLevel(level));
-
-                        // If "at" parameter is provided, create a new SDK instance with the specific module
-                        if (effectiveAssertion.containsKey("at")) {
-                            Object atObj = effectiveAssertion.get("at");
-                            double atValue;
-
-                            if (atObj instanceof Number) {
-                                atValue = ((Number) atObj).doubleValue();
-                            } else {
-                                atValue = Double.parseDouble(atObj.toString());
+                            Featurevisor f = createInstanceForAssertion(selectedDatafile, effectiveAssertion, level);
+                            try {
+                                testResult = testFeature(effectiveAssertion, (String) test.get("feature"), f, level);
+                            } finally {
+                                f.close();
                             }
-
-                            FeaturevisorModule testModule = new FeaturevisorModule("test-module")
-                                .bucketValue((options) -> (int) (atValue * 1000));
-
-                            f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
-                                .datafile(selectedDatafile)
-                                .logLevel(level)
-                                .modules(Collections.singletonList(testModule)));
                         }
-
-                        testResult = testFeature(effectiveAssertion, (String) test.get("feature"), f, level);
 
 
                     } else if (test.containsKey("variable")) {
-                        String assertionEnvironment = assertion.get("environment") instanceof String ? (String) assertion.get("environment") : null;
                         String selectedDatafileKey = selectDatafileKeyForAssertion(assertion, datafileCache);
                         DatafileContent selectedDatafile = datafileCache.get(selectedDatafileKey);
-                        if (selectedDatafile == null) selectedDatafile = datafileCache.get(getEnvironmentKey(assertionEnvironment));
-                        if (selectedDatafile == null) throw new IOException("No datafile found for assertion environment: " + assertionEnvironment);
-                        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions().datafile(selectedDatafile).logLevel(level));
-                        testResult = testGlobalVariable(assertion, (String) test.get("variable"), f);
+                        if (selectedDatafile == null) {
+                            testResult = missingDatafileResult(assertion);
+                        } else {
+                            if (Boolean.TRUE.equals(showDatafile)) {
+                                System.out.println();
+                                System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(selectedDatafile));
+                                System.out.println();
+                            }
+                            Featurevisor f = createInstanceForAssertion(selectedDatafile, assertion, level);
+                            try {
+                                testResult = testGlobalVariable(assertion, (String) test.get("variable"), f);
+                            } finally {
+                                f.close();
+                            }
+                        }
                     } else if (test.containsKey("segment")) {
                         testResult = testSegment(assertion, segmentsByKey.get(test.get("segment")), level);
                     } else {

@@ -64,7 +64,7 @@ public class CLIOptionsTest {
     }
 
     @Test
-    public void testTargetAssertionFallsBackToBaseDatafile() {
+    public void testTargetAssertionDoesNotFallBackToBaseDatafile() {
         CLI cli = new CLI();
         Map<String, Object> assertion = new HashMap<>();
         assertion.put("environment", "production");
@@ -73,7 +73,7 @@ public class CLIOptionsTest {
         Map<String, DatafileContent> cache = new HashMap<>();
         cache.put("production", new DatafileContent("2", "base"));
 
-        assertEquals("production", cli.selectDatafileKeyForAssertion(assertion, cache));
+        assertEquals("production-target-checkout", cli.selectDatafileKeyForAssertion(assertion, cache));
     }
 
     @Test
