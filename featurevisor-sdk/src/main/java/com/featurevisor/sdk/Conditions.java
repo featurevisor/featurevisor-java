@@ -8,13 +8,41 @@ import java.util.Date;
 import java.util.regex.Pattern;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
+import java.time.ZonedDateTime;
 
 /**
  * Conditions utility for Featurevisor SDK
  * Provides condition matching functionality
  */
 public class Conditions {
+    private static final Instant MIN_PORTABLE_DATE = Instant.parse("0001-01-01T00:00:00Z");
+    private static final Instant MAX_PORTABLE_DATE_EXCLUSIVE = Instant.parse("+10000-01-01T00:00:00Z");
+
+    static String normalizePortableRegex(String pattern) {
+        StringBuilder output = new StringBuilder();
+        boolean inClass = false;
+        for (int index = 0; index < pattern.length(); index++) {
+            char current = pattern.charAt(index);
+            if (current == '\\' && index + 1 < pattern.length()) {
+                char code = pattern.charAt(++index);
+                String replacement = null;
+                switch (code) {
+                    case 'd': replacement = inClass ? "0-9" : "[0-9]"; break;
+                    case 'D': replacement = inClass ? "\\x{0}-\\x{2F}\\x{3A}-\\x{10FFFF}" : "[^0-9]"; break;
+                    case 'w': replacement = inClass ? "A-Za-z0-9_" : "(?-i:[A-Za-z0-9_])"; break;
+                    case 'W': replacement = inClass ? "\\x{0}-\\x{2F}\\x{3A}-\\x{40}\\x{5B}-\\x{5E}\\x{60}\\x{7B}-\\x{10FFFF}" : "(?-i:[^A-Za-z0-9_])"; break;
+                    default: break;
+                }
+                if (replacement == null) output.append('\\').append(code);
+                else output.append(replacement);
+                continue;
+            }
+            if (current == '[' && !inClass) inClass = true;
+            else if (current == ']' && inClass) inClass = false;
+            output.append(current);
+        }
+        return output.toString();
+    }
     /**
      * Functional interface for getting regex patterns.
      */
@@ -133,18 +161,37 @@ public class Conditions {
 
         Object contextValue = ContextUtils.getValueFromContext(context, attribute);
 
+        return valueIsMatched(contextValue, pathExists(context, attribute), operator, value, regexFlags, getRegex);
+    }
+
+    /** Shared comparison semantics for context conditions and variable requirements. */
+    static boolean valueIsMatched(
+            Object contextValue,
+            boolean present,
+            Operator operator,
+            Object value,
+            String regexFlags,
+            GetRegex getRegex) {
         switch (operator) {
+            case IS_NULL:
+                return present && contextValue == null;
+            case NOT_NULL:
+                return present && contextValue != null;
+            case EMPTY:
+                return present && empty(contextValue, true);
+            case NOT_EMPTY:
+                return present && empty(contextValue, false);
             case EQUALS:
-                return pathExists(context, attribute) && equals(contextValue, value);
+                return present && equals(contextValue, value);
             case NOT_EQUALS:
-                return !pathExists(context, attribute) || !equals(contextValue, value);
+                return !present || !equals(contextValue, value);
             case IN:
-                return pathExists(context, attribute) && in(contextValue, value);
+                return present && in(contextValue, value);
             case NOT_IN:
                 // Match PHP implementation: check if value is array and context value is string/numeric/null
                 if (value instanceof List &&
                     (contextValue instanceof String || contextValue instanceof Number || contextValue == null) &&
-                    pathExists(context, attribute)) {
+                    present) {
                     return !in(contextValue, value);
                 }
                 return false;
@@ -165,15 +212,25 @@ public class Conditions {
             case LESS_THAN_OR_EQUALS:
                 return lessThanOrEquals(contextValue, value);
             case EXISTS:
-                return pathExists(context, attribute);
+                return present;
             case NOT_EXISTS:
-                return !pathExists(context, attribute);
+                return !present;
             case MATCHES:
                 return matches(contextValue, value, regexFlags, getRegex);
             case NOT_MATCHES:
                 return contextValue instanceof String && value instanceof String && !matches(contextValue, value, regexFlags, getRegex);
             case INCLUDES:
                 return includes(contextValue, value);
+            case INCLUDES_ANY:
+            case NOT_INCLUDES_ANY:
+                if (!present || !(contextValue instanceof List) || !(value instanceof List)) return false;
+                for (Object candidate : (List<?>) value) if (!isPrimitive(candidate)) return false;
+                for (Object candidate : (List<?>) value) {
+                    for (Object item : (List<?>) contextValue) {
+                        if (equals(item, candidate)) return operator == Operator.INCLUDES_ANY;
+                    }
+                }
+                return operator == Operator.NOT_INCLUDES_ANY;
             case NOT_INCLUDES:
                 return contextValue instanceof List && isPrimitive(value) && !includes(contextValue, value);
             case SEMVER_EQUALS:
@@ -203,6 +260,14 @@ public class Conditions {
      * instance evaluation data provider.
      */
     public static boolean allConditionsAreMatched(Object conditions, Map<String, Object> context) {
+        return allConditionsAreMatched(conditions, context, null);
+    }
+
+    /**
+     * Match conditions with a caller selected diagnostic level.
+     */
+    public static boolean allConditionsAreMatched(Object conditions, Map<String, Object> context,
+            FeaturevisorLogLevel logLevel) {
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2");
         datafile.setRevision("matcher");
@@ -211,7 +276,8 @@ public class Conditions {
 
         return new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
             .datafile(datafile)
-            .diagnostics(DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions())))
+            .diagnostics(DiagnosticReporter.createDiagnosticReporter(
+                new DiagnosticReporter.DiagnosticReporterOptions().level(logLevel))))
             .allConditionsAreMatched(conditions, context);
     }
 
@@ -234,6 +300,20 @@ public class Conditions {
             return contextValue.equals(conditionValue);
         }
         return false;
+    }
+
+    private static boolean empty(Object value, boolean expectedEmpty) {
+        final boolean isEmpty;
+        if (value instanceof String) {
+            isEmpty = ((String) value).isEmpty();
+        } else if (value instanceof List) {
+            isEmpty = ((List<?>) value).isEmpty();
+        } else if (value instanceof Map) {
+            isEmpty = ((Map<?, ?>) value).isEmpty();
+        } else {
+            return false;
+        }
+        return isEmpty == expectedEmpty;
     }
 
     private static boolean in(Object contextValue, Object conditionValue) {
@@ -391,19 +471,49 @@ public class Conditions {
     }
 
     private static Instant parseDate(Object value) {
+        try {
+            return parsePortableDate(value);
+        } catch (RuntimeException ignored) {
+            // Native Date implementations can reject conversion to an instant.
+            return null;
+        }
+    }
+
+    private static Instant parsePortableDate(Object value) {
+        Instant parsed;
         if (value instanceof Instant) {
-            return (Instant) value;
-        }
-        if (value instanceof Date) {
-            return ((Date) value).toInstant();
-        }
-        if (value instanceof String) {
-            try {
-                return OffsetDateTime.parse((String) value).toInstant();
-            } catch (DateTimeParseException ignored) {
+            parsed = (Instant) value;
+        } else if (value instanceof OffsetDateTime) {
+            OffsetDateTime date = (OffsetDateTime) value;
+            if (date.getYear() < 1 || date.getYear() > 9999) return null;
+            if (Math.abs(date.getOffset().getTotalSeconds()) > 14 * 3600) return null;
+            parsed = date.toInstant();
+        } else if (value instanceof ZonedDateTime) {
+            ZonedDateTime date = (ZonedDateTime) value;
+            if (date.getYear() < 1 || date.getYear() > 9999) return null;
+            if (Math.abs(date.getOffset().getTotalSeconds()) > 14 * 3600) return null;
+            parsed = date.toInstant();
+        } else if (value instanceof Date) {
+            parsed = ((Date) value).toInstant();
+        } else if (value instanceof String) {
+            String text = (String) value;
+            if (!text.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?(?:Z|[+-][0-9]{2}:[0-9]{2})")) {
                 return null;
             }
+            if (text.startsWith("0000-")) return null;
+            if (!text.endsWith("Z")) {
+                int hour = Integer.parseInt(text.substring(text.length() - 5, text.length() - 3));
+                int minute = Integer.parseInt(text.substring(text.length() - 2));
+                if (hour > 14 || minute > 59 || (hour == 14 && minute != 0)) return null;
+            }
+            OffsetDateTime date = OffsetDateTime.parse(text);
+            if (Math.abs(date.getOffset().getTotalSeconds()) > 14 * 3600) return null;
+            parsed = date.toInstant();
+        } else {
+            return null;
         }
-        return null;
+        if (parsed.isBefore(MIN_PORTABLE_DATE) ||
+            !parsed.isBefore(MAX_PORTABLE_DATE_EXCLUSIVE)) return null;
+        return parsed.truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
     }
 }

@@ -20,16 +20,13 @@ public class Evaluation {
     // Evaluation reasons
     public static final String REASON_FEATURE_NOT_FOUND = "feature_not_found";
     public static final String REASON_DISABLED = "disabled";
-    public static final String REASON_REQUIRED = "required";
-    public static final String REASON_REQUIRED_FEATURES_UNMET = "required_features_unmet";
-    public static final String REASON_OUT_OF_RANGE = "out_of_range";
+    public static final String REASON_CONDITIONS_UNMET = "conditions_unmet";
+    public static final String REASON_VARIABLE_COMPOSED = "variable_composed";
     public static final String REASON_NO_VARIATIONS = "no_variations";
     public static final String REASON_VARIATION_DISABLED = "variation_disabled";
     public static final String REASON_VARIABLE_NOT_FOUND = "variable_not_found";
     public static final String REASON_VARIABLE_DEFAULT = "variable_default";
     public static final String REASON_VARIABLE_DISABLED = "variable_disabled";
-    @Deprecated
-    public static final String REASON_VARIABLE_OVERRIDE = "variable_override";
     public static final String REASON_VARIABLE_OVERRIDE_RULE = "variable_override_rule";
     public static final String REASON_VARIABLE_OVERRIDE_VARIATION = "variable_override_variation";
     public static final String REASON_NO_MATCH = "no_match";
@@ -53,9 +50,8 @@ public class Evaluation {
     private Map<String, Object> traffic;
     private Integer forceIndex;
     private Map<String, Object> force;
-    private List<Map<String, Object>> required;
-    private List<Object> requiredFeatures;
-    private Map<String, Object> sticky;
+    private Object conditions;
+    private Map<String, Object> stickyFeature;
 
     // Variation fields
     private Variation variation;
@@ -70,6 +66,7 @@ public class Evaluation {
     private Integer variableOverrideIndex;
     private String variableOverrideKey;
     private List<String> variableOverridePath;
+    private List<List<String>> variableOverridePaths;
 
     // Required feature fields
     private String requiredFeatureKey;
@@ -97,9 +94,8 @@ public class Evaluation {
     public Map<String, Object> getTraffic() { return traffic; }
     public Integer getForceIndex() { return forceIndex; }
     public Map<String, Object> getForce() { return force; }
-    public List<Map<String, Object>> getRequired() { return required; }
-    public List<Object> getRequiredFeatures() { return requiredFeatures; }
-    public Map<String, Object> getSticky() { return sticky; }
+    public Object getConditions() { return conditions; }
+    public Map<String, Object> getStickyFeature() { return stickyFeature; }
     public Variation getVariation() { return variation; }
     public String getVariationValue() { return variationValue; }
     public String getVariableKey() { return variableKey; }
@@ -110,6 +106,7 @@ public class Evaluation {
     public Integer getVariableOverrideIndex() { return variableOverrideIndex; }
     public String getVariableOverrideKey() { return variableOverrideKey; }
     public List<String> getVariableOverridePath() { return variableOverridePath; }
+    public List<List<String>> getVariableOverridePaths() { return variableOverridePaths; }
     public String getRequiredFeatureKey() { return requiredFeatureKey; }
     public String getRequiredVariation() { return requiredVariation; }
     public String getActualVariation() { return actualVariation; }
@@ -126,9 +123,7 @@ public class Evaluation {
     public void setTraffic(Map<String, Object> traffic) { this.traffic = traffic; }
     public void setForceIndex(Integer forceIndex) { this.forceIndex = forceIndex; }
     public void setForce(Map<String, Object> force) { this.force = force; }
-    public void setRequired(List<Map<String, Object>> required) { this.required = required; }
-    public void setRequiredFeatures(List<Object> value) { this.requiredFeatures = value; }
-    public void setSticky(Map<String, Object> sticky) { this.sticky = sticky; }
+    public void setStickyFeature(Map<String, Object> value) { this.stickyFeature = value; }
     public void setVariation(Variation variation) { this.variation = variation; }
     public void setVariationValue(String variationValue) { this.variationValue = variationValue; }
     public void setVariableKey(String variableKey) { this.variableKey = variableKey; }
@@ -138,6 +133,7 @@ public class Evaluation {
     public void setVariableOverrideIndex(Integer variableOverrideIndex) { this.variableOverrideIndex = variableOverrideIndex; }
     public void setVariableOverrideKey(String value) { this.variableOverrideKey = value; }
     public void setVariableOverridePath(List<String> value) { this.variableOverridePath = value; }
+    public void setVariableOverridePaths(List<List<String>> value) { this.variableOverridePaths = value; }
     public void setRequiredFeatureKey(String requiredFeatureKey) { this.requiredFeatureKey = requiredFeatureKey; }
     public void setRequiredVariation(String requiredVariation) { this.requiredVariation = requiredVariation; }
     public void setActualVariation(String actualVariation) { this.actualVariation = actualVariation; }
@@ -198,21 +194,9 @@ public class Evaluation {
         return this;
     }
 
-    public Evaluation required(List<Map<String, Object>> required) {
-        this.required = required;
-        return this;
-    }
-    public Evaluation requiredFeatures(List<Object> value) { this.requiredFeatures = value; return this; }
-
-    public Evaluation sticky(Map<String, Object> sticky) {
-        this.sticky = sticky;
-        return this;
-    }
-
-    public Evaluation variation(Variation variation) {
-        this.variation = variation;
-        return this;
-    }
+    public Evaluation variation(Variation value) { variation = value; return this; }
+    public Evaluation stickyFeature(Map<String, Object> value) { stickyFeature = value; return this; }
+    public Evaluation conditions(Object value) { this.conditions = value; return this; }
 
     public Evaluation variationValue(String variationValue) {
         this.variationValue = variationValue;
@@ -242,6 +226,7 @@ public class Evaluation {
     }
     public Evaluation variableOverrideKey(String value) { this.variableOverrideKey = value; return this; }
     public Evaluation variableOverridePath(List<String> value) { this.variableOverridePath = value; return this; }
+    public Evaluation variableOverridePaths(List<List<String>> value) { this.variableOverridePaths = value; return this; }
 
     public Evaluation requiredFeatureKey(String requiredFeatureKey) {
         this.requiredFeatureKey = requiredFeatureKey;
@@ -272,9 +257,8 @@ public class Evaluation {
         copy.traffic = this.traffic;
         copy.forceIndex = this.forceIndex;
         copy.force = this.force;
-        copy.required = this.required;
-        copy.requiredFeatures = this.requiredFeatures;
-        copy.sticky = this.sticky;
+        copy.conditions = this.conditions;
+        copy.stickyFeature = this.stickyFeature;
         copy.variation = this.variation;
         copy.variationValue = this.variationValue;
         copy.variableKey = this.variableKey;
@@ -285,6 +269,7 @@ public class Evaluation {
         copy.variableOverrideIndex = this.variableOverrideIndex;
         copy.variableOverrideKey = this.variableOverrideKey;
         copy.variableOverridePath = this.variableOverridePath;
+        copy.variableOverridePaths = this.variableOverridePaths;
         copy.requiredFeatureKey = this.requiredFeatureKey;
         copy.requiredVariation = this.requiredVariation;
         copy.actualVariation = this.actualVariation;
@@ -305,8 +290,7 @@ public class Evaluation {
                 ", traffic=" + traffic +
                 ", forceIndex=" + forceIndex +
                 ", force=" + force +
-                ", required=" + required +
-                ", sticky=" + sticky +
+                ", stickyFeature=" + stickyFeature +
                 ", variation=" + variation +
                 ", variationValue=" + variationValue +
                 ", variableKey='" + variableKey + '\'' +

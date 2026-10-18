@@ -19,6 +19,7 @@ public class EvaluateOptions {
     private DiagnosticReporter diagnostics;
     private ModulesManager modulesManager;
     private InstanceEvaluationDataProvider evaluationData;
+    private java.util.function.Supplier<InstanceEvaluationDataProvider> dataSource;
 
     // Override options
     private Map<String, Object> stickyFeatures;
@@ -26,6 +27,23 @@ public class EvaluateOptions {
     private String defaultVariationValue;
     private Object defaultVariableValue;
     private boolean defaultVariableValueSet;
+    private EvaluationSession session;
+    private DependencyOf dependencyOf;
+    private String dependencyPurpose;
+    interface StickySource { StickyState read(); }
+    static final class StickyState {
+        final Map<String, Object> features;
+        final Map<String, Object> variables;
+        final String generation;
+        StickyState(Map<String, Object> features, Map<String, Object> variables, String generation) {
+            this.features = features;
+            this.variables = variables;
+            this.generation = generation;
+        }
+    }
+    private StickySource stickySource;
+    private boolean inheritedStickyFeatures;
+    private boolean inheritedStickyVariables;
 
     // Constructors
     public EvaluateOptions() {}
@@ -55,6 +73,17 @@ public class EvaluateOptions {
     public String getDefaultVariationValue() { return defaultVariationValue; }
     public Object getDefaultVariableValue() { return defaultVariableValue; }
     public boolean hasDefaultVariableValue() { return defaultVariableValueSet; }
+    EvaluationSession getSession() {
+        if (session == null) session = new EvaluationSession();
+        return session;
+    }
+    public DependencyOf getDependencyOf() { return dependencyOf; }
+    public String getDependencyPurpose() { return dependencyPurpose; }
+    public void setDependencyPurpose(String value) { dependencyPurpose = value; }
+    StickySource getStickySource() { return stickySource; }
+    String getSourceGeneration() { return stickySource == null ? null : stickySource.read().generation; }
+    boolean inheritsStickyFeatures() { return inheritedStickyFeatures; }
+    boolean inheritsStickyVariables() { return inheritedStickyVariables; }
 
     // Setters
     public void setType(String type) { this.type = type; }
@@ -65,12 +94,31 @@ public class EvaluateOptions {
     void setDiagnostics(DiagnosticReporter diagnostics) { this.diagnostics = diagnostics; }
     void setModulesManager(ModulesManager modulesManager) { this.modulesManager = modulesManager; }
     void setInstanceEvaluationDataProvider(InstanceEvaluationDataProvider evaluationData) { this.evaluationData = evaluationData; }
+    void setDataSource(java.util.function.Supplier<InstanceEvaluationDataProvider> source) { dataSource = source; }
+    void refreshDatafile() { if (dataSource != null) evaluationData = dataSource.get(); }
+    InstanceEvaluationDataProvider getCurrentDatafile() { return dataSource == null ? evaluationData : dataSource.get(); }
     public void setStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
     public void setStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
     public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
     public void setDefaultVariableValue(Object defaultVariableValue) {
         this.defaultVariableValue = defaultVariableValue;
         this.defaultVariableValueSet = true;
+    }
+    void setSession(EvaluationSession session) { this.session = session; }
+    public void setDependencyOf(DependencyOf dependencyOf) { this.dependencyOf = dependencyOf; }
+    void setStickySource(StickySource source, boolean features, boolean variables) {
+        stickySource = source;
+        inheritedStickyFeatures = features;
+        inheritedStickyVariables = variables;
+    }
+    void setInheritedStickyFeatures(boolean value) { inheritedStickyFeatures = value; }
+    void setInheritedStickyVariables(boolean value) { inheritedStickyVariables = value; }
+    void clearRequestSource() { stickySource = null; dataSource = null; }
+    void refreshSticky() {
+        if (stickySource == null) return;
+        StickyState state = stickySource.read();
+        if (inheritedStickyFeatures) stickyFeatures = state.features;
+        if (inheritedStickyVariables) stickyVariables = state.variables;
     }
 
     // Builder pattern methods
@@ -112,6 +160,7 @@ public class EvaluateOptions {
     public EvaluateOptions stickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; return this; }
     public EvaluateOptions stickyVariables(Map<String, Object> value) { this.stickyVariables = value; return this; }
     public EvaluateOptions globalVariable(boolean value) { this.globalVariable = value; return this; }
+    public EvaluateOptions dependencyOf(DependencyOf value) { this.dependencyOf = value; return this; }
 
     public EvaluateOptions defaultVariationValue(String defaultVariationValue) {
         this.defaultVariationValue = defaultVariationValue;
@@ -143,12 +192,19 @@ public class EvaluateOptions {
         copy.diagnostics = this.diagnostics;
         copy.modulesManager = this.modulesManager;
         copy.evaluationData = this.evaluationData;
+        copy.dataSource = this.dataSource;
         copy.stickyFeatures = this.stickyFeatures;
         copy.stickyVariables = this.stickyVariables;
         copy.globalVariable = this.globalVariable;
         copy.defaultVariationValue = this.defaultVariationValue;
         copy.defaultVariableValue = this.defaultVariableValue;
         copy.defaultVariableValueSet = this.defaultVariableValueSet;
+        copy.session = this.session;
+        copy.dependencyOf = this.dependencyOf;
+        copy.dependencyPurpose = this.dependencyPurpose;
+        copy.stickySource = this.stickySource;
+        copy.inheritedStickyFeatures = this.inheritedStickyFeatures;
+        copy.inheritedStickyVariables = this.inheritedStickyVariables;
         return copy;
     }
 

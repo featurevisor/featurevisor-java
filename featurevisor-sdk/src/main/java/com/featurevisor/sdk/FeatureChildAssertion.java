@@ -7,8 +7,11 @@ import java.util.Map;
  * Represents a feature child assertion
  */
 public class FeatureChildAssertion {
-    @JsonProperty("sticky")
-    private Map<String, Object> sticky;
+    @JsonProperty("stickyFeatures")
+    private Map<String, Object> stickyFeatures;
+
+    @JsonProperty("stickyVariables")
+    private Map<String, Object> stickyVariables;
 
     @JsonProperty("context")
     private Map<String, Object> context;
@@ -33,12 +36,20 @@ public class FeatureChildAssertion {
 
     public FeatureChildAssertion() {}
 
-    public Map<String, Object> getSticky() {
-        return sticky;
+    public Map<String, Object> getStickyFeatures() {
+        return stickyFeatures;
     }
 
-    public void setSticky(Map<String, Object> sticky) {
-        this.sticky = sticky;
+    public void setStickyFeatures(Map<String, Object> stickyFeatures) {
+        this.stickyFeatures = stickyFeatures;
+    }
+
+    public Map<String, Object> getStickyVariables() {
+        return stickyVariables;
+    }
+
+    public void setStickyVariables(Map<String, Object> stickyVariables) {
+        this.stickyVariables = stickyVariables;
     }
 
     public Map<String, Object> getContext() {

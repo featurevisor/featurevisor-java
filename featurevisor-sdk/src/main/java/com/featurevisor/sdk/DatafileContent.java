@@ -98,7 +98,9 @@ public class DatafileContent {
     public static DatafileContent fromJson(String jsonString) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        return mapper.readValue(jsonString, DatafileContent.class);
+        return mapper.readerFor(DatafileContent.class)
+            .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .readValue(jsonString);
     }
 
     /**

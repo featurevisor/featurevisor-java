@@ -31,6 +31,74 @@ import java.util.concurrent.TimeUnit;
 public class InstanceEvaluationDataProviderTest {
 
     @Test
+    public void testStringifiedExpressionsAreCachedWithoutCachingDecisions() {
+        DatafileContent datafile = new DatafileContent();
+        datafile.setSchemaVersion("2");
+        datafile.setRevision("conditions-cache");
+        datafile.setSegments(new HashMap<>());
+        datafile.setFeatures(new HashMap<>());
+        InstanceEvaluationDataProvider evaluationData = new InstanceEvaluationDataProvider(
+            new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
+                .datafile(datafile)
+                .diagnostics(DiagnosticReporter.createDiagnosticReporter())
+        );
+        String source = "{\"attribute\":\"country\",\"operator\":\"equals\",\"value\":\"nl\"}";
+
+        Object first = evaluationData.parseConditionsIfStringified(source);
+        Object second = evaluationData.parseConditionsIfStringified(source);
+
+        assertSame(first, second);
+        assertTrue(evaluationData.allConditionsAreMatched(first, Map.of("country", "nl")));
+        assertFalse(evaluationData.allConditionsAreMatched(second, Map.of("country", "de")));
+    }
+
+    @Test
+    public void testPublicSegmentParsingDoesNotShareCachedMutableConditions() {
+        String source = "{\"attribute\":\"country\",\"operator\":\"equals\",\"value\":\"nl\"}";
+        Segment segment = new Segment("country");
+        segment.setConditions(source);
+        DatafileContent datafile = new DatafileContent();
+        datafile.setSchemaVersion("2");
+        datafile.setRevision("segment-ownership");
+        datafile.setSegments(new HashMap<>(Map.of("country", segment)));
+        datafile.setFeatures(new HashMap<>());
+        InstanceEvaluationDataProvider evaluationData = new InstanceEvaluationDataProvider(
+            new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
+                .datafile(datafile)
+                .diagnostics(DiagnosticReporter.createDiagnosticReporter())
+        );
+
+        Object cached = evaluationData.parseConditionsIfStringified(source);
+        Object publicConditions = evaluationData.getSegment("country").getConditions();
+
+        assertNotSame(cached, publicConditions);
+    }
+
+    @Test
+    public void testMalformedStringifiedConditionsStillReportEveryAttempt() {
+        List<String> messages = new ArrayList<>();
+        DiagnosticReporter diagnostics = DiagnosticReporter.createDiagnosticReporter(
+            new DiagnosticReporter.DiagnosticReporterOptions()
+                .handler((level, message, details) -> messages.add(message))
+        );
+        DatafileContent datafile = new DatafileContent();
+        datafile.setSchemaVersion("2");
+        datafile.setRevision("conditions-errors");
+        datafile.setSegments(new HashMap<>());
+        datafile.setFeatures(new HashMap<>());
+        InstanceEvaluationDataProvider evaluationData = new InstanceEvaluationDataProvider(
+            new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
+                .datafile(datafile)
+                .diagnostics(diagnostics)
+        );
+
+        evaluationData.parseConditionsIfStringified("{");
+        evaluationData.parseConditionsIfStringified("{");
+
+        assertEquals(2, messages.stream().filter("Error parsing conditions"::equals).count());
+    }
+
+    @Test
     public void testConcurrentConditionEvaluationsShareRegexCacheSafely() throws Exception {
         DatafileContent datafile = new DatafileContent();
         datafile.setSchemaVersion("2");
@@ -64,7 +132,7 @@ public class InstanceEvaluationDataProviderTest {
             assertNotNull(fixtureStream);
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode fixture = objectMapper.readTree(fixtureStream);
-            assertEquals(6, fixture.get("version").asInt());
+            assertEquals(15, fixture.get("version").asInt());
             for (JsonNode testCase : fixture.get("numericBucketKeys")) {
                 String bucketKey = Bucketer.getBucketKey(
                     new Bucketer.GetBucketKeyOptions()
@@ -115,6 +183,8 @@ public class InstanceEvaluationDataProviderTest {
                     "pattern " + testCase.get("pattern").asText() + ", flags " + flags
                 );
             }
+            assertEquals(189, fixture.get("conditionCases").size());
+            int executedAnyCases = 0;
             for (JsonNode testCase : fixture.get("conditionCases")) {
                 Condition condition = objectMapper.treeToValue(testCase.get("condition"), Condition.class);
                 @SuppressWarnings("unchecked")
@@ -127,7 +197,9 @@ public class InstanceEvaluationDataProviderTest {
                     evaluationData.allConditionsAreMatched(condition, context),
                     testCase.get("name").asText()
                 );
+                if (testCase.get("name").asText().toLowerCase(java.util.Locale.ROOT).contains("includesany")) executedAnyCases++;
             }
+            assertEquals(73, executedAnyCases);
 
             JsonNode aggregateCase = fixture.get("defaults").get("aggregateCase");
             DatafileContent aggregateDatafile = objectMapper.treeToValue(

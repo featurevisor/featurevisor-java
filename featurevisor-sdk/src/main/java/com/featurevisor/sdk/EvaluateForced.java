@@ -58,7 +58,7 @@ final class EvaluateForced {
         DiagnosticReporter diagnostics = options.getDiagnostics();
         InstanceEvaluationDataProvider evaluationData = options.getInstanceEvaluationDataProvider();
 
-        InstanceEvaluationDataProvider.ForceResult forceResult = evaluationData.getMatchedForce(feature, context);
+        InstanceEvaluationDataProvider.ForceResult forceResult = evaluationData.getMatchedForce(feature, options);
         Force force = forceResult.getForce();
         Integer forceIndex = forceResult.getForceIndex();
 
@@ -149,17 +149,7 @@ final class EvaluateForced {
 
                             // Check each override to see if segments match
                             for (VariableOverride override : overrides) {
-                                boolean matches = false;
-
-                                // Check conditions
-                                if (override.getConditions() != null) {
-                                    matches = evaluationData.allConditionsAreMatched(override.getConditions(), context);
-                                }
-                                // Check segments
-                                else if (override.getSegments() != null) {
-                                    Object parsedSegments = evaluationData.parseSegmentsIfStringified(override.getSegments());
-                                    matches = evaluationData.allSegmentsAreMatched(parsedSegments, context);
-                                }
+                                boolean matches = Evaluate.variableOverrideIsMatched(override, options);
 
                                 if (matches) {
                                     variableValue = override.getValue();
@@ -192,15 +182,6 @@ final class EvaluateForced {
         }
 
         return result;
-    }
-
-    /**
-     * Legacy method for backward compatibility
-     * @deprecated Use evaluate() instead
-     */
-    @Deprecated
-    public static EvaluateForcedResult evaluateForced(EvaluateOptions options, Feature feature, VariableSchema variableSchema) {
-        return evaluate(options, feature, variableSchema);
     }
 
     /**

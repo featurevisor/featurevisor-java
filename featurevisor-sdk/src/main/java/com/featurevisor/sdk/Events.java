@@ -20,75 +20,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 final class Events {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private static String fingerprint(Object value, String hash) {
-        if (hash != null) return hash;
+    private static String fingerprint(Object value) {
         try { return OBJECT_MAPPER.writeValueAsString(value); }
         catch (Exception ignored) { return String.valueOf(value); }
     }
 
-    private static void collectSegmentKeys(Object value, Set<String> result) {
-        if (value == null) return;
-        if (value instanceof String) {
-            String string = (String) value;
-            if ("*".equals(string)) return;
-            if (string.startsWith("{") || string.startsWith("[")) {
-                try { collectSegmentKeys(OBJECT_MAPPER.readValue(string, Object.class), result); return; }
-                catch (Exception ignored) { }
-            }
-            result.add(string);
-        } else if (value instanceof List) {
-            for (Object item : (List<?>) value) collectSegmentKeys(item, result);
-        } else if (value instanceof Map) {
-            for (Object item : ((Map<?, ?>) value).values()) collectSegmentKeys(item, result);
-        }
-    }
-
-    private static void collectRequiredFeatureKeys(List<Object> requirements, Set<String> result) {
-        if (requirements == null) return;
-        for (Object item : requirements) {
-            if (item instanceof String) result.add((String) item);
-            else if (item instanceof Map) {
-                Object key = ((Map<?, ?>) item).get("feature");
-                if (key == null) key = ((Map<?, ?>) item).get("key");
-                if (key instanceof String) result.add((String) key);
-            }
-        }
-    }
-
-    private static void collectOverrides(Map<String, List<VariableOverride>> groups, Set<String> segments, Set<String> features) {
-        if (groups == null) return;
-        for (List<VariableOverride> overrides : groups.values()) {
-            if (overrides == null) continue;
-            for (VariableOverride override : overrides) {
-                collectSegmentKeys(override.getSegments(), segments);
-                collectRequiredFeatureKeys(override.getRequiredFeatures(), features);
-            }
-        }
-    }
-
-    private static List<Set<String>> featureDependencies(Feature feature) {
-        Set<String> segments = new HashSet<>(), features = new HashSet<>();
-        List<Object> required = feature.getRequiredFeatures() != null ? feature.getRequiredFeatures() : feature.getRequired();
-        collectRequiredFeatureKeys(required, features);
-        if (feature.getTraffic() != null) for (Traffic traffic : feature.getTraffic()) {
-            collectSegmentKeys(traffic.getSegments(), segments);
-            collectOverrides(traffic.getVariableOverrides(), segments, features);
-        }
-        if (feature.getForce() != null) for (Force force : feature.getForce()) collectSegmentKeys(force.getSegments(), segments);
-        if (feature.getVariations() != null) for (Variation variation : feature.getVariations()) {
-            collectOverrides(variation.getVariableOverrides(), segments, features);
-        }
-        return Arrays.asList(segments, features);
-    }
-
-    private static List<Set<String>> variableDependencies(GlobalVariable variable) {
-        Set<String> segments = new HashSet<>(), features = new HashSet<>();
-        collectRequiredFeatureKeys(variable.getRequiredFeatures(), features);
-        if (variable.getOverrides() != null) for (VariableOverride override : variable.getOverrides()) {
-            collectSegmentKeys(override.getSegments(), segments);
-            collectRequiredFeatureKeys(override.getRequiredFeatures(), features);
-        }
-        return Arrays.asList(segments, features);
+    private static boolean hashChanged(String before, String after) {
+        return before == null || before.isEmpty() || after == null || after.isEmpty()
+            || !before.equals(after);
     }
 
     /**
@@ -150,12 +89,37 @@ final class Events {
             DatafileContent previousDatafileContent,
             DatafileContent newDatafileContent,
             boolean replace) {
+        return getParamsForDatafileSetEvent(previousDatafileContent, newDatafileContent, replace, null, null);
+    }
+
+    static FeaturevisorEventDetails getParamsForProviderSetEvent(
+            InstanceEvaluationDataProvider previous, InstanceEvaluationDataProvider current, boolean replace) {
+        return getParamsForDatafileSetEvent(previous.getDatafile(), current.getDatafile(), replace, previous, current);
+    }
+
+    private static FeaturevisorEventDetails getParamsForDatafileSetEvent(
+            DatafileContent previousDatafileContent, DatafileContent newDatafileContent, boolean replace,
+            InstanceEvaluationDataProvider previousProvider, InstanceEvaluationDataProvider currentProvider) {
 
         if (previousDatafileContent == null) {
             previousDatafileContent = new DatafileContent();
         }
         if (newDatafileContent == null) {
             newDatafileContent = new DatafileContent();
+        }
+
+        if ((previousDatafileContent.getFeatures() == null || previousDatafileContent.getFeatures().isEmpty())
+                && (previousDatafileContent.getVariables() == null || previousDatafileContent.getVariables().isEmpty())
+                && (previousDatafileContent.getSegments() == null || previousDatafileContent.getSegments().isEmpty())) {
+            // Every incoming entity is already announced, so no dependency traversal is needed.
+            FeaturevisorEventDetails details = new FeaturevisorEventDetails();
+            details.put("revision", newDatafileContent.getRevision());
+            details.put("previousRevision", previousDatafileContent.getRevision());
+            details.put("revisionChanged", !Objects.equals(previousDatafileContent.getRevision(), newDatafileContent.getRevision()));
+            details.put("features", newDatafileContent.getFeatures() == null ? new ArrayList<>() : new ArrayList<>(newDatafileContent.getFeatures().keySet()));
+            details.put("variables", newDatafileContent.getVariables() == null ? new ArrayList<>() : new ArrayList<>(newDatafileContent.getVariables().keySet()));
+            details.put("replaced", replace);
+            return details;
         }
 
         String previousRevision = previousDatafileContent.getRevision();
@@ -176,28 +140,17 @@ final class Events {
         Set<String> allFeatureKeys = new HashSet<>(previousFeatureKeys); allFeatureKeys.addAll(newFeatureKeys);
         for (String key : allFeatureKeys) {
             Feature before = previousFeatures.get(key), after = newFeatures.get(key);
-            if (before == null || after == null || !Objects.equals(fingerprint(before, before.getHash()), fingerprint(after, after.getHash()))) changedFeatures.add(key);
+            if (before == null || after == null || hashChanged(before.getHash(), after.getHash())) changedFeatures.add(key);
         }
 
         Map<String, Segment> previousSegments = previousDatafileContent.getSegments() != null ? previousDatafileContent.getSegments() : java.util.Collections.emptyMap();
         Map<String, Segment> newSegments = newDatafileContent.getSegments() != null ? newDatafileContent.getSegments() : java.util.Collections.emptyMap();
         Set<String> changedSegments = new HashSet<>();
         Set<String> allSegmentKeys = new HashSet<>(previousSegments.keySet()); allSegmentKeys.addAll(newSegments.keySet());
-        for (String key : allSegmentKeys) if (!Objects.equals(fingerprint(previousSegments.get(key), null), fingerprint(newSegments.get(key), null))) changedSegments.add(key);
-
-        Map<String, Feature> allFeatures = new HashMap<>(previousFeatures); allFeatures.putAll(newFeatures);
-        boolean updated;
-        do {
-            updated = false;
-            for (Map.Entry<String, Feature> entry : allFeatures.entrySet()) {
-                if (changedFeatures.contains(entry.getKey())) continue;
-                List<Set<String>> dependencies = featureDependencies(entry.getValue());
-                if (!java.util.Collections.disjoint(dependencies.get(0), changedSegments)
-                        || !java.util.Collections.disjoint(dependencies.get(1), changedFeatures)) {
-                    changedFeatures.add(entry.getKey()); updated = true;
-                }
-            }
-        } while (updated);
+        for (String key : allSegmentKeys) {
+            Segment before = previousSegments.get(key), after = newSegments.get(key);
+            if (before != after && !Objects.equals(fingerprint(before), fingerprint(after))) changedSegments.add(key);
+        }
 
         FeaturevisorEventDetails details = new FeaturevisorEventDetails();
         details.put("revision", newRevision);
@@ -207,16 +160,13 @@ final class Events {
         Map<String, GlobalVariable> previousVariables = previousDatafileContent.getVariables() != null ? previousDatafileContent.getVariables() : java.util.Collections.emptyMap();
         Map<String, GlobalVariable> newVariables = newDatafileContent.getVariables() != null ? newDatafileContent.getVariables() : java.util.Collections.emptyMap();
         for (String key : previousVariables.keySet()) {
-            if (!newVariables.containsKey(key) || !Objects.equals(fingerprint(previousVariables.get(key), previousVariables.get(key).getHash()), fingerprint(newVariables.get(key), newVariables.get(key).getHash()))) variableKeys.add(key);
+            if (!newVariables.containsKey(key) || hashChanged(previousVariables.get(key).getHash(), newVariables.get(key).getHash())) variableKeys.add(key);
         }
         for (String key : newVariables.keySet()) if (!previousVariables.containsKey(key)) variableKeys.add(key);
-        Map<String, GlobalVariable> allVariables = new HashMap<>(previousVariables); allVariables.putAll(newVariables);
-        for (Map.Entry<String, GlobalVariable> entry : allVariables.entrySet()) {
-            if (variableKeys.contains(entry.getKey())) continue;
-            List<Set<String>> dependencies = variableDependencies(entry.getValue());
-            if (!java.util.Collections.disjoint(dependencies.get(0), changedSegments)
-                    || !java.util.Collections.disjoint(dependencies.get(1), changedFeatures)) variableKeys.add(entry.getKey());
-        }
+        Dependencies.addChanges(changedFeatures, variableKeys, changedSegments,
+            previousProvider == null ? Dependencies.create(previousDatafileContent) : previousProvider.getDependencyIndex());
+        Dependencies.addChanges(changedFeatures, variableKeys, changedSegments,
+            currentProvider == null ? Dependencies.create(newDatafileContent) : currentProvider.deriveDependencyIndex(previousProvider));
         details.put("features", new ArrayList<>(changedFeatures));
         details.put("variables", new ArrayList<>(variableKeys));
         details.put("replaced", replace);

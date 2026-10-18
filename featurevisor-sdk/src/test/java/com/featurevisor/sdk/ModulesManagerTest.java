@@ -168,7 +168,7 @@ public class ModulesManagerTest {
     @Test
     void testBeforeModule() {
         FeaturevisorModule beforeModule = new FeaturevisorModule("before-test")
-            .before(options -> {
+            .beforeEvaluation(options -> {
                 Map<String, Object> context = options.getContext();
                 if (context == null) {
                     context = new HashMap<>();
@@ -219,7 +219,7 @@ public class ModulesManagerTest {
     @Test
     void testAfterModule() {
         modulesManager.add(new FeaturevisorModule("after-test")
-            .after((evaluation, options) -> evaluation.copy().enabled(true)));
+            .afterEvaluation((evaluation, options) -> evaluation.copy().enabled(true)));
 
         Evaluation evaluation = new Evaluation("flag", "test-feature", "allocated")
             .enabled(false);
@@ -233,7 +233,7 @@ public class ModulesManagerTest {
     @Test
     void testMultipleModules() {
         modulesManager.add(new FeaturevisorModule("before1")
-            .before(options -> {
+            .beforeEvaluation(options -> {
                 Map<String, Object> context = options.getContext();
                 if (context == null) {
                     context = new HashMap<>();
@@ -243,7 +243,7 @@ public class ModulesManagerTest {
             }));
 
         modulesManager.add(new FeaturevisorModule("before2")
-            .before(options -> {
+            .beforeEvaluation(options -> {
                 Map<String, Object> context = options.getContext();
                 context.put("module2", true);
                 return options.copy().context(context);
@@ -261,20 +261,17 @@ public class ModulesManagerTest {
         List<String> order = new ArrayList<>();
         for (String name : List.of("first", "second")) {
             modulesManager.add(new FeaturevisorModule(name)
-                .before(options -> { order.add("before:" + name); return options; })
                 .beforeEvaluation(options -> { order.add("beforeEvaluation:" + name); return options; })
                 .afterEvaluation((evaluation, options) -> { order.add("afterEvaluation:" + name); return evaluation; })
-                .after((evaluation, options) -> { order.add("after:" + name); return evaluation; }));
+            );
         }
 
         EvaluateOptions options = modulesManager.executeBeforeModules(new EvaluateOptions("flag", "test"));
         modulesManager.executeAfterModules(new Evaluation("flag", "test", "allocated"), options);
 
         assertEquals(List.of(
-            "before:first", "before:second",
             "beforeEvaluation:first", "beforeEvaluation:second",
-            "afterEvaluation:first", "afterEvaluation:second",
-            "after:first", "after:second"
+            "afterEvaluation:first", "afterEvaluation:second"
         ), order);
     }
 }

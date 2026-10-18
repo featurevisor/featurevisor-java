@@ -85,6 +85,40 @@ public class ConditionsTest {
         assertFalse(evaluationData.allConditionsAreMatched(condition("text", Operator.NOT_INCLUDES, "value"), context));
     }
 
+    @Test
+    public void testEmptyAndNotEmptyUseShallowContainerContents() throws Exception {
+        Map<String, Object> context = new HashMap<>();
+        context.put("emptyString", "");
+        context.put("whitespace", " \t");
+        context.put("emptyArray", List.of());
+        context.put("arrayWithNull", Arrays.asList((Object) null));
+        context.put("emptyObject", Map.of());
+        context.put("objectWithNull", java.util.Collections.singletonMap("value", null));
+        context.put("null", null);
+        context.put("number", 0);
+        context.put("boolean", false);
+        context.put("nested", Map.of("items", List.of()));
+
+        for (String attribute : List.of("emptyString", "emptyArray", "emptyObject", "nested.items")) {
+            assertTrue(evaluationData.allConditionsAreMatched(condition(attribute, Operator.EMPTY, null), context), attribute);
+            assertFalse(evaluationData.allConditionsAreMatched(condition(attribute, Operator.NOT_EMPTY, null), context), attribute);
+        }
+        for (String attribute : List.of("whitespace", "arrayWithNull", "objectWithNull")) {
+            assertFalse(evaluationData.allConditionsAreMatched(condition(attribute, Operator.EMPTY, null), context), attribute);
+            assertTrue(evaluationData.allConditionsAreMatched(condition(attribute, Operator.NOT_EMPTY, null), context), attribute);
+        }
+        for (String attribute : List.of("null", "number", "boolean", "missing")) {
+            assertFalse(evaluationData.allConditionsAreMatched(condition(attribute, Operator.EMPTY, null), context), attribute);
+            assertFalse(evaluationData.allConditionsAreMatched(condition(attribute, Operator.NOT_EMPTY, null), context), attribute);
+        }
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        assertEquals(Operator.EMPTY, mapper.readValue(
+            "{\"attribute\":\"value\",\"operator\":\"empty\"}", Condition.class).getOperator());
+        assertEquals(Operator.NOT_EMPTY, mapper.readValue(
+            "{\"attribute\":\"value\",\"operator\":\"notEmpty\"}", Condition.class).getOperator());
+    }
+
     private Condition condition(String attribute, Operator operator, Object value) {
         Condition condition = new Condition();
         condition.setAttribute(attribute);
@@ -654,6 +688,148 @@ public class ConditionsTest {
 
         // strings without an explicit timezone are not portable
         assertFalse(evaluationData.allConditionsAreMatched(conditions, Map.of("date", "2023-05-12T00:00:00")));
+    }
+
+    @Test
+    public void testHostDateMillisecondPrecisionAndUtcRange() {
+        Conditions.GetRegex unused = (pattern, flags) -> java.util.regex.Pattern.compile(pattern);
+        java.time.Instant preEpoch = java.time.Instant.parse("1969-12-31T23:59:59.9995Z");
+        assertFalse(Conditions.valueIsMatched(preEpoch, true, Operator.BEFORE,
+            "1969-12-31T23:59:59.999Z", "", unused));
+        assertTrue(Conditions.valueIsMatched(preEpoch, true, Operator.BEFORE,
+            "1970-01-01T00:00:00Z", "", unused));
+        assertFalse(Conditions.valueIsMatched(java.time.Instant.parse("+10000-01-01T00:00:00Z"), true,
+            Operator.BEFORE, "9999-12-31T23:59:59Z", "", unused));
+    }
+
+    private boolean dateMatches(Object actual, Operator operator, Object expected) {
+        Condition condition = new Condition();
+        condition.setAttribute("date");
+        condition.setOperator(operator);
+        condition.setValue(expected);
+        return evaluationData.allConditionsAreMatched(condition, Map.of("date", actual));
+    }
+
+    private List<Object> nativeDates(java.time.Instant instant) {
+        List<Object> values = new ArrayList<>(List.of(instant, java.util.Date.from(instant),
+            java.sql.Timestamp.from(instant), instant.atOffset(java.time.ZoneOffset.ofHours(9)),
+            instant.atOffset(java.time.ZoneOffset.ofHours(-8))));
+        for (String zone : List.of("UTC", "America/Los_Angeles", "Asia/Tokyo")) {
+            values.add(instant.atZone(java.time.ZoneId.of(zone)));
+        }
+        return values;
+    }
+
+    @Test
+    public void testNativeDateTypesRepresentInstantsOnBothSides() {
+        for (Object value : nativeDates(java.time.Instant.parse("2026-01-01T00:00:00Z"))) {
+            assertTrue(dateMatches(value, Operator.BEFORE, "2026-01-01T00:00:00.001Z"), value.toString());
+            assertTrue(dateMatches(value, Operator.AFTER, "2025-12-31T23:59:59.999Z"), value.toString());
+            assertTrue(dateMatches("2026-01-01T00:00:00.001Z", Operator.AFTER, value));
+            assertTrue(dateMatches("2025-12-31T23:59:59.999Z", Operator.BEFORE, value));
+            assertFalse(dateMatches(value, Operator.BEFORE, "2026-01-01T00:00:00Z"));
+            assertFalse(dateMatches(value, Operator.AFTER, "2026-01-01T00:00:00Z"));
+        }
+    }
+
+    @Test
+    public void testNativeDateOffsetBoundsPreserveSeconds() {
+        java.time.Instant instant = java.time.Instant.parse("2026-01-01T00:00:00Z");
+        for (int seconds : List.of(-50400, 50400, -50399, 50399, -1, 1)) {
+            java.time.OffsetDateTime date = instant.atOffset(java.time.ZoneOffset.ofTotalSeconds(seconds));
+            for (Object value : List.of(date, date.toZonedDateTime())) {
+                assertTrue(dateMatches(value, Operator.BEFORE, instant.plusMillis(1).toString()));
+                assertTrue(dateMatches(value, Operator.AFTER, instant.minusMillis(1).toString()));
+                assertTrue(dateMatches(instant.minusMillis(1).toString(), Operator.BEFORE, value));
+                assertTrue(dateMatches(instant.plusMillis(1).toString(), Operator.AFTER, value));
+                for (Operator operator : List.of(Operator.BEFORE, Operator.AFTER)) {
+                    assertFalse(dateMatches(value, operator, instant.toString()));
+                    assertFalse(dateMatches(instant.toString(), operator, value));
+                }
+            }
+        }
+        for (int seconds : List.of(-54000, 54000, -50401, 50401)) {
+            java.time.OffsetDateTime date = instant.atOffset(java.time.ZoneOffset.ofTotalSeconds(seconds));
+            for (Object value : List.of(date, date.toZonedDateTime())) {
+                for (Operator operator : List.of(Operator.BEFORE, Operator.AFTER)) {
+                    for (String boundary : List.of(instant.minusMillis(1).toString(), instant.plusMillis(1).toString())) {
+                        assertFalse(assertDoesNotThrow(() -> dateMatches(value, operator, boundary)), value.toString());
+                        assertFalse(assertDoesNotThrow(() -> dateMatches(boundary, operator, value)), value.toString());
+                    }
+                }
+            }
+            assertTrue(dateMatches(date.toInstant(), Operator.BEFORE, instant.plusMillis(1).toString()));
+            assertTrue(dateMatches(java.util.Date.from(date.toInstant()), Operator.AFTER, instant.minusMillis(1).toString()));
+        }
+    }
+
+    @Test
+    public void testAllNativeDateTypesTruncateFractionsIncludingPreEpoch() {
+        for (String boundary : List.of("2026-01-01T00:00:00Z", "1969-12-31T23:59:59.999Z")) {
+            java.time.Instant instant = java.time.Instant.parse(boundary);
+            for (Object value : nativeDates(instant.plusNanos(999999))) {
+                for (Operator operator : List.of(Operator.BEFORE, Operator.AFTER)) {
+                    assertFalse(dateMatches(value, operator, boundary), value.toString());
+                    assertFalse(dateMatches(boundary, operator, value), value.toString());
+                }
+                assertTrue(dateMatches(value, Operator.BEFORE, instant.plusMillis(1).toString()));
+                assertTrue(dateMatches(value, Operator.AFTER, instant.minusMillis(1).toString()));
+            }
+        }
+    }
+
+    @Test
+    public void testInvalidNativeDatesNeverMatchOrThrow() {
+        List<Object> invalid = new ArrayList<>(List.of(
+            java.time.LocalDate.of(2026, 1, 1), java.time.LocalDateTime.of(2026, 1, 1, 0, 0),
+            java.sql.Date.valueOf("2026-01-01"), java.sql.Time.valueOf("00:00:00"),
+            java.time.Instant.MIN, java.time.Instant.MAX,
+            java.time.Instant.parse("0000-12-31T23:59:59.999999999Z"),
+            java.time.Instant.parse("+10000-01-01T00:00:00Z"),
+            new java.util.Date(Long.MIN_VALUE), new java.util.Date(Long.MAX_VALUE)));
+        for (String text : List.of("0000-12-31T23:00:00-02:00", "+10000-01-01T01:00:00+02:00",
+            "0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00")) {
+            java.time.OffsetDateTime date = java.time.OffsetDateTime.parse(text);
+            invalid.add(date);
+            invalid.add(date.toZonedDateTime());
+        }
+        for (Object value : invalid) {
+            for (Operator operator : List.of(Operator.BEFORE, Operator.AFTER)) {
+                assertFalse(assertDoesNotThrow(() -> dateMatches(value, operator, "2026-01-01T00:00:00Z")), value.toString());
+                assertFalse(assertDoesNotThrow(() -> dateMatches("2026-01-01T00:00:00Z", operator, value)), value.toString());
+            }
+        }
+    }
+
+    @Test
+    public void testNativeDateRangeEndpointsAreValid() {
+        for (String text : List.of("0001-01-01T00:00:00Z", "9999-12-31T23:59:59.999Z")) {
+            java.time.Instant instant = java.time.Instant.parse(text);
+            List<Object> values = List.of(instant, java.util.Date.from(instant), java.sql.Timestamp.from(instant),
+                instant.atOffset(java.time.ZoneOffset.UTC), instant.atZone(java.time.ZoneOffset.UTC));
+            for (Object value : values) {
+                assertTrue(dateMatches(value, text.startsWith("0001") ? Operator.BEFORE : Operator.AFTER,
+                    "2026-01-01T00:00:00Z"), value.toString());
+            }
+        }
+    }
+
+    @Test
+    public void testPortableStringDateFractionalPrecision() {
+        Conditions.GetRegex unused = (pattern, flags) -> java.util.regex.Pattern.compile(pattern);
+        for (String digits : List.of("1239", "123999", "1239999", "123999999")) {
+            String value = "2024-01-01T00:00:00." + digits + "Z";
+            assertFalse(Conditions.valueIsMatched(value, true, Operator.BEFORE,
+                "2024-01-01T00:00:00.123Z", "", unused), digits);
+            assertTrue(Conditions.valueIsMatched(value, true, Operator.BEFORE,
+                "2024-01-01T00:00:00.124Z", "", unused), digits);
+        }
+        assertFalse(Conditions.valueIsMatched("2024-01-01T00:00:00.1234567890Z", true,
+            Operator.BEFORE, "2024-01-01T00:00:01Z", "", unused));
+        assertFalse(Conditions.valueIsMatched("1969-12-31T23:59:59.999999999Z", true,
+            Operator.BEFORE, "1969-12-31T23:59:59.999Z", "", unused));
+        assertTrue(Conditions.valueIsMatched("1969-12-31T23:59:59.999999999Z", true,
+            Operator.BEFORE, "1970-01-01T00:00:00Z", "", unused));
     }
 
     @Test

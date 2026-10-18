@@ -19,17 +19,19 @@
     </modules>
 
     <properties>
-        <revision>4.1.0</revision>
+        <revision>5.0.0</revision>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <maven.compiler.testSource>15</maven.compiler.testSource>
         <maven.compiler.testTarget>15</maven.compiler.testTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.15.2</jackson.version>
+        <jackson.version>2.22.3</jackson.version>
+        <!-- Jackson annotations use major.minor versions from 2.20 onwards. -->
+        <jackson-annotations.version>2.22</jackson-annotations.version>
         <junit.version>5.9.2</junit.version>
         <picocli.version>4.7.5</picocli.version>
         <commons-exec.version>1.3</commons-exec.version>
-        <openfeature.version>1.20.2</openfeature.version>
+        <openfeature.version>1.23.0</openfeature.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.0.0</maven-surefire-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
@@ -99,7 +101,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson-annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>

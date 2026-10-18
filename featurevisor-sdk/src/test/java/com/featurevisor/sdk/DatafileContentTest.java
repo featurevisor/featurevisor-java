@@ -413,11 +413,8 @@ public class DatafileContentTest {
         assertNotNull(barVariation.getVariableOverrides());
         assertTrue(barVariation.getVariableOverrides().containsKey("hero"));
 
-        // Test ranges
-        assertNotNull(bar.getRanges());
-        assertEquals(1, bar.getRanges().size());
-        assertEquals(0, bar.getRanges().get(0).getStart());
-        assertEquals(50000, bar.getRanges().get(0).getEnd());
+        // Unknown feature fields are not part of the decoded model.
+        assertFalse(new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(bar).has("ranges"));
     }
 
     @Test
@@ -871,6 +868,5 @@ public class DatafileContentTest {
         assertNull(emptyFeature.getVariations());
         assertNull(emptyFeature.getVariablesSchema());
         assertNull(emptyFeature.getForce());
-        assertNull(emptyFeature.getRanges());
     }
 }

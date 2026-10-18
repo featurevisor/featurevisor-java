@@ -1,15 +1,19 @@
 package com.featurevisor.openfeature;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.featurevisor.sdk.Evaluation;
 import com.featurevisor.sdk.Featurevisor;
-import com.featurevisor.sdk.FeaturevisorDiagnosticHandler;
+import com.featurevisor.sdk.FeaturevisorDiagnostic;
 import com.featurevisor.sdk.FeaturevisorEventName;
 import com.featurevisor.sdk.FeaturevisorUnsubscribe;
 import com.featurevisor.sdk.VariableType;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
-import dev.openfeature.sdk.FeatureProvider;
+import dev.openfeature.sdk.EventProvider;
+import dev.openfeature.sdk.ProviderEventDetails;
+import dev.openfeature.sdk.ProviderState;
+import dev.openfeature.sdk.exceptions.ParseError;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.Metadata;
 import dev.openfeature.sdk.ProviderEvaluation;
@@ -23,9 +27,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** OpenFeature provider backed by the Featurevisor v3 SDK. */
-public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+/** OpenFeature provider backed by the Featurevisor SDK. */
+public final class FeaturevisorOpenFeatureProvider extends EventProvider {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+        .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     @FunctionalInterface
     public interface TrackingHandler {
@@ -57,8 +62,9 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
     private final String globalVariablePrefix;
     private final TrackingHandler onTrack;
     private final FeaturevisorUnsubscribe datafileUnsubscribe;
+    private final FeaturevisorUnsubscribe errorUnsubscribe;
     private final boolean ownsFeaturevisor;
-    private String datafileError;
+    private volatile String datafileError;
 
     public FeaturevisorOpenFeatureProvider(Options options) {
         Options resolved = options != null ? options : new Options();
@@ -76,22 +82,42 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         } else {
             Featurevisor.FeaturevisorOptions fvOptions = resolved.featurevisorOptions != null
                     ? resolved.featurevisorOptions : new Featurevisor.FeaturevisorOptions();
-            if (fvOptions.getDatafileString() != null) {
-                try {
-                    com.featurevisor.sdk.DatafileContent.fromJson(fvOptions.getDatafileString());
-                } catch (Exception ignored) {
-                    datafileError = "Could not parse datafile";
+            this.featurevisor = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+                    .context(fvOptions.getContext()).logLevel(fvOptions.getLogLevel())
+                    .stickyFeatures(fvOptions.getStickyFeatures()).stickyVariables(fvOptions.getStickyVariables())
+                    .modules(fvOptions.getModules()).onDiagnostic(fvOptions.getOnDiagnostic() != null
+                            ? fvOptions.getOnDiagnostic() : diagnostic -> {}));
+        }
+        this.datafileUnsubscribe = this.featurevisor.on(FeaturevisorEventName.DATAFILE_SET, details -> {
+            boolean recovering = datafileError != null;
+            datafileError = null;
+            if (recovering) emitProviderReady(ProviderEventDetails.builder().build());
+        });
+        this.errorUnsubscribe = this.featurevisor.on(FeaturevisorEventName.ERROR, details -> {
+            Object diagnostic = details.get("diagnostic");
+            if (diagnostic instanceof FeaturevisorDiagnostic) {
+                FeaturevisorDiagnostic value = (FeaturevisorDiagnostic) diagnostic;
+                if ("invalid_datafile".equals(value.getCode())) {
+                    datafileError = value.getMessage();
+                    emitProviderError(ProviderEventDetails.builder().message(datafileError).errorCode(ErrorCode.PARSE_ERROR).build());
                 }
             }
-            FeaturevisorDiagnosticHandler original = fvOptions.getOnDiagnostic();
-            fvOptions.onDiagnostic(diagnostic -> {
-                if ("invalid_datafile".equals(diagnostic.getCode())) datafileError = diagnostic.getMessage();
-                if ("datafile_set".equals(diagnostic.getCode())) datafileError = null;
-                if (original != null) original.handle(diagnostic);
-            });
-            this.featurevisor = Featurevisor.createFeaturevisor(fvOptions);
+        });
+        if (ownsFeaturevisor && resolved.featurevisorOptions != null) {
+            if (resolved.featurevisorOptions.getDatafile() != null) {
+                this.featurevisor.setDatafile(resolved.featurevisorOptions.getDatafile(), true);
+            } else if (resolved.featurevisorOptions.getDatafileString() != null) {
+                this.featurevisor.setDatafile(resolved.featurevisorOptions.getDatafileString(), true);
+            }
         }
-        this.datafileUnsubscribe = this.featurevisor.on(FeaturevisorEventName.DATAFILE_SET, details -> datafileError = null);
+    }
+
+    @Override public void initialize(EvaluationContext context) {
+        if (datafileError != null) throw new ParseError(datafileError);
+    }
+
+    @Override public ProviderState getState() {
+        return datafileError != null ? ProviderState.ERROR : ProviderState.READY;
     }
 
     public FeaturevisorOpenFeatureProvider(Featurevisor.FeaturevisorOptions options) {
@@ -106,6 +132,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
     @Override public Metadata getMetadata() { return () -> "Featurevisor"; }
     @Override public void shutdown() {
         datafileUnsubscribe.unsubscribe();
+        errorUnsubscribe.unsubscribe();
         if (ownsFeaturevisor) featurevisor.close();
     }
     @Override public void track(String name, EvaluationContext context, TrackingEventDetails details) {
@@ -143,7 +170,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
         String featureKey = separatorIndex < 0 ? flagKey : flagKey.substring(0, separatorIndex);
         String selector = separatorIndex < 0 ? null : flagKey.substring(separatorIndex + keySeparator.length());
         Map<String, Object> fvContext = context != null ? normalizeMap(context.asObjectMap()) : new HashMap<>();
-        if (context != null && context.getTargetingKey() != null && !context.getTargetingKey().isEmpty()) {
+        if (context != null && context.getTargetingKey() != null) {
             fvContext.put(targetingKeyField, context.getTargetingKey());
         }
 
@@ -154,6 +181,7 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
             value = evaluation.getVariableValue();
             if (evaluation.getVariable() != null
                     && evaluation.getVariable().getType() == VariableType.JSON
+                    && evaluation.getVariable().getCompose() == null
                     && value instanceof String) {
                 try { value = OBJECT_MAPPER.readValue((String) value, Object.class); } catch (Exception ignored) { }
             }
@@ -205,9 +233,10 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
 
     private static Reason reason(String reason) {
         if (List.of(Evaluation.REASON_FEATURE_NOT_FOUND, Evaluation.REASON_VARIABLE_NOT_FOUND, Evaluation.REASON_NO_VARIATIONS, Evaluation.REASON_ERROR).contains(reason)) return Reason.ERROR;
-        if (List.of(Evaluation.REASON_REQUIRED, Evaluation.REASON_FORCED, Evaluation.REASON_STICKY, Evaluation.REASON_RULE, Evaluation.REASON_VARIABLE_OVERRIDE_RULE, Evaluation.REASON_VARIABLE_OVERRIDE_VARIATION).contains(reason)) return Reason.TARGETING_MATCH;
+        if (List.of(Evaluation.REASON_FORCED, Evaluation.REASON_STICKY, Evaluation.REASON_RULE, Evaluation.REASON_VARIABLE_OVERRIDE_RULE, Evaluation.REASON_VARIABLE_OVERRIDE_VARIATION, Evaluation.REASON_VARIABLE_COMPOSED).contains(reason)) return Reason.TARGETING_MATCH;
         if (Evaluation.REASON_ALLOCATED.equals(reason)) return Reason.SPLIT;
-        if (List.of(Evaluation.REASON_DISABLED, Evaluation.REASON_VARIATION_DISABLED, Evaluation.REASON_VARIABLE_DISABLED, Evaluation.REASON_REQUIRED_FEATURES_UNMET).contains(reason)) return Reason.DISABLED;
+        if (List.of(Evaluation.REASON_DISABLED, Evaluation.REASON_VARIATION_DISABLED, Evaluation.REASON_VARIABLE_DISABLED,
+                Evaluation.REASON_CONDITIONS_UNMET).contains(reason)) return Reason.DISABLED;
         return Reason.DEFAULT;
     }
 
@@ -233,7 +262,14 @@ public final class FeaturevisorOpenFeatureProvider implements FeatureProvider {
     private static boolean matches(Object value, String expected) {
         if ("boolean".equals(expected)) return value instanceof Boolean;
         if ("string".equals(expected)) return value instanceof String;
-        if ("integer".equals(expected)) return value instanceof Number && Math.rint(((Number) value).doubleValue()) == ((Number) value).doubleValue();
+        if ("integer".equals(expected)) {
+            if (!(value instanceof Number)) return false;
+            double number = ((Number) value).doubleValue();
+            return Double.isFinite(number)
+                    && number == Math.rint(number)
+                    && number >= Integer.MIN_VALUE
+                    && number <= Integer.MAX_VALUE;
+        }
         if ("number".equals(expected)) return value instanceof Number && Double.isFinite(((Number) value).doubleValue());
         return value instanceof Map || value instanceof List;
     }
