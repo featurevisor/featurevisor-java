@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class ModulesManager {
-    private final List<FeaturevisorModule> modules = new ArrayList<>();
+    private final List<FeaturevisorModule> modules = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private volatile long revision;
     private final FeaturevisorDiagnosticReporter diagnosticReporter;
     private final FeaturevisorModuleApiFactory moduleApiFactory;
     private final java.util.function.Consumer<FeaturevisorModule> clearModuleDiagnosticSubscriptions;
@@ -87,6 +88,7 @@ final class ModulesManager {
         }
 
         modules.add(module);
+        revision++;
         return () -> remove(module);
     }
 
@@ -110,6 +112,7 @@ final class ModulesManager {
             return;
         }
         if (modules.remove(module)) {
+            revision++;
             if (clearModuleDiagnosticSubscriptions != null) {
                 clearModuleDiagnosticSubscriptions.accept(module);
             }
@@ -121,14 +124,14 @@ final class ModulesManager {
         return new ArrayList<>(modules);
     }
 
+    // CopyOnWriteArrayList captures membership when the phase obtains its iterator.
+    Iterable<FeaturevisorModule> phaseModules() { return modules; }
+
+    long getRevision() { return revision; }
+
     public EvaluateOptions executeBeforeModules(EvaluateOptions options) {
         EvaluateOptions currentOptions = options;
-        for (FeaturevisorModule module : modules) {
-            if (!currentOptions.isGlobalVariable() && module.getBefore() != null) {
-                currentOptions = module.getBefore().apply(currentOptions);
-            }
-        }
-        for (FeaturevisorModule module : modules) {
+        for (FeaturevisorModule module : phaseModules()) {
             if (module.getBeforeEvaluation() != null) {
                 currentOptions = module.getBeforeEvaluation().apply(currentOptions);
             }
@@ -138,14 +141,9 @@ final class ModulesManager {
 
     public Evaluation executeAfterModules(Evaluation evaluation, EvaluateOptions options) {
         Evaluation currentEvaluation = evaluation;
-        for (FeaturevisorModule module : modules) {
+        for (FeaturevisorModule module : phaseModules()) {
             if (module.getAfterEvaluation() != null) {
                 currentEvaluation = module.getAfterEvaluation().apply(currentEvaluation, options);
-            }
-        }
-        for (FeaturevisorModule module : modules) {
-            if (!options.isGlobalVariable() && module.getAfter() != null) {
-                currentEvaluation = module.getAfter().apply(currentEvaluation, options);
             }
         }
         return currentEvaluation;
@@ -182,6 +180,7 @@ final class ModulesManager {
     }
 
     public void closeAll() {
+        if (!modules.isEmpty()) revision++;
         for (FeaturevisorModule module : new ArrayList<>(modules)) {
             if (clearModuleDiagnosticSubscriptions != null) {
                 clearModuleDiagnosticSubscriptions.accept(module);

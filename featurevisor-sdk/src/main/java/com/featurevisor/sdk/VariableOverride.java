@@ -14,6 +14,10 @@ public class VariableOverride {
     @JsonProperty("segments")
     private Object segments; // Can be GroupSegment, List<GroupSegment>
     @JsonProperty("requiredFeatures") private java.util.List<Object> requiredFeatures;
+    @JsonProperty("requiredVariables") private Object requiredVariables;
+    @JsonProperty("operations") private java.util.List<VariableMutationOperation> operations;
+    @JsonProperty("onMatch") private Object onMatch;
+    @JsonProperty("onMiss") private Object onMiss;
 
     // Constructors
     public VariableOverride() {}
@@ -52,4 +56,12 @@ public class VariableOverride {
     public void setKeyPath(java.util.List<String> keyPath) { this.keyPath = keyPath; }
     public java.util.List<Object> getRequiredFeatures() { return requiredFeatures; }
     public void setRequiredFeatures(java.util.List<Object> value) { this.requiredFeatures = value; }
+    public Object getRequiredVariables() { return requiredVariables; }
+    public void setRequiredVariables(Object value) { this.requiredVariables = value; }
+    public java.util.List<VariableMutationOperation> getOperations() { return operations; }
+    public void setOperations(java.util.List<VariableMutationOperation> value) { this.operations = value; }
+    public Object getOnMatch() { return onMatch; }
+    public void setOnMatch(Object value) { this.onMatch = value; }
+    public Object getOnMiss() { return onMiss; }
+    public void setOnMiss(Object value) { this.onMiss = value; }
 }

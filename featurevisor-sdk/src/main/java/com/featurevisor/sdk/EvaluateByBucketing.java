@@ -99,12 +99,12 @@ final class EvaluateByBucketing {
         Allocation matchedAllocation = null;
 
         if (!Evaluation.TYPE_FLAG.equals(type)) {
-            matchedTraffic = evaluationData.getMatchedTraffic(feature.getTraffic(), context);
+            matchedTraffic = evaluationData.getMatchedTraffic(feature.getTraffic(), options);
             if (matchedTraffic != null) {
                 matchedAllocation = evaluationData.getMatchedAllocation(matchedTraffic, bucketValue);
             }
         } else {
-            matchedTraffic = evaluationData.getMatchedTraffic(feature.getTraffic(), context);
+            matchedTraffic = evaluationData.getMatchedTraffic(feature.getTraffic(), options);
         }
 
 
@@ -120,6 +120,7 @@ final class EvaluateByBucketing {
             if (matchedTraffic.getPercentage() == 0) {
                 Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                     .reason(Evaluation.REASON_RULE)
+                    .variableKey(variableKey)
                     .bucketKey(bucketKey)
                     .bucketValue(bucketValue)
                     .ruleKey(matchedTraffic.getKey())
@@ -138,58 +139,11 @@ final class EvaluateByBucketing {
 
             // flag
             if (Evaluation.TYPE_FLAG.equals(type)) {
-                // flag: check if mutually exclusive
-                if (feature.getRanges() != null && !feature.getRanges().isEmpty()) {
-                    // Find matched range
-                    boolean matchedRange = false;
-                    for (Range range : feature.getRanges()) {
-                        if (bucketValue >= range.getStart() && bucketValue < range.getEnd()) {
-                            matchedRange = true;
-                            break;
-                        }
-                    }
-
-                    // matched
-                    if (matchedRange) {
-                        Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
-                            .reason(Evaluation.REASON_ALLOCATED)
-                            .bucketKey(bucketKey)
-                            .bucketValue(bucketValue)
-                            .ruleKey(matchedTraffic.getKey())
-                            .traffic(convertTrafficToMap(matchedTraffic))
-                            .enabled(matchedTraffic.getEnabled() == null ? true : matchedTraffic.getEnabled());
-
-                        Map<String, Object> details = new HashMap<>();
-                        details.put("featureKey", featureKey);
-                        details.put("bucketKey", bucketKey);
-                        details.put("bucketValue", bucketValue);
-                        diagnostics.debug("matched", details);
-
-                        result.setEvaluation(evaluation);
-                        return result;
-                    }
-
-                    // no match
-                    Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
-                        .reason(Evaluation.REASON_OUT_OF_RANGE)
-                        .bucketKey(bucketKey)
-                        .bucketValue(bucketValue)
-                        .enabled(false);
-
-                    Map<String, Object> details = new HashMap<>();
-                    details.put("featureKey", featureKey);
-                    details.put("bucketKey", bucketKey);
-                    details.put("bucketValue", bucketValue);
-                    diagnostics.debug("not matched", details);
-
-                    result.setEvaluation(evaluation);
-                    return result;
-                }
-
                 // flag: override from rule
                 if (matchedTraffic.getEnabled() != null) {
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                         .reason(Evaluation.REASON_RULE)
+                        .variableKey(variableKey)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
@@ -210,6 +164,7 @@ final class EvaluateByBucketing {
                 if (bucketValue <= matchedTraffic.getPercentage()) {
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                         .reason(Evaluation.REASON_RULE)
+                        .variableKey(variableKey)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic.getKey())
@@ -242,6 +197,7 @@ final class EvaluateByBucketing {
                     if (variation != null) {
                         Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                             .reason(Evaluation.REASON_RULE)
+                            .variableKey(variableKey)
                             .bucketKey(bucketKey)
                             .bucketValue(bucketValue)
                             .ruleKey(matchedTraffic.getKey())
@@ -272,6 +228,7 @@ final class EvaluateByBucketing {
                     if (variation != null) {
                         Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                             .reason(Evaluation.REASON_ALLOCATED)
+                            .variableKey(variableKey)
                             .bucketKey(bucketKey)
                             .bucketValue(bucketValue)
                             .ruleKey(matchedTraffic.getKey())
@@ -304,6 +261,7 @@ final class EvaluateByBucketing {
                         if (matches) {
                             Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                                 .reason(Evaluation.REASON_VARIABLE_OVERRIDE_RULE)
+                                .variableKey(variableKey)
                                 .bucketKey(bucketKey)
                                 .bucketValue(bucketValue)
                                 .ruleKey(matchedTraffic.getKey())
@@ -333,6 +291,7 @@ final class EvaluateByBucketing {
 
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                         .reason(Evaluation.REASON_RULE)
+                        .variableKey(variableKey)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic.getKey())
@@ -384,6 +343,7 @@ final class EvaluateByBucketing {
                             if (matches) {
                                 Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                                     .reason(Evaluation.REASON_VARIABLE_OVERRIDE_VARIATION)
+                                    .variableKey(variableKey)
                                     .bucketKey(bucketKey)
                                     .bucketValue(bucketValue)
                                     .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
@@ -413,6 +373,7 @@ final class EvaluateByBucketing {
 
                         Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                             .reason(Evaluation.REASON_ALLOCATED)
+                            .variableKey(variableKey)
                             .bucketKey(bucketKey)
                             .bucketValue(bucketValue)
                             .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
@@ -436,6 +397,7 @@ final class EvaluateByBucketing {
                 if (variableSchema != null) {
                     Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                         .reason(Evaluation.REASON_VARIABLE_DEFAULT)
+                        .variableKey(variableKey)
                         .bucketKey(bucketKey)
                         .bucketValue(bucketValue)
                         .ruleKey(matchedTraffic.getKey())
@@ -459,6 +421,7 @@ final class EvaluateByBucketing {
                 // variable not found
                 Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
                     .reason(Evaluation.REASON_VARIABLE_NOT_FOUND)
+                    .variableKey(variableKey)
                     .bucketKey(bucketKey)
                     .bucketValue(bucketValue)
                     .ruleKey(matchedTraffic != null ? matchedTraffic.getKey() : null)
@@ -496,6 +459,7 @@ final class EvaluateByBucketing {
         // Nothing matched
         Evaluation evaluation = new Evaluation(type, featureKey, variableKey)
             .reason(Evaluation.REASON_NO_MATCH)
+            .variableKey(variableKey)
             .bucketKey(bucketKey)
             .bucketValue(bucketValue)
             .enabled(false);

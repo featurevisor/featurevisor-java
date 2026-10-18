@@ -637,7 +637,7 @@ public class FeaturevisorTest {
 
         // Create module to intercept before
         FeaturevisorModule module = new FeaturevisorModule("unit-test");
-        module.setBefore(options -> {
+        module.setBeforeEvaluation(options -> {
             intercepted[0] = true;
             interceptedFeatureKey[0] = options.getFeatureKey();
             interceptedVariableKey[0] = options.getVariableKey();
@@ -720,7 +720,7 @@ public class FeaturevisorTest {
 
         // Create module to intercept after and manipulate value
         FeaturevisorModule module = new FeaturevisorModule("unit-test");
-        module.setAfter((evaluation, options) -> {
+        module.setAfterEvaluation((evaluation, options) -> {
             intercepted[0] = true;
             interceptedFeatureKey[0] = options.getFeatureKey();
             interceptedVariableKey[0] = options.getVariableKey();
@@ -867,13 +867,13 @@ public class FeaturevisorTest {
             new Featurevisor.FeaturevisorOptions().datafile(firstDatafile)
         );
 
-        sdk.setDatafile(secondDatafile);
+        assertTrue(sdk.setDatafile(secondDatafile));
 
         assertNotNull(sdk.getFeature("first"));
         assertNotNull(sdk.getFeature("second"));
         assertEquals("second", sdk.getRevision());
 
-        sdk.setDatafile(secondDatafile, true);
+        assertTrue(sdk.setDatafile(secondDatafile, true));
 
         assertNull(sdk.getFeature("first"));
         assertNotNull(sdk.getFeature("second"));
@@ -1047,7 +1047,7 @@ public class FeaturevisorTest {
                 "myKey": {
                   "key": "myKey",
                   "bucketBy": "userId",
-                  "required": ["requiredKey"],
+                  "requiredFeatures": ["requiredKey"],
                   "traffic": [
                     {
                       "key": "1",
@@ -1095,7 +1095,7 @@ public class FeaturevisorTest {
                 "myKey": {
                   "key": "myKey",
                   "bucketBy": "userId",
-                  "required": ["requiredKey"],
+                  "requiredFeatures": ["requiredKey"],
                   "traffic": [
                     {
                       "key": "1",
@@ -1161,9 +1161,9 @@ public class FeaturevisorTest {
                 "myKey": {
                   "key": "myKey",
                   "bucketBy": "userId",
-                  "required": [
+                  "requiredFeatures": [
                     {
-                      "key": "requiredKey",
+                      "feature": "requiredKey",
                       "variation": "control"
                     }
                   ],
@@ -1230,9 +1230,9 @@ public class FeaturevisorTest {
                 "myKey": {
                   "key": "myKey",
                   "bucketBy": "userId",
-                  "required": [
+                  "requiredFeatures": [
                     {
-                      "key": "requiredKey",
+                      "feature": "requiredKey",
                       "variation": "treatment"
                     }
                   ],
@@ -1689,7 +1689,7 @@ public class FeaturevisorTest {
     }
 
     @Test
-    public void testCheckIfEnabledForMutuallyExclusiveFeatures() {
+    public void testLegacyFeatureRangesAreIgnored() {
         final int[] bucketValue = {10000};
 
         // Create module to control bucket value
@@ -1709,7 +1709,7 @@ public class FeaturevisorTest {
                   "key": "mutex",
                   "bucketBy": "userId",
                   "ranges": [
-                    [0, 50000]
+                    [50000, 100000]
                   ],
                   "traffic": [
                     {
@@ -1742,6 +1742,9 @@ public class FeaturevisorTest {
 
         // Test with bucket value 40000 (should be enabled)
         bucketValue[0] = 40000;
+        assertTrue(sdk.isEnabled("mutex", new HashMap<>()));
+
+        bucketValue[0] = 50000;
         assertTrue(sdk.isEnabled("mutex", new HashMap<>()));
 
         // Test with bucket value 60000 (should be disabled)

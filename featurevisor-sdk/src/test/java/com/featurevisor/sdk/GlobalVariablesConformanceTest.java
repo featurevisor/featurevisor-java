@@ -33,7 +33,7 @@ class GlobalVariablesConformanceTest {
 
     @Test void evaluatesGlobalVariablesAndRequiredFeaturesFromSharedFixture() throws Exception {
         JsonNode root = fixture();
-        assertEquals(6, root.get("version").asInt());
+        assertEquals(15, root.get("version").asInt());
 
         JsonNode global = root.get("globalVariables");
         Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
@@ -90,6 +90,95 @@ class GlobalVariablesConformanceTest {
             variableCase.get("feature").asText(), variableCase.get("variable").asText());
         assertEquals(value(variableCase.get("expectedValue")), evaluation.getVariableValue());
         assertEquals(variableCase.get("expectedOverrideKey").asText(), evaluation.getVariableOverrideKey());
+    }
+
+    @Test void evaluatesRequiredFeatureDetailCasesFromSharedFixture() throws Exception {
+        JsonNode contract = fixture().get("requiredFeatures");
+        JsonNode cases = contract.get("evaluationCases");
+        assertNotNull(cases);
+        assertTrue(cases.isArray() && cases.size() > 0);
+        Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .datafile(objectMapper.treeToValue(contract.get("datafile"), DatafileContent.class))
+            .logLevel(FeaturevisorLogLevel.FATAL));
+        try {
+            for (JsonNode testCase : cases) {
+                String name = testCase.get("name").asText();
+                Map<String, Object> context = map(testCase.get("context"));
+                Evaluation evaluation;
+                switch (testCase.get("type").asText()) {
+                    case "flag":
+                        evaluation = f.evaluateFlag(testCase.get("feature").asText(), context);
+                        break;
+                    case "variation":
+                        evaluation = f.evaluateVariation(testCase.get("feature").asText(), context);
+                        break;
+                    case "variable":
+                        evaluation = testCase.has("feature")
+                            ? f.evaluateVariable(testCase.get("feature").asText(), testCase.get("variable").asText(), context)
+                            : f.evaluateVariable(testCase.get("variable").asText(), context);
+                        break;
+                    default:
+                        throw new AssertionError("Unknown evaluation type in " + name);
+                }
+                JsonNode actual = objectMapper.valueToTree(evaluation);
+                JsonNode expected = testCase.get("expected");
+                assertNotNull(expected, name);
+                assertTrue(expected.isObject() && expected.size() > 0, name);
+                expected.fields().forEachRemaining(field -> {
+                    assertTrue(actual.has(field.getKey()), name + ": missing " + field.getKey());
+                    assertEquals(field.getValue(), actual.get(field.getKey()), name + ": " + field.getKey());
+                });
+            }
+        } finally {
+            f.close();
+        }
+    }
+
+    @Test void evaluatesGroupedRequiredFeaturesAndVariablesFromSharedFixture() throws Exception {
+        JsonNode root = fixture();
+        JsonNode required = root.get("requiredVariables");
+        for (JsonNode testCase : required.get("stickyCases")) {
+            Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+                .datafile(objectMapper.treeToValue(required.get("datafile"), DatafileContent.class))
+                .stickyVariables(map(testCase.get("stickyVariables")))
+                .stickyFeatures(map(testCase.get("stickyFeatures")))
+                .logLevel(FeaturevisorLogLevel.FATAL));
+            String name = testCase.get("name").asText();
+            assertEquals(testCase.get("matched").asBoolean(), f.isEnabled("gated"), name);
+            assertEquals(testCase.get("matched").asBoolean() ? "matched" : "default",
+                f.getVariable("root"), name);
+            assertEquals(testCase.get("matched").asBoolean() ? "matched" : "default",
+                f.getVariable("override"), name);
+            assertEquals(testCase.get("matched").asBoolean() ? "matched" : "default",
+                f.getVariable("featureOverride", "message"), name);
+            assertEquals(value(testCase.get("accumulated")), f.getVariable("accumulated"), name);
+        }
+
+        for (JsonNode group : root.get("requiredFeatureGroups")) {
+            for (int index = 0; index < root.get("requiredFeatureGroupInputs").size(); index++) {
+                JsonNode input = root.get("requiredFeatureGroupInputs").get(index);
+                DatafileContent datafile = objectMapper.readValue("""
+                    {"schemaVersion":"2","revision":"groups","segments":{},"features":{
+                      "subject":{"bucketBy":"userId","traffic":[{"key":"all","segments":"*","percentage":100000}]}
+                    }}
+                    """, DatafileContent.class);
+                datafile.getFeatures().get("subject").setRequiredFeatures(objectMapper.convertValue(
+                    group.get("requirements"), new TypeReference<List<Object>>() {}));
+                Map<String, Object> sticky = Map.of(
+                    "a", Map.of("enabled", input.get("a").asBoolean()),
+                    "b", Map.of("enabled", input.get("b").asBoolean()));
+                Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+                    .datafile(datafile).stickyFeatures(sticky).logLevel(FeaturevisorLogLevel.FATAL));
+                assertEquals(group.get("results").get(index).asBoolean(), f.isEnabled("subject"),
+                    group.get("name").asText());
+            }
+        }
+
+        Featurevisor nulls = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
+            .datafile(objectMapper.treeToValue(required.get("datafile"), DatafileContent.class))
+            .logLevel(FeaturevisorLogLevel.FATAL));
+        assertNull(nulls.getVariable("malformed"));
+        assertEquals("matched", nulls.getVariable("nullGate"));
     }
 
     @SuppressWarnings("unchecked")

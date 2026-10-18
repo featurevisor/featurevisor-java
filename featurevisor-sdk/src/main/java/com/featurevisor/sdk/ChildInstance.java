@@ -17,6 +17,7 @@ public class ChildInstance {
     private Map<String, Object> context;
     private Map<String, Object> sticky;
     private Map<String, Object> stickyVariables;
+    private final java.util.concurrent.atomic.AtomicLong stateGeneration = new java.util.concurrent.atomic.AtomicLong();
     private Emitter emitter;
     private final List<FeaturevisorUnsubscribe> parentUnsubscribers = new ArrayList<>();
 
@@ -26,8 +27,8 @@ public class ChildInstance {
     ChildInstance(Featurevisor parent, Map<String, Object> context, Map<String, Object> sticky, Map<String, Object> stickyVariables) {
         this.parent = parent;
         this.context = context != null ? new HashMap<>(context) : new HashMap<>();
-        this.sticky = sticky;
-        this.stickyVariables = stickyVariables;
+        this.sticky = sticky != null ? new HashMap<>(sticky) : new HashMap<>();
+        this.stickyVariables = stickyVariables != null ? new HashMap<>(stickyVariables) : new HashMap<>();
         this.emitter = new Emitter();
     }
 
@@ -75,6 +76,7 @@ public class ChildInstance {
             this.context = new HashMap<>(this.context);
             this.context.putAll(context);
         }
+        stateGeneration.incrementAndGet();
 
         FeaturevisorEventDetails eventDetails = new FeaturevisorEventDetails();
         eventDetails.put("context", this.context);
@@ -111,6 +113,7 @@ public class ChildInstance {
             this.sticky = new HashMap<>(this.sticky != null ? this.sticky : new HashMap<>());
             this.sticky.putAll(sticky);
         }
+        stateGeneration.incrementAndGet();
 
         FeaturevisorEventDetails params = Events.getParamsForStickyFeaturesSetEvent(
             previousStickyFeatures, this.sticky, replace);
@@ -123,6 +126,7 @@ public class ChildInstance {
         Map<String, Object> previous = this.stickyVariables != null ? new HashMap<>(this.stickyVariables) : new HashMap<>();
         this.stickyVariables = replace ? new HashMap<>(sticky) : new HashMap<>(previous);
         if (!replace) this.stickyVariables.putAll(sticky);
+        stateGeneration.incrementAndGet();
         this.emitter.trigger(FeaturevisorEventName.STICKY_VARIABLES_SET, Events.getParamsForStickyVariablesSetEvent(previous, this.stickyVariables, replace));
     }
     public void setStickyVariables(Map<String, Object> sticky) { setStickyVariables(sticky, false); }
@@ -558,10 +562,13 @@ public class ChildInstance {
         if (options == null) {
             options = new Featurevisor.OverrideOptions();
         }
-
-        options.setInternalStickyFeatures(this.sticky);
-        options.setInternalStickyVariables(this.stickyVariables);
-
-        return options;
+        Featurevisor.OverrideOptions merged = new Featurevisor.OverrideOptions()
+            .defaultVariationValue(options.getDefaultVariationValue());
+        if (options.hasDefaultVariableValue()) merged.defaultVariableValue(options.getDefaultVariableValue());
+        merged.setInternalStickyFeatures(this.sticky);
+        merged.setInternalStickyVariables(this.stickyVariables);
+        merged.setInternalStickySource(() -> new EvaluateOptions.StickyState(
+            this.sticky, this.stickyVariables, this.parent.getStateGeneration() + ":" + this.stateGeneration.get()));
+        return merged;
     }
 }

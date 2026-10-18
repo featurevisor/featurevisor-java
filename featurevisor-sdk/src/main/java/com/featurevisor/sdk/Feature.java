@@ -1,13 +1,26 @@
 package com.featurevisor.sdk;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
-import com.fasterxml.jackson.annotation.Nulls;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
 
 public class Feature {
+    @JsonIgnore private Object conditions;
+    private boolean conditionsPresent;
+    @JsonIgnore
+    public Object getConditions() { return conditions; }
+    public void setConditions(Object value) { conditions = value; conditionsPresent = value != null; }
+    boolean hasConditions() { return conditionsPresent; }
+    @JsonSetter("conditions")
+    private void readConditions(Object value) { conditions = value; conditionsPresent = true; }
+    @JsonAnyGetter
+    private Map<String, Object> conditionsProperty() {
+        return conditionsPresent ? java.util.Collections.singletonMap("conditions", conditions) : Map.of();
+    }
+
     @JsonProperty("key")
     private String key;
 
@@ -17,12 +30,11 @@ public class Feature {
     @JsonProperty("deprecated")
     private Boolean deprecated;
 
-    @JsonProperty("required")
-    @JsonSetter(nulls = Nulls.AS_EMPTY)
-    private List<Object> required = new ArrayList<>(); // Can be String or RequiredWithVariation
-
     @JsonProperty("requiredFeatures")
     private List<Object> requiredFeatures;
+
+    @JsonProperty("requiredVariables")
+    private Object requiredVariables;
 
     @JsonProperty("variablesSchema")
     private Map<String, VariableSchema> variablesSchema;
@@ -41,9 +53,6 @@ public class Feature {
 
     @JsonProperty("force")
     private List<Force> force;
-
-    @JsonProperty("ranges")
-    private List<Range> ranges;
 
     // Constructors
     public Feature() {
@@ -78,19 +87,10 @@ public class Feature {
         this.deprecated = deprecated;
     }
 
-    public List<Object> getRequired() {
-        if (this.required == null) {
-            this.required = new ArrayList<>();
-        }
-        return this.required;
-    }
-
-    public void setRequired(List<Object> required) {
-        this.required = (required != null) ? required : new ArrayList<>();
-    }
-
     public List<Object> getRequiredFeatures() { return requiredFeatures; }
     public void setRequiredFeatures(List<Object> requiredFeatures) { this.requiredFeatures = requiredFeatures; }
+    public Object getRequiredVariables() { return requiredVariables; }
+    public void setRequiredVariables(Object requiredVariables) { this.requiredVariables = requiredVariables; }
 
     public Map<String, VariableSchema> getVariablesSchema() {
         return variablesSchema;
@@ -140,11 +140,4 @@ public class Feature {
         this.force = force;
     }
 
-    public List<Range> getRanges() {
-        return ranges;
-    }
-
-    public void setRanges(List<Range> ranges) {
-        this.ranges = ranges;
-    }
 }

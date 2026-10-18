@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "4",
+  "revision": "minimum-runtime",
+  "segments": {},
+  "features": {
+    "base": {
+      "hash": "base",
+      "bucketBy": "userId",
+      "traffic": [{ "key": "all", "conditions": "*", "percentage": 100000 }]
+    },
+    "policy": {
+      "hash": "policy",
+      "bucketBy": "userId",
+      "conditions": [
+        { "feature": "base" },
+        { "variable": "gate", "operator": "equals", "value": true }
+      ],
+      "traffic": [{ "key": "all", "conditions": "*", "percentage": 100000 }],
+      "variablesSchema": {
+        "grants": { "type": "json", "defaultValue": { "grants": ["feature"] } }
+      }
+    }
+  },
+  "variables": {
+    "gate": { "type": "boolean", "defaultValue": true },
+    "policyAlias": { "type": "json", "compose": "policy" },
+    "screen": { "type": "object", "compose": [
+      { "key": "enabled", "feature": "policy" },
+      { "key": "policy", "variable": "policyAlias" }
+    ] },
+    "policy": {
+      "type": "json",
+      "defaultValue": { "grants": [] },
+      "disabledValue": { "grants": ["blocked"] },
+      "conditions": [
+        { "variable": "gate", "operator": "equals", "value": true }
+      ],
+      "overrideProgram": [
+        {
+          "key": "grant",
+          "keyPath": ["grant"],
+          "conditions": {
+            "attribute": "country",
+            "operator": "equals",
+            "value": "nl"
+          },
+          "operations": [
+            { "op": "append", "path": ["grants"], "value": "read" },
+            { "op": "set", "path": ["label"], "value": "café" }
+          ],
+          "onMatch": 1,
+          "onMiss": 1
+        }
+      ]
+    }
+  }
+}

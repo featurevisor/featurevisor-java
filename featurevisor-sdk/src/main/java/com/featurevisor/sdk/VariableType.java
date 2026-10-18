@@ -11,6 +11,9 @@ public enum VariableType {
     STRING("string"),
     @JsonProperty("integer")
     INTEGER("integer"),
+    @JsonProperty("number")
+    NUMBER("number"),
+    /** Earlier datafiles call number variables double. Both read the same. */
     @JsonProperty("double")
     DOUBLE("double"),
     @JsonProperty("array")

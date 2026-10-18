@@ -8,6 +8,10 @@ public enum Operator {
     NOT_EQUALS("notEquals"),
     EXISTS("exists"),
     NOT_EXISTS("notExists"),
+    IS_NULL("isNull"),
+    NOT_NULL("notNull"),
+    EMPTY("empty"),
+    NOT_EMPTY("notEmpty"),
 
     // numeric
     GREATER_THAN("greaterThan"),
@@ -36,6 +40,8 @@ public enum Operator {
     // array of strings
     INCLUDES("includes"),
     NOT_INCLUDES("notIncludes"),
+    INCLUDES_ANY("includesAny"),
+    NOT_INCLUDES_ANY("notIncludesAny"),
 
     // regex
     MATCHES("matches"),

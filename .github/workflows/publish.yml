@@ -36,23 +36,8 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v4\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Expected a Featurevisor Java v4 semantic version tag" >&2
-            exit 1
-          fi
+          bash scripts/verify-release.sh "$GITHUB_REF_NAME"
           version="${GITHUB_REF_NAME#v}"
-          if ! grep -Fq "<revision>$version</revision>" pom.xml; then
-            echo "Tag $GITHUB_REF_NAME does not match the Maven revision" >&2
-            exit 1
-          fi
-          if ! grep -Fq "<version>$version</version>" README.md; then
-            echo "README installation version does not match $GITHUB_REF_NAME" >&2
-            exit 1
-          fi
-          if ! grep -Fq "version = \"$version\"" featurevisor-sdk/src/main/java/com/featurevisor/cli/CLI.java; then
-            echo "CLI version does not match $GITHUB_REF_NAME" >&2
-            exit 1
-          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Publishing Featurevisor Java $version"
 

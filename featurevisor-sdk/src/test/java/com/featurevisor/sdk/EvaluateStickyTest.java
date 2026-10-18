@@ -68,7 +68,7 @@ public class EvaluateStickyTest {
         assertEquals(Evaluation.TYPE_FLAG, result.getType());
         assertEquals("test-feature", result.getFeatureKey());
         assertEquals(Evaluation.REASON_STICKY, result.getReason());
-        assertNotNull(result.getSticky());
+        assertNotNull(result.getStickyFeature());
         assertTrue(result.getEnabled());
     }
 
@@ -91,7 +91,7 @@ public class EvaluateStickyTest {
         assertEquals(Evaluation.TYPE_FLAG, result.getType());
         assertEquals("test-feature", result.getFeatureKey());
         assertEquals(Evaluation.REASON_STICKY, result.getReason());
-        assertNotNull(result.getSticky());
+        assertNotNull(result.getStickyFeature());
         assertFalse(result.getEnabled());
     }
 
@@ -200,7 +200,7 @@ public class EvaluateStickyTest {
 
     @Test
     public void testEvaluateStickyWithVariableTypeNullValue() {
-        // Should return null when variable value is null
+        // Explicit null is a sticky value, not a missing entry.
         Map<String, Object> variables = new HashMap<>();
         variables.put("test-variable", null);
 
@@ -217,7 +217,10 @@ public class EvaluateStickyTest {
 
         Evaluation result = EvaluateSticky.evaluateSticky(options);
 
-        assertNull(result);
+        assertNotNull(result);
+        assertEquals(Evaluation.REASON_STICKY, result.getReason());
+        assertTrue(result.hasVariableValue());
+        assertNull(result.getVariableValue());
     }
 
     @Test

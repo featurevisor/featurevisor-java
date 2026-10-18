@@ -1,18 +1,16 @@
 # Featurevisor Java SDK <!-- omit in toc -->
 
-This is a port of Featurevisor [Javascript SDK](https://featurevisor.com/docs/sdks/javascript/) v3.x to Java, providing a way to evaluate feature flags, variations, and variables in your Java applications.
-
-This SDK supports Featurevisor v3 behaviour and v2 datafiles. Generated datafiles continue to carry `schemaVersion: "2"`.
+Use the Featurevisor Java SDK to evaluate flags, variations and variables in Java applications.
 
 ## Table of contents <!-- omit in toc -->
 
 - [Installation](#installation)
-- [Public API](#public-api)
   - [Repository](#repository)
   - [Dependency](#dependency)
   - [Authentication](#authentication)
 - [Initialization](#initialization)
-- [Evaluation types](#evaluation-types)
+  - [Public API](#public-api)
+  - [Evaluation types](#evaluation-types)
 - [Context](#context)
   - [Setting initial context](#setting-initial-context)
   - [Setting after initialization](#setting-after-initialization)
@@ -21,10 +19,11 @@ This SDK supports Featurevisor v3 behaviour and v2 datafiles. Generated datafile
 - [Check if enabled](#check-if-enabled)
 - [Getting variation](#getting-variation)
 - [Getting variables](#getting-variables)
+  - [Getting feature variables](#getting-feature-variables)
   - [Type specific methods](#type-specific-methods)
-- [Getting global variables](#getting-global-variables)
-- [Getting aggregate evaluations](#getting-aggregate-evaluations)
-- [Sticky features and variables](#sticky-features-and-variables)
+  - [Getting global variables](#getting-global-variables)
+- [Getting evaluations](#getting-evaluations)
+- [Sticky](#sticky)
 - [Setting datafile](#setting-datafile)
   - [Merging by default](#merging-by-default)
   - [Replacing](#replacing)
@@ -51,6 +50,7 @@ This SDK supports Featurevisor v3 behaviour and v2 datafiles. Generated datafile
   - [Test](#test)
   - [Benchmark](#benchmark)
   - [Assess distribution](#assess-distribution)
+- [GitHub repositories](#github-repositories)
 - [Development of this package](#development-of-this-package)
   - [Setting up](#setting-up)
   - [Running tests](#running-tests)
@@ -60,6 +60,8 @@ This SDK supports Featurevisor v3 behaviour and v2 datafiles. Generated datafile
 <!-- FEATUREVISOR_DOCS_BEGIN -->
 
 ## Installation
+
+Upgrading an existing application? Follow the [Java migration guide](https://featurevisor.com/docs/migrations/v4/java/).
 
 In your Java application, update `pom.xml` to add the following:
 
@@ -86,12 +88,12 @@ Add the Featurevisor Java SDK as a dependency with your desired version:
     <dependency>
         <groupId>com.featurevisor</groupId>
         <artifactId>featurevisor-java</artifactId>
-        <version>4.1.0</version>
+        <version>5.0.0</version>
     </dependency>
 </dependencies>
 ```
 
-Find latest version here: [https://github.com/featurevisor/featurevisor-java/packages](https://github.com/featurevisor/featurevisor-java/packages)
+Browse [Java SDK packages](https://github.com/featurevisor/featurevisor-java/packages)
 
 ### Authentication
 
@@ -115,14 +117,43 @@ To authenticate with GitHub Packages, in your `~/.m2/settings.xml` file, add the
 </settings>
 ```
 
-You can generate a new GitHub token with `read:packages` scope here: [https://github.com/settings/tokens](https://github.com/settings/tokens)
+Generate a token with `read:packages` scope in [GitHub token settings](https://github.com/settings/tokens)
 
 Example applications:
 
 - [Java application](https://github.com/featurevisor/featurevisor-example-java)
 - [Kotlin Android application](https://github.com/featurevisor/featurevisor-example-android)
 
-## Public API
+## Initialization
+
+Read a built [datafile](https://featurevisor.com/docs/building-datafiles/) from a local file and pass its content to the SDK. Save this Java 11 example as `Main.java` and place `featurevisor-all.json` in your working directory:
+
+```java
+import com.featurevisor.sdk.Featurevisor;
+import com.featurevisor.sdk.DatafileContent;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        String json = Files.readString(Path.of("featurevisor-all.json"));
+        DatafileContent datafileContent = DatafileContent.fromJson(json);
+        Featurevisor f = Featurevisor.createFeaturevisor(
+            new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
+        );
+        try {
+            System.out.println(f.isEnabled("checkout", Map.of("userId", "123")));
+        } finally {
+            f.close();
+        }
+    }
+}
+```
+
+File read and JSON parsing failures propagate to the caller. You can also load the content with Java's HTTP client. Check for a successful HTTP status before passing the response body to the SDK. The following sections cover the available options.
+
+### Public API
 
 The main runtime API is `Featurevisor.createFeaturevisor()`:
 
@@ -138,49 +169,24 @@ Most applications only need `Featurevisor.createFeaturevisor`, the `Featurevisor
 
 Concurrent evaluations are safe after an instance is configured. Do not call state changing methods such as `setDatafile`, `setContext`, `setStickyFeatures`, `setStickyVariables`, `addModule`, `removeModule`, or `close` concurrently with evaluations or with each other. Apply those changes from a serialized update path. Module, event, and diagnostic callbacks must synchronize mutable state that they capture.
 
-## Initialization
+### Evaluation types
 
-The SDK can be initialized by passing [datafile](https://featurevisor.com/docs/building-datafiles/) content directly:
-
-```java
-import com.featurevisor.sdk.Featurevisor;
-
-// Load datafile content
-String datafileUrl = "https://cdn.yoursite.com/datafile.json";
-String datafileContent = "..." // load your datafile content
-
-// Create SDK instance
-Featurevisor f = Featurevisor.createFeaturevisor(
-    new Featurevisor.FeaturevisorOptions().datafile(datafileContent)
-);
-```
-
-or by constructing a `Featurevisor.FeaturevisorOptions` object:
-
-```java
-Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
-    .datafile(datafileContent)
-);
-```
-
-We will learn about several different options in the next sections.
-
-## Evaluation types
-
-We can evaluate flags, variations, variables inside features, and [global variables](https://featurevisor.com/docs/global-variables/):
+Featurevisor evaluates four kinds of values:
 
 - [**Flag**](#check-if-enabled) (`boolean`): whether the feature is enabled or not
-- [**Variation**](#getting-variation) (`Object`): the variation of the feature (if any)
-- [**Variables**](#getting-variables): variable values of the feature (if any)
-- [**Global variables**](#getting-global-variables): reusable values that are not owned by a feature
+- [**Variation**](#getting-variation) (`String`): the variation of the feature (if any)
+- [**Feature variable**](#getting-feature-variables): a configuration value owned by a feature
+- [**Global variable**](#getting-global-variables): a configuration value evaluated independently of a feature
 
 These evaluations are run against the provided context.
 
 ## Context
 
-Contexts are [attribute](https://featurevisor.com/docs/attributes) values that we pass to SDK for evaluating [features](https://featurevisor.com/docs/features) against.
+Contexts are [attribute](https://featurevisor.com/docs/attributes) values you pass to the SDK for evaluating [features](https://featurevisor.com/docs/features) against.
 
-Think of the conditions that you define in your [segments](https://featurevisor.com/docs/segments/), which are used in your feature's [rules](https://featurevisor.com/docs/features/#rules).
+Conditions compare these attributes using the [operators](https://featurevisor.com/docs/operators/), including `empty` and `notEmpty`.
+
+Date comparisons with `before` and `after` accept portable timestamp strings, `Instant`, `java.util.Date` (including `java.sql.Timestamp`), `OffsetDateTime` and `ZonedDateTime`. Native values are compared by their instant and truncated to milliseconds without rounding. Both the native written year, where present, and the UTC year must be within 1 to 9999. Explicit native offsets must have a magnitude of at most 14 hours, including any seconds. Offsets within that limit retain their full precision. `Instant` and `java.util.Date` have only an instant, so no offset check applies. `LocalDate` and `LocalDateTime` are not accepted because they do not identify an instant. Invalid values make both operators return `false`.
 
 They are plain maps:
 
@@ -191,11 +197,9 @@ context.put("country", "nl");
 // ...other attributes
 ```
 
-Context can be passed to SDK instance in various different ways, depending on your needs:
-
 ### Setting initial context
 
-You can set context at the time of initialization:
+Set context when you create the instance:
 
 ```java
 Map<String, Object> initialContext = new HashMap<>();
@@ -211,7 +215,7 @@ This is useful for values that don't change too frequently and available at the 
 
 ### Setting after initialization
 
-You can also set more context after the SDK has been initialized:
+Add context later:
 
 ```java
 Map<String, Object> additionalContext = new HashMap<>();
@@ -225,7 +229,7 @@ This will merge the new context with the existing one (if already set).
 
 ### Replacing existing context
 
-If you wish to fully replace the existing context, you can pass `true` in second argument:
+Replace the context by passing `true` as the second argument:
 
 ```java
 Map<String, Object> newContext = new HashMap<>();
@@ -239,28 +243,26 @@ f.setContext(newContext, true); // replace existing context
 
 ### Manually passing context
 
-You can optionally pass additional context manually for each and every evaluation separately, without needing to set it to the SDK instance affecting all evaluations:
+Pass context to one evaluation without changing the instance context:
 
 ```java
 Map<String, Object> context = new HashMap<>();
 context.put("userId", "123");
 context.put("country", "nl");
 
-boolean isEnabled = f.isEnabled("my_feature", context);
-String variation = f.getVariation("my_feature", context);
-String variableValue = f.getVariableString("my_feature", "my_variable", context);
+boolean isEnabled = f.isEnabled("checkout", context);
+String variation = f.getVariation("checkout", context);
+String variableValue = f.getVariableString("checkout", "bgColor", context);
 ```
 
 When manually passing context, it will merge with existing context set to the SDK instance before evaluating the specific value.
 
-Further details for each evaluation types are described below.
-
 ## Check if enabled
 
-Once the SDK is initialized, you can check if a feature is enabled or not:
+Check whether a feature is enabled:
 
 ```java
-String featureKey = "my_feature";
+String featureKey = "checkout";
 
 boolean isEnabled = f.isEnabled(featureKey);
 
@@ -269,7 +271,7 @@ if (isEnabled) {
 }
 ```
 
-You can also pass additional context per evaluation:
+Pass additional context to one evaluation:
 
 ```java
 Map<String, Object> additionalContext = new HashMap<>();
@@ -280,10 +282,10 @@ boolean isEnabled = f.isEnabled(featureKey, additionalContext);
 
 ## Getting variation
 
-If your feature has any [variations](https://featurevisor.com/docs/features/#variations) defined, you can evaluate them as follows:
+Evaluate a feature's [variations](https://featurevisor.com/docs/features/#variations):
 
 ```java
-String featureKey = "my_feature";
+String featureKey = "checkout";
 
 String variation = f.getVariation(featureKey);
 
@@ -294,7 +296,7 @@ if ("treatment".equals(variation)) {
 }
 ```
 
-Additional context per evaluation can also be passed:
+Pass additional context to one evaluation:
 
 ```java
 String variation = f.getVariation(featureKey, additionalContext);
@@ -302,7 +304,9 @@ String variation = f.getVariation(featureKey, additionalContext);
 
 ## Getting variables
 
-Your features may also include [variables](https://featurevisor.com/docs/features/#variables), which can be evaluated as follows:
+### Getting feature variables
+
+Evaluate a feature's [variables](https://featurevisor.com/docs/features/#variables):
 
 ```java
 String variableKey = "bgColor";
@@ -310,7 +314,7 @@ String variableKey = "bgColor";
 String bgColorValue = f.getVariableString(featureKey, variableKey);
 ```
 
-Additional context per evaluation can also be passed:
+Pass additional context to one evaluation:
 
 ```java
 String bgColorValue = f.getVariableString(featureKey, variableKey, additionalContext);
@@ -365,7 +369,7 @@ Map<String, List<MyConfig>> nested = f.getVariableObject(
 );
 ```
 
-Typed overloads are additive and non-breaking. If decoding fails for the requested target type, these methods return `null`.
+If decoding fails for the requested target type, these methods return `null`.
 
 For dynamic JSON values with unknown shape, use `getVariableJSONNode`:
 
@@ -385,7 +389,7 @@ If a variable schema type is `json` and the resolved value is a malformed string
 - `getVariableJSONNode(...)`
 - `getVariableJSON(...)`
 
-## Getting global variables
+### Getting global variables
 
 Global variables use the same overloaded methods as variables inside features. A call with one key evaluates a global variable, while a call with a feature key and variable key evaluates a variable owned by that feature:
 
@@ -397,11 +401,35 @@ Evaluation evaluation = f.evaluateVariable("checkoutSettings", context);
 
 The type specific methods are `getVariableBoolean`, `getVariableString`, `getVariableInteger`, `getVariableDouble`, `getVariableArray`, `getVariableObject`, and `getVariableJSON`.
 
-Global variables resolve sticky values first, then required features, then the first matching override, and finally their default value. If required features are unmet, `disabledValue` is used unless `useDefaultWhenDisabled` is enabled. Caller defaults are only used when the evaluation itself has no value.
+Root conditions and overrides are applied for you. See [Variables](https://featurevisor.com/docs/variables/#global-variables) and [Conditions](https://featurevisor.com/docs/conditions/) for authoring.
 
-## Getting aggregate evaluations
+### Conditions and composed variables
 
-You can get evaluations of all features available in the SDK instance:
+Conditions combine attribute comparisons, literal segment keys, feature getters and variable comparisons. Arrays imply AND. Logical groups use `and`, `or` and `not`, with NOT negating the AND of its children. Empty expressions are false. Variable paths in generated datafiles are compiled arrays, not authored dotted paths.
+
+Feature evaluation checks sticky values, force rules, root conditions and traffic rules in that order. Global variables check sticky values and root conditions before sources and overrides. An unmet root returns `conditions_unmet` and exposes `Evaluation.getConditions()`. Disabled variations and feature variables retain their existing disabled reasons.
+
+Composed global variables use the ordinary getters:
+
+```java
+Object screen = f.getVariable("checkoutScreen", context);
+Object policy = f.getVariable("policyAlias", context);
+Evaluation evaluation = f.evaluateVariable("checkoutScreen", context);
+```
+
+A map composition assembles a fresh outer object with literal properties from feature flags, variations, feature variables and global variables. A string composition aliases one literal global variable key and returns its value directly. Sources use effective context, child sticky state and modules. False, zero, empty strings, arrays and explicit null remain values. JSON sources decode exactly once, even through alias chains. An outer caller default is never forwarded to sources.
+
+Compositions have no defaultValue or useDefaultWhenDisabled. Root conditions can return disabledValue or null without reading sources or overrides. Whole variable sticky state bypasses composition. Sources are read before runtime overrides, whose mutation operations copy changed paths without modifying sources, siblings or sticky values. Successful composition reports `variable_composed`, or `variable_override_rule` when an override matches.
+
+Treat supplied datafiles and returned objects as read only. Copy values before changing them. Composed members and string aliases retain ordinary getter ownership. Only the map's outer object is freshly assembled.
+
+Conditions, segments and composition share cycle detection and a combined dependency depth bound of 256. A cycle or exhausted depth fails the complete evaluation through its ordinary error result. A thread stack too small for the chain fails the same way, and getters never throw `StackOverflowError`. A subsequent public call starts a fresh session.
+
+To see which overrides changed a value, read `variableOverridePaths` from `evaluateVariable`. The singular override fields describe the final match.
+
+## Getting evaluations
+
+Evaluate all features available in the instance:
 
 ```java
 import com.featurevisor.sdk.EvaluatedFeatures;
@@ -414,7 +442,7 @@ Map<String, EvaluatedFeature> evaluations = allEvaluations.getValue();
 
 System.out.println(evaluations);
 // {
-//   "myFeature": {
+//   "checkout": {
 //     "enabled": true,
 //     "variation": "control",
 //     "variables": {
@@ -437,24 +465,24 @@ Global variables can be evaluated together as well:
 Map<String, Object> variables = f.getVariableEvaluations(context, null, null);
 ```
 
-## Sticky features and variables
+## Sticky
 
-For the lifecycle of the SDK instance in your application, you can set some features with sticky values, meaning that they will not be evaluated against the fetched [datafile](https://featurevisor.com/docs/building-datafiles/):
+Set sticky values to take precedence over feature evaluation against the [datafile](https://featurevisor.com/docs/building-datafiles/):
 
 Sticky values belong to an SDK or child instance. Feature sticky values and global variable sticky values are independent.
 
 ```java
 Map<String, Object> stickyFeatures = new HashMap<>();
 
-Map<String, Object> myFeatureSticky = new HashMap<>();
-myFeatureSticky.put("enabled", true);
-myFeatureSticky.put("variation", "treatment");
+Map<String, Object> checkoutSticky = new HashMap<>();
+checkoutSticky.put("enabled", true);
+checkoutSticky.put("variation", "treatment");
 
-Map<String, Object> myVariables = new HashMap<>();
-myVariables.put("myVariableKey", "myVariableValue");
-myFeatureSticky.put("variables", myVariables);
+Map<String, Object> checkoutVariables = new HashMap<>();
+checkoutVariables.put("myVariableKey", "myVariableValue");
+checkoutSticky.put("variables", checkoutVariables);
 
-stickyFeatures.put("myFeatureKey", myFeatureSticky);
+stickyFeatures.put("checkout", checkoutSticky);
 
 Map<String, Object> anotherFeatureSticky = new HashMap<>();
 anotherFeatureSticky.put("enabled", false);
@@ -468,14 +496,14 @@ Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOp
 
 Once initialized with sticky features, the SDK will look for values there first before evaluating the targeting conditions and going through the bucketing process.
 
-You can also set sticky features after the SDK is initialized:
+Set sticky features after initialization:
 
 ```java
 Map<String, Object> stickyFeatures = new HashMap<>();
 // ... build sticky features map
 
 f.setStickyFeatures(stickyFeatures, true); // replace existing sticky features
-f.setStickyVariables(Map.of("welcomeMessage", "Welcome back"), true);
+f.setStickyVariables(Map.of("welcomeMessage", "Welcome back"), true); // replace
 ```
 
 ## Setting datafile
@@ -486,47 +514,40 @@ You may also initialize the SDK without passing `datafile`, and set it later on:
 f.setDatafile(datafileContent);
 ```
 
+`setDatafile` accepts either a parsed `DatafileContent` or a raw JSON string. All overloads return `true` when the datafile is accepted, including unchanged content, and `false` when the input is rejected or the instance is closed. Rejected input leaves the last accepted datafile in place and reports the existing diagnostic and error event, without a `datafile_set` event. Calls after closing do nothing. Accepted calls still emit `datafile_set`, even when nothing changed. The return value reports acceptance, not whether any features changed.
+
+```java
+boolean accepted = f.setDatafile(datafileContent);
+```
+
 ### Merging by default
 
 By default, `setDatafile(datafile)` merges the incoming datafile with the SDK's stored datafile. Incoming top level metadata is used, and incoming segments, features, and global variables override existing entities with the same keys.
 
-This means you can call `setDatafile` more than once with different datafiles, and the SDK instance accumulates their features and segments together. This is what makes [loading datafiles on demand](#loading-datafiles-on-demand) possible.
+Call `setDatafile` with different datafiles to merge their features, segments, and global variables. Use this to [load datafiles on demand](#loading-datafiles-on-demand).
 
 ### Replacing
 
 To replace the stored datafile entirely, pass `true`:
 
 ```java
-f.setDatafile(datafileContent, true);
+f.setDatafile(datafileContent, true); // replace
 ```
 
 ### Loading datafiles on demand
 
-Because merging is the default, a single SDK instance can start with a small datafile and load more datafiles later as your application needs them, instead of downloading every feature upfront.
-
-This pairs well with [targets](https://featurevisor.com/docs/targets/), where each target produces a smaller datafile for a specific part of your application:
+Merge datafiles for different [targets](https://featurevisor.com/docs/targets/) into the same instance. Here, the two datafile values have already been loaded and validated by your application from the same published release:
 
 ```java
-Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions());
-
-void loadDatafile(String target) throws Exception {
-    String url = "https://cdn.yoursite.com/production/featurevisor-" + target + ".json";
-    String json = fetchJson(url); // use your HTTP client of choice
-    DatafileContent datafile = DatafileContent.fromJson(json);
-
-    // merges into whatever was loaded before
-    f.setDatafile(datafile);
-}
-
-loadDatafile("products");
-
-// later, when the user reaches checkout
-loadDatafile("checkout");
+f.setDatafile(productsDatafile);
+f.setDatafile(checkoutDatafile);
 ```
+
+Use immutable release URLs, check HTTP responses and keep shared dependencies consistent. See [Loading datafiles on demand](https://featurevisor.com/docs/use-cases/on-demand-datafiles/) for the complete loading and refresh flow.
 
 ### Updating datafile
 
-You can set the datafile as many times as you want in your application, which will result in emitting a [`datafile_set`](#datafile-set) event that you can listen and react to accordingly.
+Each accepted datafile update emits a [`datafile_set`](#datafile-set) event. Subscribe to react to updates.
 
 The triggers for setting the datafile again can be:
 
@@ -537,20 +558,41 @@ The triggers for setting the datafile again can be:
 
 ### Interval-based update
 
-Here's an example of using interval-based update:
+Replace the complete datafile on each refresh so definitions removed upstream are removed from the SDK too. Use merging only when loading partial datafiles intentionally.
 
 ```java
-// Using ScheduledExecutorService for periodic updates
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import com.featurevisor.sdk.DatafileContent;
+
+// f is the existing Featurevisor instance
+HttpClient client = HttpClient.newHttpClient();
+HttpRequest request = HttpRequest.newBuilder(URI.create(datafileUrl))
+    .timeout(Duration.ofSeconds(30))
+    .build();
 ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 scheduler.scheduleAtFixedRate(() -> {
-    // Fetch new datafile content
-    String newDatafileContent = // ... fetch from your CDN
-    DatafileContent newDatafile = DatafileContent.fromJson(newDatafileContent);
-
-    // Merge into the SDK's existing datafile
-    f.setDatafile(newDatafile);
+    try {
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 200) {
+            DatafileContent newDatafile = DatafileContent.fromJson(response.body());
+            f.setDatafile(newDatafile, true); // replace
+        }
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    } catch (Exception e) {
+        System.err.println("Failed to update datafile: " + e.getMessage());
+    }
 }, 0, 5, TimeUnit.MINUTES);
 ```
+
+Call `scheduler.shutdownNow()` when your application shuts down.
 
 ## Diagnostics
 
@@ -582,16 +624,19 @@ Featurevisor f = Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOp
     }));
 ```
 
-Every diagnostic has `level`, `code`, `message`, and an object-shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance. Evaluation metadata belongs in `details`.
+Generated datafiles use schemaVersion `"4"`. Schema `"2"` selectors normalize eagerly when accepted, while schema `"4"` entities normalize on first read. Partial updates invalidate only incoming entities. Replacement clears all entity caches. Legacy compatibility conversion does not change caller objects or the informational version metadata.
+
+Malformed stringified conditions fail only their complete selector, including through NOT or segment aliases, without rejecting the datafile. `conditions_parse_error` is reported at error level once per selector per incoming entity load. Its details are exactly `conditions`, `entityType` and `entityKey`. Eager diagnostics run after storage, and lazy diagnostics run after caching, so callbacks may safely reenter getters.
+
+Every diagnostic has `level`, `code`, `message`, and an object shaped `details` map. Optional `module`, `moduleName`, and `originalError` fields describe provenance. Evaluation metadata belongs in `details`.
 
 Diagnostic handlers are isolated from SDK behaviour. An exception in a handler does not stop other handlers or evaluations.
 
-
 ## Events
 
-Featurevisor SDK implements a simple event emitter that allows you to listen to events that happen in the runtime.
+Subscribe to SDK events to respond to context, sticky state and datafile changes.
 
-You can listen to these events that can occur at various stages in your application:
+Subscribe to instance lifecycle events:
 
 ### `datafile_set`
 
@@ -616,7 +661,7 @@ FeaturevisorUnsubscribe unsubscribe = f.on(FeaturevisorEventName.DATAFILE_SET, (
 unsubscribe.unsubscribe();
 ```
 
-The `features` and `variables` arrays contain directly changed entities and entities affected through segment or required feature dependencies.
+The `features` and `variables` arrays contain directly changed entities and their transitive dependants through conditions, segments and composition, including removed dependencies.
 
 - added, or
 - updated, or
@@ -670,7 +715,7 @@ The `error` event is emitted for diagnostics whose level is `ERROR`.
 
 ## Evaluation details
 
-Besides logging with debug level enabled, you can also get more details about how the feature variations and variables are evaluated in the runtime against given context:
+Inspect how variations and variables are evaluated against a context:
 
 ```java
 // flag
@@ -701,15 +746,24 @@ And optionally these properties depending on whether you are evaluating a featur
 - `variationValue`: the variation value
 - `variableKey`: the variable key
 - `variableValue`: the variable value
-- `variableSchema`: the variable schema
+- `variableSchema`: the feature variable schema
+- `variable`: the global variable definition
+- `conditions`: the unmet root expression
+- `variableOverrideIndex`, `variableOverrideKey`, `variableOverridePath`, `variableOverridePaths`: matched override provenance
 
 ## Modules
 
+The before evaluation and after evaluation phases each use the module membership at the start of that phase. Where an evaluation uses bucketing, the bucket key and bucket value phases each use their own starting membership. Adding or removing a module during a phase does not change the iteration already in progress. The next phase uses the membership then installed. A module added before the after phase can receive after callbacks for evaluations already in progress, even if it did not receive their before callbacks. A module removed before the after phase receives no after callback.
+
 Modules allow you to intercept the evaluation process and customize it further as per your needs.
 
-For feature evaluations, all `before` callbacks run in registration order, followed by all `beforeEvaluation` callbacks. After evaluation and caller defaults, all `afterEvaluation` callbacks run, followed by all `after` callbacks. Global variable evaluations use only `beforeEvaluation` and `afterEvaluation`. Required feature checks run through the complete module pipeline, and transformed defaults are preserved.
+`beforeEvaluation` and `afterEvaluation` run in registration order for feature and global variable evaluations. Condition and composition reads use the same complete module pipeline, and transformed defaults are preserved. One pair surrounds a complete accumulating evaluation, not each mutation operation.
 
-`before` and `after` remain available as deprecated feature-only compatibility callbacks. Use `beforeEvaluation` and `afterEvaluation` for new modules so the same callbacks can handle feature and global variable evaluations.
+Module options expose `getDependencyOf()` for an internal getter read. It identifies the immediate requester by type and optional feature and variable keys. `getDependencyPurpose()` is `condition` for eligibility checks or `composition` for consumed values. Application calls, including an independent public getter invoked from a module, have neither marker. Repeated equivalent internal reads can be memoized within one public call, separately for each purpose and requester.
+
+Treat sticky maps and their nested values as read only after passing them to an instance or module. Use sticky setters or return replacement maps from a module to change them. Mutating an existing map in place is not supported.
+
+Modules should return the same result for the same input during one evaluation. Pass values that change through context.
 
 ### Defining a module
 
@@ -724,14 +778,11 @@ FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
     })
 
     // before evaluation
-    .before(options -> {
+    .beforeEvaluation(options -> {
         Map<String, Object> context = new HashMap<>(options.getContext());
         context.put("someAdditionalAttribute", "value");
         return options.copy().context(context);
     })
-
-    // before any feature or global variable evaluation
-    .beforeEvaluation(options -> options)
 
     // configure bucket key
     .bucketKey(options -> {
@@ -746,9 +797,6 @@ FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
     })
 
     // after evaluation
-    .after((evaluation, options) -> evaluation)
-
-    // after any feature or global variable evaluation
     .afterEvaluation((evaluation, options) -> evaluation)
 
     // called by f.close()
@@ -759,7 +807,7 @@ FeaturevisorModule myCustomModule = new FeaturevisorModule("my-custom-module")
 
 ### Registering modules
 
-You can register modules at the time of SDK initialization:
+Register modules when you create the instance:
 
 ```java
 List<FeaturevisorModule> modules = new ArrayList<>();
@@ -813,12 +861,12 @@ childContext.put("userId", "123");
 ChildInstance childF = f.spawn(childContext);
 ```
 
-Now you can pass the child instance where your individual request is being handled, and you can continue to evaluate features targeting that specific user alone:
+Pass the child instance to the request handler to evaluate features for that user:
 
 ```java
-boolean isEnabled = childF.isEnabled("my_feature");
-String variation = childF.getVariation("my_feature");
-String variableValue = childF.getVariableString("my_feature", "my_variable");
+boolean isEnabled = childF.isEnabled("checkout");
+String variation = childF.getVariation("checkout");
+String variableValue = childF.getVariableString("checkout", "bgColor");
 ```
 
 Similar to parent SDK, child instances also support several additional methods:
@@ -853,44 +901,6 @@ Both primary and child instances support a `.close()` method, that removes forgo
 f.close();
 ```
 
-## CLI usage
-
-This package also provides a CLI tool for running your Featurevisor project's test specs and benchmarking against this Java SDK:
-
-All three commands accept repeatable `--target=<target>` options. `test` builds only the selected Target datafiles and runs untargeted assertions plus assertions for those targets. `benchmark` and `assess-distribution` run independently against every selected Target datafile. Without `--target`, existing project-wide behaviour is preserved. Project definitions, test specs, Target discovery, and datafile generation continue to come from the Node.js CLI.
-
-### Test
-
-Learn more about testing [here](https://featurevisor.com/docs/testing/).
-
-```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project"
-```
-
-Additional options that are available:
-
-```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="test --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --quiet --onlyFailures --keyPattern=myFeatureKey --assertionPattern=#1 --showDatafile --inflate=1"
-```
-
-The test runner builds base datafiles and Target datafiles, then uses a Target datafile when an assertion contains `target`.
-
-### Benchmark
-
-Learn more about benchmarking [here](https://featurevisor.com/docs/cli/#benchmarking).
-
-```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="benchmark --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --environment=production --feature=myFeatureKey --context='{\"country\": \"nl\"}' --n=1000"
-```
-
-### Assess distribution
-
-Learn more about assessing distribution [here](https://featurevisor.com/docs/cli/#assess-distribution).
-
-```bash
-$ mvn exec:java -Dexec.mainClass="com.featurevisor.cli.CLI" -Dexec.args="assess-distribution --projectDirectoryPath=/absolute/path/to/your/featurevisor/project --environment=production --feature=foo --variation --context='{\"country\": \"nl\"}' --populateUuid=userId --populateUuid=deviceId --n=1000"
-```
-
 ## OpenFeature
 
 The OpenFeature provider is published as a separate artifact. Applications that use only `com.featurevisor:featurevisor-java` receive no provider classes or OpenFeature dependency.
@@ -901,13 +911,11 @@ Add the provider with the same version as the Featurevisor Java SDK:
 <dependency>
   <groupId>com.featurevisor</groupId>
   <artifactId>featurevisor-openfeature</artifactId>
-  <version>4.1.0</version>
+  <version>5.0.0</version>
 </dependency>
 ```
 
-The provider artifact depends on the matching Featurevisor Java SDK and the compatible official OpenFeature SDK, so no additional dependency is required.
-
-When upgrading from an earlier release, replace the direct `dev.openfeature:sdk` dependency with `com.featurevisor:featurevisor-openfeature`. The provider's Java package and public API are unchanged.
+The provider artifact depends on the matching Featurevisor Java SDK and the official OpenFeature Java SDK 1.23.0, so no additional dependency is required. Both retain Java 11 as the minimum runtime.
 
 ```java
 import com.featurevisor.openfeature.FeaturevisorOpenFeatureProvider;
@@ -930,7 +938,7 @@ Use `checkout` for a flag, `checkout:variation` for its variation, `checkout:tit
 
 OpenFeature's targeting key maps to `userId` by default. `targetingKeyField`, `keySeparator`, `variationKey`, and `globalVariablePrefix` on `FeaturevisorOpenFeatureProvider.Options` can customize the mapping. The global variable prefix defaults to `variable` and cannot contain the configured separator.
 
-You can also reuse an existing Featurevisor instance:
+Reuse an existing Featurevisor instance:
 
 ```java
 Featurevisor featurevisor = Featurevisor.createFeaturevisor(featurevisorOptions);
@@ -939,9 +947,91 @@ var provider = new FeaturevisorOpenFeatureProvider(featurevisor);
 
 The caller owns an instance passed this way. Provider shutdown does not close it. Call `featurevisor.close()` when every consumer is finished with it. When the provider creates the instance from options, the provider owns and closes it. If both are configured, the existing instance takes precedence.
 
+An invalid initial datafile in an owned instance fails `setProviderAndWait` with a parse error, independently of the diagnostic log level. Valid updates clear the error and emit readiness. Supplied diagnostic callbacks and module setup remain unchanged, and shutdown closes only an owned instance.
+
+Composed values map to `TARGETING_MATCH` without additional JSON decoding. Unmet root conditions map to `DISABLED`. Ordinary null values retain the provider default policy.
+
 See the [OpenFeature provider guide](https://featurevisor.com/docs/sdks/openfeature/) for resolution reasons, errors, metadata, tracking, lifecycle, and providers for other languages.
 
+## CLI usage
+
+Compile the CLI module from this SDK repository:
+
+```bash
+mvn -pl featurevisor-sdk compile
+```
+
+The native test runner requires `@featurevisor/cli` 4.0.0 or later and Node.js 24 or later. Install the Node.js CLI in your Featurevisor project:
+
+```bash
+npm install --save-dev @featurevisor/cli@^4.0.0
+```
+
+Project parsing and datafile generation use `npx featurevisor`. Evaluations run through this Java SDK. The SDK runtime has no Node.js dependency. All three commands accept repeated `--target=<target>` options.
+
+Use the Node.js CLI directly for authoring commands such as `init`, `lint`, `build` and `list`. Native commands delegate project parsing, test expansion and datafile generation to Node.js, then evaluate the results with this SDK.
+
+Options use kebab case, such as `--project-directory-path`. The camelCase forms from earlier releases still work, and `--root-directory-path` is an alias for `--project-directory-path`. Pass values as `--name=value` or `--name value`. Repeat `--target` to select several targets in order. Run `<command> --help` to list every option.
+
+`--n` and `-n` accept both value forms. Repeat `--populate-uuid` for multiple context attributes. Quote JSON and paths containing spaces.
+
+### Test
+
+```bash
+mvn -q -pl featurevisor-sdk exec:java -Dexec.mainClass=com.featurevisor.cli.CLI \
+  -Dexec.args="test --project-directory-path=/path/to/featurevisor-project --only-failures"
+```
+
+See [Testing](https://featurevisor.com/docs/testing/) for authoring specs and [Checks](https://featurevisor.com/docs/testing/#checks) for check syntax and operators.
+
+Segment specs and checks evaluate ordinary SDK gates with the selected datafile, context, fixed bucket and isolated sticky state. Compiled execution definitions restore missing segments. Existing Target segment specializations remain authoritative. Attribute only segment chains can omit the environment, while segments depending on features or variables require the selected datafile. All transitive root and child check references are preflighted before getters. Synthetic segment gates do not count towards coverage.
+
+Useful test options:
+
+- `--key-pattern=<pattern>` and `--assertion-pattern=<pattern>` filter tests.
+- `--entity-type=scenario` selects scenarios. `--set=<set>` selects one project set. Omitting `--set` runs all sets.
+- `--case=<id>` reruns one expanded case. Copy the opaque ID or rerun command from a failure report.
+- `--json --pretty` produces an indented JSON report.
+- `--coverage` reports observed rule and override selections. `--uncovered` lists features and global variables without associated specs.
+- `--only-failures`, `--quiet`, `--verbose` and `--show-datafile` control diagnostic output.
+
+JSON rerun arguments use `argumentEncoding: maven-exec`. Pass the shell quoted native argument list as one `-Dexec.args` value, or copy the printed rerun command.
+
+### Benchmark
+
+The examples below use a project without environments. Add `--environment=<name>` if your project configures environments. In a sets project, omit `--set` to run every set or pass `--set=<name>`. Repeat `--target=<key>` to evaluate specific target datafiles. The Node.js CLI validates these options and builds the datafiles. Java evaluates them. Replace `checkout` with a feature defined in your project.
+
+```bash
+mvn -q -pl featurevisor-sdk exec:java -Dexec.mainClass=com.featurevisor.cli.CLI \
+  -Dexec.args="benchmark --project-directory-path=/path/to/featurevisor-project --feature=checkout --context='{\"country\":\"nl\"}' --n=1000"
+```
+
+Use `--variation` for a variation or `--variable=<key>` for a feature variable. Omit `--feature` to benchmark a global variable. Do not combine `--variation` with `--variable`. See [Benchmarking](https://featurevisor.com/docs/cli/#benchmarking).
+
+### Assess distribution
+
+```bash
+mvn -q -pl featurevisor-sdk exec:java -Dexec.mainClass=com.featurevisor.cli.CLI \
+  -Dexec.args="assess-distribution --project-directory-path=/path/to/featurevisor-project --feature=checkout --populate-uuid=userId --n=1000"
+```
+
+The Java CLI also accepts `--variation` or `--variable=<key>` to assess a variation or feature variable instead of the enabled state. These selectors are specific to this runner and are not supported by the Node.js `assess-distribution` command. Repeat `--populate-uuid=<key>` to generate UUID values for multiple context attributes. See [Assess distribution](https://featurevisor.com/docs/cli/#assess-distribution).
+
+## GitHub repositories
+
+- SDK: [featurevisor/featurevisor-java](https://github.com/featurevisor/featurevisor-java)
+- Example application: [featurevisor/featurevisor-example-java](https://github.com/featurevisor/featurevisor-example-java)
+- Kotlin Android example application: [featurevisor/featurevisor-example-android](https://github.com/featurevisor/featurevisor-example-android)
+
 <!-- FEATUREVISOR_DOCS_END -->
+
+<a id="getting-aggregate-evaluations"></a>
+
+The aggregate evaluation reference has moved to [Getting evaluations](#getting-evaluations).
+
+<a id="sticky-features-and-variables"></a>
+
+The sticky state reference has moved to [Sticky](#sticky).
 
 ## Development of this package
 
@@ -959,6 +1049,27 @@ $ mvn install
 $ mvn test
 ```
 
+Compile the actual initialization snippet for Java 11 and execute it with an isolated local datafile:
+
+```bash
+mvn -Dmaven.test.skip=true package
+bash scripts/test-readme-initialization.sh
+```
+
+The README check also covers missing files and invalid JSON. CI runs it on both configured JDKs. Pass `--offline` to reuse cached Maven dependencies locally.
+
+To check runtime command selection against an already built Node.js monorepo:
+
+```bash
+mvn -pl featurevisor-sdk test-compile dependency:build-classpath -Dmdep.outputFile=target/runtime-classpath.txt
+node scripts/test-runtime-commands.mjs ../featurevisor java \
+  -cp "featurevisor-sdk/target/classes:$(cat featurevisor-sdk/target/runtime-classpath.txt)" \
+  com.featurevisor.cli.CLI
+bash scripts/test-release.sh 5.0.0
+```
+
+These checks create temporary flat, environment and sets projects without changing the monorepo or downloading packages. The classpath command above uses the POSIX `:` separator.
+
 The repository is a Maven reactor with two published libraries:
 
 - `com.featurevisor:featurevisor-java`
@@ -972,8 +1083,10 @@ $ make verify-artifacts
 
 ### Releasing
 
+The SDK, provider and parent POM share version `5.0.0`. Before tagging, run `bash scripts/verify-release.sh v5.0.0` to check the Maven revision, CLI and both README installation examples.
+
 1. Merge the release changes into `main`.
-2. Tag the release with a `v` prefix, such as `v4.1.0`, and push the tag.
+2. Tag the release with a `v` prefix, such as `vX.Y.Z`, and push the tag.
 3. GitHub Actions verifies and publishes the parent POM, Java SDK, and OpenFeature provider to [GitHub Packages](https://github.com/orgs/featurevisor/packages?repo_name=featurevisor-java).
 4. Create the corresponding [GitHub release](https://github.com/featurevisor/featurevisor-java/releases).
 

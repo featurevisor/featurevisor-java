@@ -7,7 +7,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 final class Emitter {
     private final Map<FeaturevisorEventName, List<FeaturevisorEventHandler>> listeners =
-        new HashMap<>();
+        new java.util.concurrent.ConcurrentHashMap<>();
 
     FeaturevisorUnsubscribe on(
             FeaturevisorEventName eventName,

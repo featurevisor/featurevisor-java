@@ -9,7 +9,9 @@ import java.util.ArrayList;
  * Utility class for comparing semantic versions
  * Based on the TypeScript implementation from: https://github.com/omichelsen/compare-versions
  */
-final class CompareVersions {
+public final class CompareVersions {
+
+    private CompareVersions() {}
 
     private static final Pattern SEMVER_PATTERN = Pattern.compile(
         "^[v^~<>=]*?(\\d+)(?:\\.([x*]|\\d+)(?:\\.([x*]|\\d+)(?:\\.([x*]|\\d+))?(?:-([\\da-z\\-]+(?:\\.[\\da-z\\-]+)*))?(?:\\+[\\da-z\\-]+(?:\\.[\\da-z\\-]+)*)?)?)?$",
@@ -27,17 +29,17 @@ final class CompareVersions {
         List<String> n1 = validateAndParse(v1);
         List<String> n2 = validateAndParse(v2);
 
-        // pop off the patch
+        // Separate the prerelease from the core components
         String p1 = n1.size() > 0 ? n1.remove(n1.size() - 1) : null;
         String p2 = n2.size() > 0 ? n2.remove(n2.size() - 1) : null;
 
         // validate numbers
-        int r = compareSegments(n1, n2);
+        int r = compareSegments(n1, n2, false);
         if (r != 0) return r;
 
         // validate pre-release
         if (p1 != null && p2 != null) {
-            return compareSegments(splitByDot(p1), splitByDot(p2));
+            return compareSegments(splitByDot(p1), splitByDot(p2), true);
         } else if (p1 != null || p2 != null) {
             return p1 != null ? -1 : 1;
         }
@@ -63,51 +65,51 @@ final class CompareVersions {
     }
 
     private static boolean isWildcard(String s) {
-        return "*".equals(s) || "x".equalsIgnoreCase(s) || "X".equals(s);
+        return "*".equals(s) || "x".equals(s) || "X".equals(s);
     }
 
-    private static Object[] forceType(Object a, Object b) {
-        if (a.getClass() != b.getClass()) {
-            return new Object[]{String.valueOf(a), String.valueOf(b)};
+    private static boolean isNumeric(String value) {
+        if (value.isEmpty()) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char character = value.charAt(i);
+            if (character < '0' || character > '9') return false;
         }
-        return new Object[]{a, b};
+        return true;
     }
 
-    private static Object tryParse(String v) {
-        try {
-            int n = Integer.parseInt(v);
-            return n;
-        } catch (NumberFormatException e) {
-            return v;
-        }
+    private static int significantStart(String value) {
+        int start = 0;
+        while (start < value.length() && value.charAt(start) == '0') start++;
+        return start;
     }
 
-    private static int compareStrings(String a, String b) {
-        if (isWildcard(a) || isWildcard(b)) return 0;
-
-        Object[] forced = forceType(tryParse(a), tryParse(b));
-        Object ap = forced[0];
-        Object bp = forced[1];
-
-        if (ap instanceof Number && bp instanceof Number) {
-            int aNum = ((Number) ap).intValue();
-            int bNum = ((Number) bp).intValue();
-            if (aNum > bNum) return 1;
-            if (aNum < bNum) return -1;
+    private static int compareStrings(String a, String b, boolean prerelease) {
+        if (!prerelease && (isWildcard(a) || isWildcard(b))) return 0;
+        boolean an = isNumeric(a), bn = isNumeric(b);
+        if (an && bn) {
+            int aStart = significantStart(a), bStart = significantStart(b);
+            int aLength = a.length() - aStart, bLength = b.length() - bStart;
+            if (aLength != bLength) return Integer.compare(aLength, bLength);
+            for (int i = 0; i < aLength; i++) {
+                int result = Character.compare(a.charAt(aStart + i), b.charAt(bStart + i));
+                if (result != 0) return Integer.signum(result);
+            }
             return 0;
-        } else {
-            return ap.toString().compareTo(bp.toString());
+        } else if (prerelease && an != bn) {
+            return an ? -1 : 1;
         }
+        return Integer.signum(a.compareTo(b));
     }
 
-    private static int compareSegments(List<String> a, List<String> b) {
+    private static int compareSegments(List<String> a, List<String> b, boolean prerelease) {
         int maxLength = Math.max(a.size(), b.size());
 
         for (int i = 0; i < maxLength; i++) {
+            if (prerelease && (i == a.size() || i == b.size())) return Integer.compare(a.size(), b.size());
             String aVal = i < a.size() && a.get(i) != null ? a.get(i) : "0";
             String bVal = i < b.size() && b.get(i) != null ? b.get(i) : "0";
 
-            int r = compareStrings(aVal, bVal);
+            int r = compareStrings(aVal, bVal, prerelease);
             if (r != 0) return r;
         }
 

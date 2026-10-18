@@ -12,6 +12,56 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CLIOptionsTest {
+    @Test
+    void aliasesAndValueFormsAreEquivalent() {
+        String[][] aliases = {
+            {"keyPattern", "key-pattern", "flag with spaces"},
+            {"assertionPattern", "assertion-pattern", "country: nl"},
+            {"entityType", "entity-type", "scenario"},
+            {"projectDirectoryPath", "project-directory-path", "a project's directory"},
+            {"projectDirectoryPath", "root-directory-path", "a project's directory"},
+            {"projectDirectoryPath", "rootDirectoryPath", "a project's directory"}
+        };
+        for (String[] alias : aliases) {
+            for (String spelling : new String[]{alias[0], alias[1]}) {
+                for (boolean equals : new boolean[]{false, true}) {
+                    String[] args = equals ? new String[]{"test", "--" + spelling + "=" + alias[2]}
+                        : new String[]{"test", "--" + spelling, alias[2]};
+                    var result = new CommandLine(new CLI()).parseArgs(args);
+                    assertEquals(alias[2], result.matchedOption("--" + alias[0]).getValue());
+                }
+            }
+        }
+        for (String[] aliasesPair : new String[][]{
+            {"onlyFailures", "only-failures"}, {"showDatafile", "show-datafile"}}) {
+            for (String spelling : aliasesPair) {
+                var result = new CommandLine(new CLI()).parseArgs("test", "--" + spelling);
+                assertEquals(Boolean.TRUE, result.matchedOption("--" + aliasesPair[0]).getValue());
+            }
+        }
+        for (String option : new String[]{"--n", "-n"}) {
+            for (String[] args : new String[][]{{"benchmark", option, "2"}, {"benchmark", option + "=2"}}) {
+                assertEquals(Integer.valueOf(2), new CommandLine(new CLI()).parseArgs(args).matchedOption("--n").getValue());
+            }
+        }
+    }
+
+    @Test
+    void repeatedSelectorsPreserveOrderAndConsumeExactlyOneValue() {
+        var result = new CommandLine(new CLI()).parseArgs("assess-distribution",
+            "--target=web one", "--target", "mobile", "--target=web one",
+            "--populate-uuid=userId", "--populateUuid", "device id");
+        assertEquals(java.util.List.of("web one", "mobile", "web one"), result.matchedOption("--target").getValue());
+        assertEquals(java.util.List.of("userId", "device id"), result.matchedOption("--populateUuid").getValue());
+        for (String[] args : new String[][]{
+            {"test", "--target=web", "extra"}, {"test", "--populate-uuid=userId", "extra"},
+            {"test", "--target"}, {"test", "--populate-uuid"}, {"test", "--unknown"},
+            {"test", "--only-failures=invalid"}, {"test", "--n=1.5"},
+            {"test", "--key-pattern=a", "--keyPattern=b"}}) {
+            org.junit.jupiter.api.Assertions.assertThrows(CommandLine.ParameterException.class,
+                () -> new CommandLine(new CLI()).parseArgs(args), java.util.Arrays.toString(args));
+        }
+    }
 
     @Test
     public void testParseLegacyIgnoredOptions() {
@@ -36,8 +86,8 @@ public class CLIOptionsTest {
     public void testTargetDatafileCacheKey() {
         CLI cli = new CLI();
 
-        assertEquals("false-target-checkout", cli.targetDatafileCacheKey(null, "checkout"));
-        assertEquals("production-target-checkout", cli.targetDatafileCacheKey("production", "checkout"));
+        assertEquals("[null,\"checkout\"]", cli.targetDatafileCacheKey(null, "checkout"));
+        assertEquals("[\"production\",\"checkout\"]", cli.targetDatafileCacheKey("production", "checkout"));
     }
 
     @Test
@@ -50,6 +100,25 @@ public class CLIOptionsTest {
     }
 
     @Test
+    public void testReportingOptions() {
+        CLI cli = new CLI();
+        CommandLine.ParseResult result = new CommandLine(cli).parseArgs(
+            "test",
+            "--case=[null,\"variable\",\"settings.spec\",0,null]",
+            "--json",
+            "--pretty",
+            "--coverage",
+            "--uncovered"
+        );
+
+        assertTrue(result.hasMatchedOption("--case"));
+        assertTrue(result.hasMatchedOption("--json"));
+        assertTrue(result.hasMatchedOption("--pretty"));
+        assertTrue(result.hasMatchedOption("--coverage"));
+        assertTrue(result.hasMatchedOption("--uncovered"));
+    }
+
+    @Test
     public void testTargetAssertionSelectsTargetDatafile() {
         CLI cli = new CLI();
         Map<String, Object> assertion = new HashMap<>();
@@ -57,10 +126,10 @@ public class CLIOptionsTest {
         assertion.put("target", "checkout");
 
         Map<String, DatafileContent> cache = new HashMap<>();
-        cache.put("production", new DatafileContent("2", "base"));
-        cache.put("production-target-checkout", new DatafileContent("2", "target"));
+        cache.put(cli.getEnvironmentKey("production"), new DatafileContent("2", "base"));
+        cache.put(cli.targetDatafileCacheKey("production", "checkout"), new DatafileContent("2", "target"));
 
-        assertEquals("production-target-checkout", cli.selectDatafileKeyForAssertion(assertion, cache));
+        assertEquals("[\"production\",\"checkout\"]", cli.selectDatafileKeyForAssertion(assertion, cache));
     }
 
     @Test
@@ -71,9 +140,9 @@ public class CLIOptionsTest {
         assertion.put("target", "checkout");
 
         Map<String, DatafileContent> cache = new HashMap<>();
-        cache.put("production", new DatafileContent("2", "base"));
+        cache.put(cli.getEnvironmentKey("production"), new DatafileContent("2", "base"));
 
-        assertEquals("production-target-checkout", cli.selectDatafileKeyForAssertion(assertion, cache));
+        assertEquals("[\"production\",\"checkout\"]", cli.selectDatafileKeyForAssertion(assertion, cache));
     }
 
     @Test
@@ -83,9 +152,37 @@ public class CLIOptionsTest {
         assertion.put("target", "checkout");
 
         Map<String, DatafileContent> cache = new HashMap<>();
-        cache.put("__no_environment__", new DatafileContent("2", "base"));
-        cache.put("false-target-checkout", new DatafileContent("2", "target"));
+        cache.put(cli.getEnvironmentKey(null), new DatafileContent("2", "base"));
+        cache.put(cli.targetDatafileCacheKey(null, "checkout"), new DatafileContent("2", "target"));
 
-        assertEquals("false-target-checkout", cli.selectDatafileKeyForAssertion(assertion, cache));
+        assertEquals("[null,\"checkout\"]", cli.selectDatafileKeyForAssertion(assertion, cache));
+    }
+
+    @Test
+    public void testCacheKeysPreserveEverySelectionAndRoundTripJson() throws Exception {
+        CLI cli = new CLI();
+        var json = new com.fasterxml.jackson.databind.ObjectMapper();
+        String[] names = {null, "", "false", "__no_environment__", "prod", "prod-target-web",
+            "web", "web-target-mobile", "mobile", "Café 東京 🧪\"\\", "[null,\"web\"]"};
+        Map<String, DatafileContent> cache = new HashMap<>();
+        for (String environment : names) {
+            for (String target : names) {
+                String key = target == null ? cli.getEnvironmentKey(environment)
+                    : cli.targetDatafileCacheKey(environment, target);
+                org.junit.jupiter.api.Assertions.assertNull(cache.put(key, new DatafileContent("2", key)));
+                assertEquals(json.valueToTree(java.util.Arrays.asList(environment, target)), json.readTree(key));
+            }
+        }
+        for (String environment : names) {
+            for (String target : names) {
+                Map<String, Object> assertion = new HashMap<>();
+                assertion.put("environment", environment);
+                assertion.put("target", target);
+                String key = cli.selectDatafileKeyForAssertion(assertion, cache);
+                assertEquals(json.valueToTree(java.util.Arrays.asList(environment, target)), json.readTree(key));
+                assertEquals(key, cache.get(key).getRevision());
+            }
+        }
+        assertEquals(names.length * names.length, cache.size());
     }
 }

@@ -5,6 +5,14 @@ import java.util.List;
 import java.util.Map;
 
 public class Traffic {
+    @JsonProperty("requiredFeatures") private java.util.List<Object> requiredFeatures;
+    public java.util.List<Object> getRequiredFeatures() { return requiredFeatures; }
+    public void setRequiredFeatures(java.util.List<Object> value) { requiredFeatures = value; }
+
+    @JsonProperty("conditions") private Object conditions;
+    public Object getConditions() { return conditions; }
+    public void setConditions(Object value) { conditions = value; }
+
     @JsonProperty("key")
     private String key;
 

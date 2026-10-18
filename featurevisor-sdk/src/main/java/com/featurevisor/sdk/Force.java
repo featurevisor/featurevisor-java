@@ -4,6 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 
 public class Force {
+    @JsonProperty("requiredFeatures") private java.util.List<Object> requiredFeatures;
+    public java.util.List<Object> getRequiredFeatures() { return requiredFeatures; }
+    public void setRequiredFeatures(java.util.List<Object> value) { requiredFeatures = value; }
+
     @JsonProperty("conditions")
     private Object conditions; // Can be Condition, List<Condition>
 

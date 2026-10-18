@@ -44,6 +44,12 @@ jobs:
       - name: Verify published artifact boundaries
         run: bash scripts/verify-artifacts.sh
 
+      - name: Execute packaged SDK consumer
+        run: bash scripts/test-runtime-minimum.sh ${{ matrix.java }}
+
+      - name: Check README initialization
+        run: bash scripts/test-readme-initialization.sh
+
   example:
     name: Featurevisor example-1
     runs-on: ubuntu-latest
@@ -72,7 +78,7 @@ jobs:
         run: |
           mkdir example-1
           cd example-1
-          npx --yes @featurevisor/cli@3 init --example=1
+          npx --yes @featurevisor/cli@latest init --example=1
           npm install
           npx featurevisor build
           npx featurevisor test --onlyFailures

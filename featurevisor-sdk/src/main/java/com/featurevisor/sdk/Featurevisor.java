@@ -22,18 +22,20 @@ public class Featurevisor {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     // from options
-    private Map<String, Object> context = new HashMap<>();
+    private final Object stateLock = new Object();
+    private volatile Map<String, Object> context = new HashMap<>();
     private DiagnosticReporter diagnostics;
-    private Map<String, Object> stickyFeatures;
-    private Map<String, Object> stickyVariables;
+    private volatile Map<String, Object> stickyFeatures;
+    private volatile Map<String, Object> stickyVariables;
+    private final java.util.concurrent.atomic.AtomicLong stateGeneration = new java.util.concurrent.atomic.AtomicLong();
     private FeaturevisorDiagnosticHandler onDiagnostic;
-    private boolean closed = false;
+    private volatile boolean closed = false;
 
     // internally created
-    private InstanceEvaluationDataProvider evaluationData;
+    private volatile InstanceEvaluationDataProvider evaluationData;
     private ModulesManager modulesManager;
     private Emitter emitter;
-    private final List<ModuleDiagnosticSubscription> moduleDiagnosticSubscriptions = new ArrayList<>();
+    private final List<ModuleDiagnosticSubscription> moduleDiagnosticSubscriptions = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private static final DatafileContent emptyDatafile;
 
@@ -149,6 +151,7 @@ public class Featurevisor {
     public static class OverrideOptions {
         private Map<String, Object> stickyFeatures;
         private Map<String, Object> stickyVariables;
+        private EvaluateOptions.StickySource stickySource;
         private String defaultVariationValue;
         private Object defaultVariableValue;
         private boolean defaultVariableValueSet;
@@ -158,6 +161,7 @@ public class Featurevisor {
         // Getters
         Map<String, Object> getInternalStickyFeatures() { return stickyFeatures; }
         Map<String, Object> getInternalStickyVariables() { return stickyVariables; }
+        EvaluateOptions.StickySource getInternalStickySource() { return stickySource; }
         public String getDefaultVariationValue() { return defaultVariationValue; }
         public Object getDefaultVariableValue() { return defaultVariableValue; }
         public boolean hasDefaultVariableValue() { return defaultVariableValueSet; }
@@ -165,6 +169,7 @@ public class Featurevisor {
         // Setters
         void setInternalStickyFeatures(Map<String, Object> value) { this.stickyFeatures = value; }
         void setInternalStickyVariables(Map<String, Object> value) { this.stickyVariables = value; }
+        void setInternalStickySource(EvaluateOptions.StickySource value) { this.stickySource = value; }
         public void setDefaultVariationValue(String defaultVariationValue) { this.defaultVariationValue = defaultVariationValue; }
         public void setDefaultVariableValue(Object defaultVariableValue) {
             this.defaultVariableValue = defaultVariableValue;
@@ -209,7 +214,12 @@ public class Featurevisor {
         this.diagnostics = DiagnosticReporter.createDiagnosticReporter(new DiagnosticReporter.DiagnosticReporterOptions()
             .level(options.getLogLevel() != null ? options.getLogLevel() : FeaturevisorLogLevel.INFO)
             .handler((level, message, details) -> {
+                if (!hasDiagnosticInterest(level)) {
+                    return;
+                }
                 Map<String, Object> normalizedDetails = details != null ? new HashMap<>(details) : new HashMap<>();
+                Object explicitCode = normalizedDetails.remove("code");
+                Object originalError = normalizedDetails.remove("originalError");
                 Object evaluationValue = normalizedDetails.get("evaluation");
                 if (evaluationValue instanceof Evaluation) {
                     Evaluation evaluation = (Evaluation) evaluationValue;
@@ -220,8 +230,6 @@ public class Featurevisor {
                     normalizedDetails.put("evaluation", evaluation);
                 }
                 Object reason = normalizedDetails.get("reason");
-                Object explicitCode = normalizedDetails.remove("code");
-                Object originalError = normalizedDetails.remove("originalError");
                 String code = explicitCode != null ? explicitCode.toString() : (reason != null ? reason.toString() : message);
                 if ("feature is deprecated".equals(message)) code = "deprecated_feature";
                 if ("variable is deprecated".equals(message)) code = "deprecated_variable";
@@ -317,6 +325,18 @@ public class Featurevisor {
         return getLogLevelIndex(diagnosticLevel) >= getLogLevelIndex(subscriptionLevel);
     }
 
+    private boolean hasDiagnosticInterest(FeaturevisorLogLevel level) {
+        if (FeaturevisorLogLevel.ERROR.equals(level)) {
+            return true;
+        }
+        for (ModuleDiagnosticSubscription subscription : moduleDiagnosticSubscriptions) {
+            if (shouldReport(level, subscription.logLevel)) {
+                return true;
+            }
+        }
+        return shouldReport(level, this.diagnostics.getLevel());
+    }
+
     private int getLogLevelIndex(FeaturevisorLogLevel level) {
         if (level == null) {
             level = FeaturevisorLogLevel.INFO;
@@ -396,16 +416,23 @@ public class Featurevisor {
     }
 
     /**
-     * Set datafile
+     * Set datafile, merging by default.
+     * @return true when accepted, including unchanged content, or false when rejected or closed
      */
-    public void setDatafile(DatafileContent datafile) {
-        setDatafile(datafile, false);
+    public boolean setDatafile(DatafileContent datafile) {
+        return setDatafile(datafile, false);
     }
 
-    public void setDatafile(DatafileContent datafile, boolean replace) {
+    /**
+     * Set datafile, optionally replacing the stored content.
+     * @return true when accepted, including unchanged content, or false when rejected or closed
+     */
+    public boolean setDatafile(DatafileContent datafile, boolean replace) {
         if (this.closed) {
-            return;
+            return false;
         }
+        FeaturevisorEventDetails details;
+        List<Map<String, Object>> normalizationErrors = new ArrayList<>();
         try {
             if (datafile == null) {
                 throw new IllegalArgumentException("Datafile must be an object");
@@ -414,49 +441,67 @@ public class Featurevisor {
                 datafile.getSegments() == null || datafile.getFeatures() == null) {
                 throw new IllegalArgumentException("Invalid datafile");
             }
-            DatafileContent nextDatafile = replace ? datafile : mergeDatafiles(this.evaluationData.getDatafile(), datafile);
-            InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
-                .datafile(nextDatafile)
-                .diagnostics(this.diagnostics));
+            DatafileContent incoming = Normalize.incoming(datafile, normalizationErrors);
+            synchronized (stateLock) {
+                if (closed) return false;
+                DatafileContent nextDatafile = replace ? incoming : mergeDatafiles(this.evaluationData.getDatafile(), incoming);
+                InstanceEvaluationDataProvider newInstanceEvaluationDataProvider = new InstanceEvaluationDataProvider(new InstanceEvaluationDataProvider.InstanceEvaluationDataProviderOptions()
+                    .datafile(nextDatafile)
+                    .diagnostics(this.diagnostics));
 
-            FeaturevisorEventDetails details = Events.getParamsForDatafileSetEvent(
-                this.evaluationData.getDatafile(), newInstanceEvaluationDataProvider.getDatafile(), replace);
+                details = Events.getParamsForProviderSetEvent(
+                    this.evaluationData, newInstanceEvaluationDataProvider, replace);
 
-            this.evaluationData = newInstanceEvaluationDataProvider;
-
-            reportDiagnostic(new FeaturevisorDiagnostic()
-                .level(FeaturevisorLogLevel.INFO)
-                .code("datafile_set")
-                .message("Datafile set")
-                .details(details), null);
-            this.emitter.trigger(FeaturevisorEventName.DATAFILE_SET, details);
+                if (!replace) newInstanceEvaluationDataProvider.retainCaches(this.evaluationData, incoming);
+                this.evaluationData = newInstanceEvaluationDataProvider;
+                stateGeneration.incrementAndGet();
+            }
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(FeaturevisorLogLevel.ERROR)
                 .code("invalid_datafile")
                 .message("Could not parse datafile")
                 .originalError(e), null);
+            return false;
         }
+        this.evaluationData.reportErrors(normalizationErrors);
+        reportDiagnostic(new FeaturevisorDiagnostic()
+            .level(FeaturevisorLogLevel.INFO)
+            .code("datafile_set")
+            .message("Datafile set")
+            .details(details), null);
+        this.emitter.trigger(FeaturevisorEventName.DATAFILE_SET, details);
+        return true;
     }
 
     /**
-     * Set datafile from string
+     * Set datafile from string, merging by default.
+     * @return true when accepted, including unchanged content, or false when rejected or closed
      */
-    public void setDatafile(String datafileString) {
-        setDatafile(datafileString, false);
+    public boolean setDatafile(String datafileString) {
+        return setDatafile(datafileString, false);
     }
 
-    public void setDatafile(String datafileString, boolean replace) {
+    /**
+     * Set datafile from string, optionally replacing the stored content.
+     * @return true when accepted, including unchanged content, or false when rejected or closed
+     */
+    public boolean setDatafile(String datafileString, boolean replace) {
+        if (this.closed) {
+            return false;
+        }
+        DatafileContent datafile;
         try {
-            DatafileContent datafile = DatafileContent.fromJson(datafileString);
-            setDatafile(datafile, replace);
+            datafile = DatafileContent.fromJson(datafileString);
         } catch (Exception e) {
             reportDiagnostic(new FeaturevisorDiagnostic()
                 .level(FeaturevisorLogLevel.ERROR)
                 .code("invalid_datafile")
                 .message("Could not parse datafile")
                 .originalError(e), null);
+            return false;
         }
+        return setDatafile(datafile, replace);
     }
 
     private DatafileContent mergeDatafiles(DatafileContent previous, DatafileContent incoming) {
@@ -506,32 +551,34 @@ public class Featurevisor {
     }
 
     public void setStickyFeatures(Map<String, Object> sticky, boolean replace) {
-        Map<String, Object> previousStickyFeatures = this.stickyFeatures != null ? new HashMap<>(this.stickyFeatures) : new HashMap<>();
-
-        if (replace) {
-            this.stickyFeatures = new HashMap<>(sticky);
-        } else {
-            this.stickyFeatures = new HashMap<>(this.stickyFeatures != null ? this.stickyFeatures : new HashMap<>());
-            this.stickyFeatures.putAll(sticky);
+        FeaturevisorEventDetails params;
+        synchronized (stateLock) {
+            Map<String, Object> previous = this.stickyFeatures;
+            Map<String, Object> next = new HashMap<>();
+            if (!replace && previous != null) next.putAll(previous);
+            next.putAll(sticky);
+            this.stickyFeatures = next;
+            stateGeneration.incrementAndGet();
+            params = Events.getParamsForStickyFeaturesSetEvent(previous, next, replace);
         }
-
-        FeaturevisorEventDetails params = Events.getParamsForStickyFeaturesSetEvent(
-            previousStickyFeatures, this.stickyFeatures, replace);
-
-        reportDiagnostic(new FeaturevisorDiagnostic()
-            .level(FeaturevisorLogLevel.INFO)
-            .code("sticky_features_set")
-            .message("Sticky features set")
-            .details(params), null);
+        reportDiagnostic(new FeaturevisorDiagnostic().level(FeaturevisorLogLevel.INFO)
+            .code("sticky_features_set").message("Sticky features set").details(params), null);
         this.emitter.trigger(FeaturevisorEventName.STICKY_FEATURES_SET, params);
     }
 
     public void setStickyVariables(Map<String, Object> sticky, boolean replace) {
-        Map<String, Object> previous = this.stickyVariables != null ? new HashMap<>(this.stickyVariables) : new HashMap<>();
-        this.stickyVariables = replace ? new HashMap<>(sticky) : new HashMap<>(previous);
-        if (!replace) { this.stickyVariables.putAll(sticky); }
-        FeaturevisorEventDetails params = Events.getParamsForStickyVariablesSetEvent(previous, this.stickyVariables, replace);
-        reportDiagnostic(new FeaturevisorDiagnostic().level(FeaturevisorLogLevel.INFO).code("sticky_variables_set").message("Sticky variables set").details(params), null);
+        FeaturevisorEventDetails params;
+        synchronized (stateLock) {
+            Map<String, Object> previous = this.stickyVariables;
+            Map<String, Object> next = new HashMap<>();
+            if (!replace && previous != null) next.putAll(previous);
+            next.putAll(sticky);
+            this.stickyVariables = next;
+            stateGeneration.incrementAndGet();
+            params = Events.getParamsForStickyVariablesSetEvent(previous, next, replace);
+        }
+        reportDiagnostic(new FeaturevisorDiagnostic().level(FeaturevisorLogLevel.INFO)
+            .code("sticky_variables_set").message("Sticky variables set").details(params), null);
         this.emitter.trigger(FeaturevisorEventName.STICKY_VARIABLES_SET, params);
     }
     public void setStickyVariables(Map<String, Object> sticky) { setStickyVariables(sticky, false); }
@@ -593,10 +640,14 @@ public class Featurevisor {
      * Close instance
      */
     public void close() {
-        this.closed = true;
+        synchronized (stateLock) {
+            if (this.closed) return;
+            this.closed = true;
+        }
         this.modulesManager.closeAll();
         this.moduleDiagnosticSubscriptions.clear();
         this.emitter.clearAll();
+        this.evaluationData.clearCaches();
     }
 
     /**
@@ -607,16 +658,15 @@ public class Featurevisor {
     }
 
     public void setContext(Map<String, Object> context, boolean replace) {
-        if (replace) {
-            this.context = new HashMap<>(context);
-        } else {
-            this.context = new HashMap<>(this.context);
-            this.context.putAll(context);
-        }
-
         FeaturevisorEventDetails eventDetails = new FeaturevisorEventDetails();
-        eventDetails.put("context", this.context);
-        eventDetails.put("replaced", replace);
+        synchronized (stateLock) {
+            Map<String, Object> next = replace ? new HashMap<>() : new HashMap<>(this.context);
+            next.putAll(context);
+            this.context = next;
+            stateGeneration.incrementAndGet();
+            eventDetails.put("context", next);
+            eventDetails.put("replaced", replace);
+        }
 
         this.emitter.trigger(FeaturevisorEventName.CONTEXT_SET, eventDetails);
         reportDiagnostic(new FeaturevisorDiagnostic()
@@ -672,19 +722,37 @@ public class Featurevisor {
             options = new OverrideOptions();
         }
 
-        Map<String, Object> mergedStickyFeatures = options.getInternalStickyFeatures() != null ? options.getInternalStickyFeatures() : this.stickyFeatures;
-        Map<String, Object> mergedStickyVariables = options.getInternalStickyVariables() != null ? options.getInternalStickyVariables() : this.stickyVariables;
+        synchronized (stateLock) {
+            Map<String, Object> mergedStickyFeatures = options.getInternalStickyFeatures() != null ? options.getInternalStickyFeatures() : this.stickyFeatures;
+            Map<String, Object> mergedStickyVariables = options.getInternalStickyVariables() != null ? options.getInternalStickyVariables() : this.stickyVariables;
 
-        return new EvaluateOptions()
-            .context(getContext(context))
-            .diagnostics(this.diagnostics)
-            .modulesManager(this.modulesManager)
-            .evaluationData(this.evaluationData)
-            .stickyFeatures(mergedStickyFeatures)
-            .stickyVariables(mergedStickyVariables)
-            .defaultVariationValue(options.getDefaultVariationValue())
-            .defaultVariableValue(options.getDefaultVariableValue(), options.hasDefaultVariableValue());
+            EvaluateOptions.StickySource source = options.getInternalStickySource() != null
+                ? options.getInternalStickySource()
+                : this::readStickyState;
+            EvaluateOptions result = new EvaluateOptions()
+                .context(getContext(context))
+                .diagnostics(this.diagnostics)
+                .modulesManager(this.modulesManager)
+                .evaluationData(this.evaluationData)
+                .stickyFeatures(mergedStickyFeatures)
+                .stickyVariables(mergedStickyVariables)
+                .defaultVariationValue(options.getDefaultVariationValue())
+                .defaultVariableValue(options.getDefaultVariableValue(), options.hasDefaultVariableValue());
+            result.setDataSource(() -> this.evaluationData);
+            result.setStickySource(source,
+                options.getInternalStickySource() != null || options.getInternalStickyFeatures() == null,
+                options.getInternalStickySource() != null || options.getInternalStickyVariables() == null);
+            return result;
+        }
     }
+
+    private EvaluateOptions.StickyState readStickyState() {
+        synchronized (stateLock) {
+            return new EvaluateOptions.StickyState(stickyFeatures, stickyVariables, Long.toString(stateGeneration.get()));
+        }
+    }
+
+    String getStateGeneration() { return Long.toString(stateGeneration.get()); }
 
     public Evaluation evaluateFlag(String featureKey, Map<String, Object> context, OverrideOptions options) {
         EvaluateOptions evaluateOptions = getEvaluationDependencies(context, options)
@@ -795,11 +863,8 @@ public class Featurevisor {
 
     public Object getVariable(String variableKey, Map<String, Object> context, OverrideOptions options) {
         Evaluation evaluation = evaluateVariable(variableKey, context, options);
-        Object value = evaluation.getVariableValue();
-        if (value == null && options != null && options.hasDefaultVariableValue()) value = options.getDefaultVariableValue();
-        if (value instanceof String && evaluation.getVariable() != null && VariableType.JSON == evaluation.getVariable().getType()) {
-            try { return OBJECT_MAPPER.readValue((String) value, Object.class); } catch (Exception ignored) { return null; }
-        }
+        Object value = Evaluate.normalizeGetterValue(evaluation, this.diagnostics);
+        if (!evaluation.hasVariableValue() && options != null && options.hasDefaultVariableValue()) value = options.getDefaultVariableValue();
         return value;
     }
     public Object getVariable(String variableKey, Map<String, Object> context) { return getVariable(variableKey, context, null); }
@@ -823,22 +888,7 @@ public class Featurevisor {
         try {
             Evaluation evaluation = evaluateVariable(featureKey, variableKey, context, options);
 
-            if (evaluation.getVariableValue() != null) {
-                Object value = evaluation.getVariableValue();
-                if (value instanceof String) {
-                    String strValue = (String) value;
-                    boolean isJsonType = evaluation.getVariableSchema() != null &&
-                                         evaluation.getVariableSchema().getType() == VariableType.JSON;
-                    if (isJsonType) {
-                        try {
-                            return OBJECT_MAPPER.readValue(strValue, Object.class);
-                        } catch (Exception e) {
-                            return null;
-                        }
-                    }
-                }
-                return value;
-            }
+            if (evaluation.hasVariableValue()) return Evaluate.normalizeGetterValue(evaluation, this.diagnostics);
 
             return null;
         } catch (Exception e) {

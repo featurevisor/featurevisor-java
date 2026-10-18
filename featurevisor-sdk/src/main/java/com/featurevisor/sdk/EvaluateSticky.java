@@ -35,7 +35,7 @@ final class EvaluateSticky {
                         .type(type)
                         .featureKey(featureKey)
                         .reason(Evaluation.REASON_STICKY)
-                        .sticky(stickyMap)
+                        .stickyFeature(stickyMap)
                         .enabled((Boolean) stickyMap.get("enabled"));
 
                     diagnostics.debug("using sticky enabled", null);
@@ -70,19 +70,16 @@ final class EvaluateSticky {
 
                         if (variables.containsKey(variableKey)) {
                             Object result = variables.get(variableKey);
+                            evaluation = new Evaluation()
+                                .type(type)
+                                .featureKey(featureKey)
+                                .reason(Evaluation.REASON_STICKY)
+                                .variableKey(variableKey)
+                                .variableValue(result);
 
-                            if (result != null) {
-                                evaluation = new Evaluation()
-                                    .type(type)
-                                    .featureKey(featureKey)
-                                    .reason(Evaluation.REASON_STICKY)
-                                    .variableKey(variableKey)
-                                    .variableValue(result);
+                            diagnostics.debug("using sticky variable", null);
 
-                                diagnostics.debug("using sticky variable", null);
-
-                                return evaluation;
-                            }
+                            return evaluation;
                         }
                     }
                 }
