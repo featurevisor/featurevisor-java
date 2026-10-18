@@ -19,9 +19,10 @@ final class StackDepthTest {
         return "{\"schemaVersion\":\"4\",\"revision\":\"depth\",\"segments\":{},\"features\":{" + features + "}}";
     }
 
-    private static Featurevisor create(List<String> errors) {
+    private static Featurevisor create(List<String> errors, FeaturevisorModule... modules) {
         return Featurevisor.createFeaturevisor(new Featurevisor.FeaturevisorOptions()
-            .datafileString(chain(300)).logLevel(FeaturevisorLogLevel.ERROR).onDiagnostic(diagnostic -> {
+            .datafileString(chain(300)).logLevel(FeaturevisorLogLevel.ERROR).modules(List.of(modules))
+            .onDiagnostic(diagnostic -> {
                 if (diagnostic.getLevel() == FeaturevisorLogLevel.ERROR) {
                     synchronized (errors) { errors.add(diagnostic.getCode()); }
                 }
@@ -38,14 +39,34 @@ final class StackDepthTest {
         return result.get();
     }
 
-    @Test void smallThreadStacksFailDeepChainsWithoutThrowingFromGetters() throws Exception {
+    @Test void smallThreadStacksNeverThrowFromGetters() throws Exception {
         List<String> errors = new ArrayList<>();
         Featurevisor f = create(errors);
         try {
             Map<String, Object> context = Map.of("userId", "u");
             assertEquals(Boolean.TRUE, onThread(512 * 1024, () -> f.isEnabled("f32", context)));
-            assertEquals(Boolean.FALSE, onThread(256 * 1024, () -> f.isEnabled("f256", context)));
+            // Whether 256 handoffs fit in a 256 KB stack depends on the platform, JDK and JIT.
+            // Either way the getter returns a value, and a failure is reported once.
+            Object small = onThread(256 * 1024, () -> f.isEnabled("f256", context));
+            assertTrue(small instanceof Boolean, () -> "getter threw " + small);
+            List<String> expected = Boolean.TRUE.equals(small) ? List.of() : List.of("evaluation_error");
+            assertEquals(expected, errors);
             assertTrue(f.isEnabled("f256", context));
+            assertEquals(expected, errors);
+        } finally { f.close(); }
+    }
+
+    @Test void stackOverflowInADependencyFailsTheWholeCallOnce() {
+        List<String> errors = new ArrayList<>();
+        // Overflow where a deep chain would, at its innermost dependency, on every platform.
+        FeaturevisorModule overflow = new FeaturevisorModule("overflow").beforeEvaluation(options -> {
+            if ("f0".equals(options.getFeatureKey())) throw new StackOverflowError();
+            return options;
+        });
+        Featurevisor f = create(errors, overflow);
+        try {
+            Map<String, Object> context = Map.of("userId", "u");
+            assertFalse(assertDoesNotThrow(() -> f.isEnabled("f256", context)));
             assertEquals(List.of("evaluation_error"), errors);
         } finally { f.close(); }
     }
